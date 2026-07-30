@@ -50,6 +50,7 @@ def main():
     run("add_power_queries.py")     # re-injects the 6 PQ connections add_phase4 rebuilds over
     run("resync_prefill.py")        # cached data == CSV, so no table changes shape on refresh
     run("move_status_first.py")     # health banner leftmost; remaps every localSheetId
+    run("fix_readme_sheet.py")      # drop the stale setup steps; link the status page
     # AFTER the linked workbook exists — it is the source the frozen copy is made from.
     # Running it earlier meant consuming the PREVIOUS run's workbook (and failing outright
     # on a clean checkout, e.g. in CI).

@@ -39,3 +39,6 @@ _meta/fetch_run.log
 .DS_Store
 _meta/fetch_log.txt
 _tools/powerquery/
+
+# wrangler build/state for the status-page worker
+_tools/refresh-page/.wrangler/

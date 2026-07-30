@@ -1,0 +1,13 @@
+name = "power-price-data"
+main = "worker.js"
+compatibility_date = "2026-07-30"
+
+# A Worker, NOT a Pages deploy — deliberately. The `fredhill` Pages project is gated by
+# Cloudflare Access on `fredhill.pages.dev` and `*.fredhill.pages.dev`; this page has to be
+# public, and Workers live on a separate product and a separate hostname
+# (`power-price-data.<subdomain>.workers.dev`), so deploying here cannot touch that gate.
+workers_dev = true
+
+# The GitHub token is a SECRET, never a var — set it out of band with:
+#   wrangler secret put GH_TOKEN
+# Fine-grained, Actions:write on fredhill123/power-price-data only.
