@@ -39,6 +39,32 @@ rebuilt to match — that is the one change that needs someone to rebuild the fi
   well as the current one, absorbs it via `build_hourly.py --absorb-prior-year`, and commits the
   extended history. It does not depend on the Mac's raw archive.
 
+### The two halves: DATA refreshes itself, the FILE does not
+
+This is the single thing worth understanding about how this works, because everything
+else follows from it.
+
+|  | Comes from | How you get it |
+|---|---|---|
+| **The numbers** | `published/` CSVs on GitHub | Automatically, on open. Never download anything. |
+| **The workbook itself** — which technologies a chart plots, how many year-series it has, tab order, the banner | The `.xlsx` file | Only by replacing the file from `deliverables/`. |
+
+CI rebuilds **both** every run: it republishes the CSVs *and* builds a fresh
+`HourlyPowerData.xlsx` / `.pptx` into `deliverables/`. Your copy on the share picks up
+the first half by itself and **never** picks up the second.
+
+Why: Power Query writes *values into cells*. A chart's category range, its series list
+and its formatting live in the file's own XML. Refreshing cannot change them.
+
+**Worked example (2026-07-30).** German nuclear was dropped from the Fig 5 capture chart
+because the fleet closed in April 2023, leaving empty bars. That change moved the chart's
+range from `$A$2:$A$12` to `$A$2:$A$11`. A workbook built before that change still reads
+`$A$2:$A$12` after any number of refreshes — so it still draws the empty Nuclear bar. The
+only way to get the fix is to take the rebuilt file.
+
+**Rule of thumb:** if the numbers look wrong or old → refresh. If the *chart itself* is
+wrong — a missing year, an unwanted technology, a gap — → replace the file.
+
 ### ⚠️ Once a year you MUST replace your workbook file. Refreshing is not enough.
 
 This is the one genuine annual action, and it is easy to miss because everything else is automatic.
