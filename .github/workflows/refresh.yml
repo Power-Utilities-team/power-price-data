@@ -5,7 +5,28 @@ name: Refresh ENTSO-E power-price data
 # data. Also runnable on demand from the Actions tab ("Run workflow").
 on:
   schedule:
-    - cron: "0 6 2 * *"      # 06:00 UTC on the 2nd of each month
+    # 07:23 UTC on the 3rd. Three deliberate choices, all measured (2026-07-30):
+    #
+    #  * the 3rd, not the 2nd — publication lag is only ~1h34m and there is no weekend
+    #    gap in the data (weekend/weekday row ratio 0.998; European power markets clear
+    #    every day), so the 2nd was already safe. The extra day is free margin for a
+    #    late or retried ENTSO-E publication, and costs nothing: no chart's axis is
+    #    finer than monthly, so arriving a day later changes no exhibit.
+    #
+    #  * :23, not :00 — GitHub queues scheduled workflows on shared runners and delays
+    #    them under load, and load spikes hardest on the hour. An odd minute avoids the
+    #    worst of the queue.
+    #
+    #  * still monthly — audited 2026-07-30: 7 of 19 charts carry a "YTD" series that a
+    #    more frequent run would sharpen, but NO chart gains a new data point, because
+    #    every axis is annual, quarterly or monthly. Firing just after month close is
+    #    exactly when the monthly feeds gain their point.
+    - cron: "23 7 3 * *"
+    #
+    # ⚠ GitHub disables scheduled workflows after 60 days with no repository activity.
+    # The monthly commit normally resets that clock, but two consecutive failed runs
+    # would reach 60 days and the schedule would switch itself off silently. If the
+    # Status tab ever shows STALE, check the Actions tab for a disabled schedule.
   workflow_dispatch: {}       # manual "Run workflow" button
 
 permissions:

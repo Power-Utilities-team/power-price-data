@@ -30,7 +30,9 @@ JULY = 7
 
 # --- charts 16-19 (monthly "market-state" tables) helpers ---
 from completeness import cutoffs as _cutoffs
-_LCM = _cutoffs()["last_complete_month"]                      # (year, month) — gate partial months
+_C = _cutoffs()
+_LCM = _C["last_complete_month"]                              # (year, month) — gate partial months
+_QEND = _C["last_complete_quarter_end"]                       # gate G1's quarterly average
 WIND_SOLAR = ["gen_Solar", "gen_Onshore wind", "gen_Offshore wind"]
 # pre-allocated monthly x-axis, first-of-month, 2019-01 .. DISPLAY_END_YEAR-12
 MONTH_STR = pd.date_range("2019-01-01", f"{cfg.DISPLAY_END_YEAR}-12-01",
@@ -71,6 +73,26 @@ def g1(df):
             continue
         out[c] = wide[c].round(1).values
         out[c + "_qavg"] = wide[c].groupby(qkey).transform("mean").round(1).values
+
+    # Clip the quarterly average to the last COMPLETE quarter.
+    #
+    # transform("mean") broadcasts a quarter's mean back onto every day of that
+    # quarter — including days that have not happened yet. With coverage ending
+    # mid-quarter that writes a mean computed from a handful of days across all ~92,
+    # so the published series ran up to 2.5 months into the future as a flat line.
+    # The PNG path already clipped this (render_all.g1_solarpeak filters to QEND),
+    # but the CSV Excel loads did not, so the live workbook and the deck drew the
+    # same exhibit differently — the divergence this project exists to prevent.
+    #
+    # The partial quarter is dropped rather than shown, matching the project rule
+    # that a period-based chart never displays an incomplete period.
+    qend = pd.Timestamp(_QEND).tz_localize(None)
+    stamps = pd.to_datetime(out["date"])
+    future = stamps > qend
+    out.loc[future, [c + "_qavg" for c in CO if c + "_qavg" in out.columns]] = pd.NA
+    if future.any():
+        print(f"  G1: cleared {int(future.sum())} qavg day(s) after "
+              f"{qend.date()} (incomplete quarter)", flush=True)
     _save(out, "g1_solar_peakhour")
 
 # ---------------------------------------------------------------- G2 / G3 helper

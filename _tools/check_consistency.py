@@ -129,9 +129,69 @@ def check_refresh_stability(path):
     return errs
 
 
+def check_no_future_data():
+    """No published feed may carry data for a period that has not finished.
+
+    The project's own rule is that a period-based chart never shows a partial period,
+    and every producer applies it — but only to its OWN output, so a gap in one
+    producer was invisible to every check. G1's quarterly average was broadcast across
+    the whole quarter and published 2.5 months into the future, while the PNG path
+    clipped the same series correctly: the workbook and the deck drew one exhibit two
+    ways. Structural checks could not see it because the chart XML was perfectly valid.
+
+    This asserts the rule on the artefacts Excel actually loads, so the two update
+    paths cannot silently diverge on data cutoffs again.
+    """
+    import csv
+    from datetime import date
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from completeness import cutoffs
+
+    c = cutoffs()
+    qend = str(c["last_complete_quarter_end"])[:10]
+    today = date.today().isoformat()
+    pub = os.path.join(ROOT, "published", "charts")
+    errs = []
+    if not os.path.isdir(pub):
+        return errs
+
+    for fn in sorted(os.listdir(pub)):
+        if not fn.endswith(".csv"):
+            continue
+        path = os.path.join(pub, fn)
+        with open(path) as fh:
+            rows = list(csv.reader(fh))
+        if len(rows) < 2:
+            continue
+        header = rows[0]
+        if not header or header[0].strip().lower() not in ("date", "day"):
+            continue
+        # quarterly-average columns are the ones gated to a completed quarter;
+        # everything else on a daily axis must simply not run past today.
+        qcols = [i for i, h in enumerate(header) if h.endswith("_qavg")]
+        for r in rows[1:]:
+            if not r or not r[0].strip():
+                continue
+            d = r[0].strip()[:10]
+            if not re.match(r"\d{4}-\d{2}-\d{2}$", d):
+                continue
+            for i, cell in enumerate(r):
+                if i == 0 or not cell.strip():
+                    continue
+                limit = qend if i in qcols else today
+                if d > limit:
+                    errs.append(f"{fn}: {header[i] if i < len(header) else i} has data "
+                                f"at {d}, past {limit}")
+                    break
+            if len(errs) > 6:
+                return errs + ["(further future-data errors suppressed)"]
+    return errs
+
+
 def main():
     exp = expected()
     errs = []
+    errs += check_no_future_data()
     errs += check_deck("LINKED", LINKED, exp)
     errs += check_deck("STATIC", STATIC, exp)
     # workbook holds charts 1..15
