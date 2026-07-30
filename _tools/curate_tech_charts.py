@@ -130,7 +130,11 @@ def main():
 
     CSV_FOR = {6: "fig5_capture_pct", 12: "fig5_capture_pct", 9: "fig9_capacity"}
     for no, country in ROW_CHARTS.items():
-        keep = len(cfg.tech_keep(country))
+        # The capture charts take a shorter PREFIX of the block than the capacity
+        # chart: German nuclear sits at the tail and is excluded from Fig 5 only
+        # (closed fleet, part-year 2023 artefact) — see config.TECH_BLOCKS.
+        is_capture = CSV_FOR[no] == "fig5_capture_pct"
+        keep = len(cfg.tech_keep_capture(country) if is_capture else cfg.tech_keep(country))
         start = cfg.tech_block_start(country)
         p = f"xl/charts/chart{no}.xml"
         xml = narrow_rows(parts[p].decode(), start, keep)

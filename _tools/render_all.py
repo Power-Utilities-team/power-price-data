@@ -94,11 +94,14 @@ def fig3_annual(name="fig3_annual.png"):
 def bar_tech_by_year(summary, valcol, country, name, unit, size=(6.6, 3.0), zero_line=True):
     d = ch.load(summary); d = d[(d.country == country) & (d.year <= LCY)]
     yrs = sorted(d.year.unique())
-    # curated set (note Figs 5/47 Germany, 50 Portugal) — not all 17 ENTSO-E types
-    keep = cfg.tech_keep(country)
+    # curated set (note Figs 5/47 Germany, 50 Portugal) — not all 17 ENTSO-E types.
+    # The capture chart uses the shorter list: German nuclear is excluded there but
+    # kept on capacity, so the two must not share one list (see config.TECH_BLOCKS).
     if valcol == "capture_vs_base_pct":
+        keep = cfg.tech_keep_capture(country)
         techs = [t for t in keep if d[d.tech == t][valcol].notna().any()]
     else:
+        keep = cfg.tech_keep(country)
         techs = [t for t in keep if d[d.tech == t][valcol].sum() > 0]
     cmap = ch.year_colors(yrs)
     fig, ax = cs.new_fig(*size)

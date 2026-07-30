@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="md-to-house-html (pandoc)">
+<title>Updating the Hourly Power Data deck</title>
+<style>
+:root{--ink:#1a1a1a;--muted:#5b6470;--rule:#e2e6ea;--accent:#0b6b5b;--bg:#fff;--tablehead:#f3f6f7;--code:#eef2f3}
+*{box-sizing:border-box} html,body{max-width:none;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.55;color:var(--ink);background:#f7f8f9;padding:2.2rem 1.2rem}
+.wrap{max-width:1080px;margin:0 auto;background:var(--bg);padding:2.4rem 3rem 3.2rem;border-radius:10px;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+h1{font-size:1.9rem;line-height:1.2;margin:.2rem 0 1rem;border-bottom:3px solid var(--accent);padding-bottom:.5rem}
+h2{font-size:1.4rem;margin:2.6rem 0 .8rem;padding-top:.5rem;border-top:1px solid var(--rule);color:var(--accent)}
+h3{font-size:1.05rem;margin:1.6rem 0 .5rem;color:var(--ink);font-weight:700}
+h4{font-size:.98rem;margin:1.2rem 0 .4rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+h1+p,h2+p{color:var(--muted)} p{margin:.55rem 0} em{color:var(--muted)} strong{color:var(--ink)}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+table{border-collapse:collapse;width:100%;margin:1.1rem 0;font-size:.9rem}
+th,td{border:1px solid var(--rule);padding:.45rem .6rem;text-align:left;vertical-align:top}
+th{background:var(--tablehead);font-weight:700}
+code{background:var(--code);padding:.1rem .35rem;border-radius:4px;font-size:.86em}
+pre{background:var(--code);padding:.8rem 1rem;border-radius:6px;overflow:auto} pre code{background:none;padding:0}
+hr{border:none;border-top:1px solid var(--rule);margin:2.2rem 0} ul,ol{padding-left:1.35rem} li{margin:.3rem 0}
+blockquote{border-left:3px solid var(--accent);margin:1rem 0;padding:.3rem 1rem;background:#f4faf8;color:var(--muted)}
+.grade{font-weight:700} .grade.strong{color:#1a7a3a} .grade.moderate{color:#a56a00} .grade.weak{color:#8a8f96} .grade.contested{color:#b03030}
+.disclaimer{background:#fff8e1;border:1px solid #e6cf7a;padding:.7rem 1rem;border-radius:6px;font-size:.92rem;margin:1rem 0}
+.refs{font-size:.85rem;color:var(--muted)}
+@media (max-width:700px){body{padding:1rem .5rem}.wrap{padding:1.3rem 1.1rem 2rem}h1{font-size:1.5rem}h2{font-size:1.2rem}table{font-size:.82rem}}
+@media print{body{background:#fff;padding:0}.wrap{box-shadow:none;max-width:100%;padding:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="updating-the-hourly-power-data-deck">Updating the Hourly Power
+Data deck</h1>
+<h3 id="a-2-minute-guide--no-technical-skills-needed">A 2-minute guide —
+no technical skills needed</h3>
+<hr />
+<p><strong>The idea in one line:</strong> the Excel file fetches the
+latest numbers from the internet by itself, and the PowerPoint simply
+mirrors the Excel file. You never edit data — you only press
+<em>refresh</em>.</p>
+<p>The underlying data is refreshed automatically on the <strong>2nd of
+each month</strong>. So whenever you open the workbook, it pulls the
+most recent monthly data on its own — you don't touch anything
+online.</p>
+<hr />
+<h2 id="the-monthly-update--4-steps-2-minutes">The monthly update — 4
+steps (~2 minutes)</h2>
+<p><strong>1. Keep both files together.</strong>
+<code>HourlyPowerData.xlsx</code> and <code>HourlyPowerData.pptx</code>
+must sit in the <strong>same team folder</strong> (the agreed shared
+drive location). The PowerPoint finds the Excel by that exact location —
+so don't move or rename either file.</p>
+<p><strong>2. Open the Excel workbook.</strong> It refreshes itself the
+moment it opens (it's set up that way). You'll see the charts redraw
+with the latest figures.</p>
+<blockquote>
+<p>If you ever want to force it: <strong>Data ▸ Refresh
+All</strong>.</p>
+</blockquote>
+<p>Then <strong>Save</strong> and close it.</p>
+<p><strong>3. Open the PowerPoint.</strong> It will ask whether to
+<strong>update links</strong> — click <strong>Yes / Update</strong>.</p>
+<blockquote>
+<p>If it doesn't ask: <strong>File ▸ Info ▸ Edit Links to Files ▸ Update
+Now</strong>.</p>
+</blockquote>
+<p>The charts pull the latest versions from the Excel file.</p>
+<p><strong>4. Save the PowerPoint.</strong> Done — the deck is
+current.</p>
+<hr />
+<h2 id="three-things-to-know">Three things to know</h2>
+<ul>
+<li><p><strong>Where "the latest data" comes from.</strong> An automated
+job refreshes the source data on the 2nd of each month. Opening Excel
+gives you the data as of that most recent refresh. You never go online
+yourself.</p></li>
+<li><p><strong>Two slides are meant to stay fixed.</strong> The two
+"Spain duck curve" comparison slides (quarterly, and July — each showing
+2019 vs 2025) are deliberate historical snapshots. They do
+<strong>not</strong> change on refresh, and that's intentional.</p></li>
+<li><p><strong>Never type over the numbers.</strong> If a chart ever
+looks wrong, the fix is always to <strong>refresh again</strong> — Excel
+first, then update the PowerPoint links — not to edit any cells by
+hand.</p></li>
+</ul>
+<hr />
+<h2 id="if-something-looks-off">If something looks off</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A chart is blank or shows an error</td>
+<td>Close both files, re-open the <strong>Excel</strong> file first (let
+it finish refreshing), save, then re-open the PowerPoint and update
+links.</td>
+</tr>
+<tr>
+<td>PowerPoint says it <em>can't find</em> the linked file</td>
+<td>The two files aren't in the same folder, or one was renamed. Put
+them back together with their original names.</td>
+</tr>
+<tr>
+<td>Charts didn't change after refresh</td>
+<td>Check your internet connection, then <strong>Data ▸ Refresh
+All</strong> in Excel and watch it re-pull.</td>
+</tr>
+<tr>
+<td>A whole chart is missing</td>
+<td>That chart's data connection may not be set up yet — flag it to the
+desk owner (a one-time fix).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Any questions, or if a step looks different on your machine, note
+down exactly what you see on screen and send it over — the setup can be
+adjusted.</em></p>
+</div>
+</body>
+</html>

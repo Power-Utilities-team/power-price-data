@@ -1,5 +1,9 @@
 # Windows Excel setup (one-time) — connect the workbook to the live data
 
+> This is the **live-linked path (Path A)** setup. For the whole picture — the two update
+> paths, the `generate.py` one-command rebuild, and how the two stay consistent — see
+> **`GENERATE.md`**. The non-technical monthly refresh is in **`Deliverables/updating-the-deck`**.
+
 Do this **once**, on the Windows PC, in a fresh workbook. After that, the data
 refreshes itself (the GitHub Action) and the workbook refreshes on open — so a
 non-technical person just opens the file.
@@ -22,6 +26,17 @@ BASE = https://raw.githubusercontent.com/fredhill123/power-price-data/main/publi
 | `fig7_gen_mix.csv`          | Fig 7 intraday generation mix |
 | `fig9_capacity.csv`         | Fig 9 installed capacity |
 | `capture_monthly.csv`       | monthly capture price |
+| `g1_solar_peakhour.csv`     | **G1_SolarPeak** — solar share of the peak hour (quarterly avg) |
+| `g2_price_by_month.csv`     | **G2_MonthDuck** — intraday price by month (the monthly duck) |
+| `figA_monthly_price.csv`    | **A_MonthPrice** — monthly baseload price by market |
+| `figB_penetration.csv`      | **B_Penetration** — wind+solar % of generation (12-mo avg) by market |
+| `figC_capture_erosion.csv`  | **C_CaptureErosion** — solar/wind capture vs baseload (Germany) |
+| `figD_netload_duck.csv`     | **D_NetloadDuck** — net-load duck (demand − wind − solar) by year (Germany) |
+
+The last six (**G1_SolarPeak**, **G2_MonthDuck**, **A_MonthPrice**, **B_Penetration**,
+**C_CaptureErosion**, **D_NetloadDuck**) are the newest tabs — load them the same way
+(From Web → Load To → that tab's `$A$1`). The price-cannibalisation scatter, quarterly-duck and
+July-spaghetti exhibits are **static images** (no query needed).
 
 ---
 ## PART A — 2-minute smoke test (do this first)

@@ -14,10 +14,19 @@ data/raw/
 data/processed/*
 !data/processed/master_fixed.parquet
 !data/processed/capacity_fixed.parquet
-outputs/csv/
-outputs/*.xlsx
-outputs/charts/
-outputs/Test_PQ.xlsx
+outputs/
+# ^ the whole build dir: generate.py rewrites it, and CI stages the shipped copies
+#   into deliverables/ instead. Previously only some subdirs were listed, which left
+#   deck_charts/, deck_img/, review_charts/ and the .pptx builds showing as untracked.
+
+# local safety copies taken before a risky rebuild — the vault backup covers these
+archive/pre-*/
+# reference copies of superseded workbooks: keep the README explaining them, not the
+# binaries (git history can rebuild any of them)
+archive/reference-copies/*.xlsx
+
+# legacy source deck (large, superseded by the built one)
+pre-update_*.pptx
 
 # local logs / scratch
 _meta/fetch_*.log

@@ -1,6 +1,45 @@
 # Power Price Data — current status
 
-_Last updated: 2026-07-16_
+> **Open items do NOT live in this file.** This is dated history — entries below may be
+> superseded by later ones further down. The authority on what is still open is
+> `pending-updates.md` § OPEN COMMITMENTS. Add an open item there, not here.
+
+_Last updated: 2026-07-21_
+
+## Update 2026-07-21 — new chart data published to GitHub (unblocks the Windows setup)
+The four new CSVs and their producer had never been pushed — the Phase-6 charts' From-Web URLs
+would have 404'd, and the monthly Action (which runs `extra_summaries.py` from HEAD) would never
+have published them. Commit `0468ad9` pushes `figA–figD_*.csv` + `_tools/completeness.py` (a new
+import of `extra_summaries.py`; without it the Action's build step would crash and kill the refresh
+for **every** chart). All six pending URLs verified HTTP 200 with headers matching the chart ranges.
+- ~~**Still local-only (deliberate follow-up commit):** `_tools/config.py` (`DISPLAY_END_YEAR`
+  2035→2030 …) and the untracked deck-builder scripts …~~
+  **❌ WRONG — corrected 2026-07-30. None of this was true.** Verified against the repo:
+  `DISPLAY_END_YEAR` is **2035** in the working tree and has never been 2030 in any commit
+  (`git log -S "DISPLAY_END_YEAR = 2030"` returns nothing), and `config.py` was not even modified.
+  All six "untracked" deck-builder scripts are **tracked**. There were no unpushed commits
+  (`HEAD == origin/main`). The 2035→2030 change was *planned and recorded as if made*, then never
+  made — so nothing was ever pending a push. **2035 vs 2030 remains a genuinely open decision**
+  (it reshapes the trailing blanks in the 12 already-wired CSVs), and is now recorded as such
+  rather than as done. This false entry is what queue row 2 was built on.
+- ~~**Fred's Windows to-do unchanged:** wire the 6 queries~~ **❌ ALSO DONE — corrected 2026-07-30.**
+  The shipped workbook carries all **19** Power Query connections, including `g1_solar_peakhour`
+  and `g2_price_by_month` (the two recorded as outstanding), each with its queryTable, table and
+  load-target tab (`G1_SolarPeak`, `G2_MonthDuck` both present). `WORK_MACHINE_SETUP.md` no longer
+  documents query-wiring at all — commit `b981ee5` reduced the routine to open-Excel/refresh-links.
+
+## Update 2026-07-19 — Phase 6: +5 monthly "market-state" charts (both paths)
+Added 5 new deck exhibits from previously-unused columns (`load`, generation mix), keeping BOTH update
+paths consistent (`check_consistency.py` PASS, workbook now **charts 1–19**):
+- **A** monthly baseload price by market · **B** wind+solar penetration (12-mo avg) · **C** solar/wind
+  capture erosion, DE · **D** net-load "duck" (demand − wind − solar), DE — all **live-linked** (charts 16–19).
+- **F** price-cannibalisation scatter (hourly price vs renewable share, DE) — **static image** in both decks
+  (no query; a 9k-point scatter isn't a viable live Excel chart).
+- 3 new slides; captions/render recipes in `deck_spec.py`; CSVs from `extra_summaries.py`
+  (`figA–figD_*.csv`); Excel clones in `add_phase4_charts.py` (empty-target, tabs appended last).
+- Dropped from the 7 candidates: **G** monthly neg-hours (overlaps Fig3) and **E** cross-border flows.
+- **Fred's remaining Windows to-do grew from 2 → 6 queries** to wire — see `WORK_MACHINE_SETUP.md`.
+- Review PNGs of all 7 candidates kept in `outputs/review_charts/`; scratch builder `_tools/build_review_charts.py`.
 
 ## State: ✅ Built & validated — v1 complete
 Full ENTSO-E dataset (2019–2026, 5 countries) fetched, assembled, summarised, and
@@ -92,6 +131,73 @@ needed, resend. (2) Fred then wires the remaining queries + ticks refresh-on-ope
 charts into PPT (set links Automatic). (4) Verify Action run went green + auto-committed fresh CSVs.
 Known wrinkle: fig6/fig7 CSVs are very wide (fig7=1701 cols) — functional but could be narrowed later.
 
+## PHASE 4 — New charts from deck slides 27-35 (2026-07-17, in progress)
+Fred asked which deck charts (pre-update_2026-06-12.pptx sl.27-35) are ENTSO-E-derivable but
+NOT producible from the summary file. Verdict: summary CSVs already carry all 5 countries+years,
+so most "missing" charts are just chart-objects to add. True gaps = G1 solar-peak-hour share,
+G2 quarterly/monthly duck curves, G3 July daily spaghetti (need raw hourly granularity).
+Battery arbitrage (G4) + pre-2019 history + reservoir/M&A = out of scope (Fred).
+**DONE:** `_tools/extra_summaries.py` builds g1_solar_peakhour, g2_price_by_quarter,
+g2_price_by_month, g3_price_july_daily → published + wired into the Action (auto-updates).
+Verified vs deck (DE Jul24 peak-hr solar 56.9%; ES-25 Q3 duck 85→18→120). Static snapshot
+PNGs for the two slide-31 exhibits (G2-quarterly + G3, Iberia=mean(ES,PT), 2025 vs 2019) via
+`_tools/render_snapshots.py` → `outputs/deck_img/`.
+**Decisions (Fred):** live-link G1 + G2-monthly + country-variants; G2-quarterly + G3 = static
+images (no query). New PQ queries Fred must wire = 2: g1_solar_peakhour→tab G1_SolarPeak,
+g2_price_by_month→tab G2_MonthDuck.
+**REMAINING:** (a) add live charts to summary workbook — country-variant charts on existing tabs
+(clone chart XML + repoint DE→ES/PT cols) + G1/G2m charts on 2 new empty tabs; MIND localSheetId
+on any sheet insert. (b) add deck slides (linked charts + the 2 static PNGs). (c) validate
+(OPC + Excel-semantic incl localSheetId + openpyxl normal load) + deliver + Fred wires 2 queries.
+
+**✅ DONE (2026-07-17 eve) — Phase 4 charts + slides built, validated, delivered.**
+Workbook: `_tools/add_phase4_charts.py` (byte-preserves all PQ) added 6 charts to
+`Downloads/HourlyPowerData.xlsx` (now 16 sheets / 15 charts):
+- chart10 Iberia(=Spain) intraday · chart11 Germany duck (absolute, Fig2_Intraday_avg) · chart12
+  Portugal capture · chart13 Iberia(=Spain) cumulative near-neg — all cloned from the Redburn
+  chart XML (chart2/4/6), `<c:val>` cols shifted (ES=+17, PT=+34) + numCache rebuilt from loaded
+  cells; anchored on the 'Charts' tab (drawing10, below chart9) with navy captions. Piggyback the
+  existing Fig-sheet queries → no new query needed.
+- chart14 G1 solar-peak-hour share (DE/ES/PT quarterly-avg lines) on NEW empty tab **G1_SolarPeak**;
+  chart15 Germany monthly duck (12 lines, DE 2025) on NEW empty tab **G2_MonthDuck**. Empty-target
+  pattern (refs point at where PQ loads; numCache seeded from CSV for preview). New tabs APPENDED at
+  end → every existing localSheetId index untouched (verified PASS).
+Deck: `build_deck.py` extended (SLIDES +3 chart slides = charts 10-15; new STATIC_SLIDES with
+add_picture) → rebuilt `Downloads/HourlyPowerData.pptx` (12 slides: title + 9 chart + 2 image).
+Template = the existing HourlyPowerData.pptx (carries the real UpSlide master/layouts). 2 static
+slides embed the 4 Iberia snapshot PNGs (quarterly + July, 2019 vs 2025).
+Validation ALL PASS: OPC 103 parts/0 malformed; localSheetId integrity PASS; openpyxl normal load;
+PQ parts (connections+12 tables+12 queryTables+customXml) byte-identical; original chart1-9
+unchanged; soffice render confirms all new charts display; deck opens, 15 linked charts w/
+externalData, no duplicate content-types. Originals archived to `archive/phase4_2026-07-17/`.
+**Fred's 2 queries to wire (From Web → Load To → that tab's $A$1, tick refresh-on-open):**
+- G1_SolarPeak ← https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/g1_solar_peakhour.csv
+- G2_MonthDuck ← https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/g2_price_by_month.csv
+**Design calls:** G1 = the `_qavg` (quarterly-smoothed) lines; G2 monthly = Germany 2025.
+**Iberia→Spain (RESOLVED 2026-07-17, Fred):** checked the source deck — capture was **Portugal**
+(sl.33/35, matches chart12); the volatility/intraday/neg-hour "Iberia" exhibits used the Iberian
+MIBEL price (ES≈PT; our data mean|ES−PT|=1.1 €/MWh 2025). Fred's call: the two live "Iberia" charts
+(chart10 intraday, chart13 cum-neg) are **Spain (ES)** and now **labelled "Spain"** (no "Iberia").
+The 2 STATIC snapshot slides were ALSO switched to Spain (regenerated ES-only via render_snapshots.py, relabelled) — Fred wants no "Iberia" anywhere; deck now 0×Iberia / 8×Spain. Rebuild is
+idempotent: `add_phase4_charts.py` SRC + deck template now point at
+`archive/phase4_2026-07-17/HourlyPowerData_pre-phase4.{xlsx,pptx}` (clean pre-Phase-4 bases).
+
+## PHASE 3 — Redburn chart restyle + Charts tab (2026-07-17)
+Fred: native charts looked bad → make them truly Redburn, all on one leftmost tab, no
+re-doing queries. Found the canonical Redburn spec in `Power & Utilities/tools/chartgen.py`
+(no title; Arial 8.5; palette NAVY #2E3E80/TEAL/SAGE/FOREST/GOLD/WINE; latest-year=NAVY;
+horizontal-only #E5E5E5 gridlines; no-frame bottom legend; accounting-negative axis).
+Built two XML-surgery scripts (PQ-preserving, openpyxl never saves): `_tools/redburn_charts.py`
+(restyle + Mixed year-cutoff + clean names + recolour) and `_tools/move_charts.py` (all 9
+charts → new leftmost `Charts` tab with navy captions; strips charts from Fig sheets).
+Year cutoff = **Mixed**: annual-stat charts (Fig1/3/5/9) stop at 2025; profile/duration
+(Fig2/3cum/4) keep 2026. Validated: PQ/tables/sharedStrings byte-identical, openpyxl loads,
+LibreOffice renders all 9 with captions + Redburn look. Delivered
+`Downloads/PowerPriceData_REDBURN.xlsx` (drop-in for Fred's query file). config
+DISPLAY_END_YEAR 2035→2030 [**❌ never actually made — see the correction at the top of this file
+(2026-07-30); the value is still 2035 and the change remains an open decision**]. Pipeline + annual
+range-extension documented in `CHARTS.md`.
+
 ### (archived) Option C attempt — direct-from-Excel
 **Goal:** update the workbook on Fred's **Windows work PC** (locked down: no terminal, no installs,
 Excel only, can reach any external URL) purely via Excel **Power Query** hitting ENTSO-E — so the
@@ -119,3 +225,100 @@ we need another test path (Windows VM, or test directly on the work PC, or recon
 control (System Events AXToolbar), and determining whether Advanced-Editor authoring exists on this
 build. If yes → paste `01_DE_prices.m`, Close & Load, test Refresh. If no → discuss alternative test
 path with Fred before building further.
+
+## PHASE 5 — Two update paths + consistency (2026-07-18, in progress)
+Fred wants, ALONGSIDE the live Excel-linked path: (1) a "generate the latest deck via Claude"
+path (self-contained, no Excel), and (2) a frozen/hardcoded Excel snapshot in the SAME structure
+as the live workbook, so charts can pull from it for a given month. And (3) both paths kept
+strictly consistent whenever charts/data/deck change.
+
+**Data-completeness gating (Fred's key requirement):** period-based charts must never show a
+partial period. `_tools/completeness.py` computes last-complete year/quarter/month from the
+hourly_master max non-null price ts (min across countries). Rule applied in render_all:
+- annual-stat charts (fig1,fig3-annual,fig5,fig9,portugal_capture) → years ≤ last_complete_year (2025)
+- intraday PROFILES (fig2,fig4,fig3cumneg + Spain/Germany variants) → keep current yr, LABEL "<yr> YTD"
+- G1 solar-peak (quarterly-avg) → dates ≤ last_complete_quarter end
+- single-year exhibits (fig6,fig7) → default to last_complete_year
+- G2 monthly (DE) → last_complete_year; if partial yr, months ≤ last_complete_month.
+
+**BUILT & validated (static path complete):**
+- `completeness.py` (tested: coverage 2026-07-16 → yr2025/Q2026Q2/M2026-06).
+- `render_all.py` → `outputs/deck_charts/*.png` (15 house-style charts via chart-style skill, gated).
+  Reuses `charts.py`'s country-parametrized renderers (fig2/4/5/6/7/9 + fig1/fig3-annual/g1/g2).
+- `render_snapshots.py` (already Spain-only) → 4 snapshot PNGs.
+- `build_static_deck.py` → `outputs/HourlyPowerData_snapshot.pptx` (12 slides, all embedded images,
+  0 linked charts, "Data as of <coverage>"). Mirrors the linked deck slide/caption-for-slide.
+  Validated (render OK, branding matches). Delivered sample to Downloads.
+- **venv fix:** project venv is `_tools/.venv` (uv-managed; my earlier builds silently ran on the
+  harness python which lacks pyarrow). Installed python-pptx(+openpyxl) into `_tools/.venv` so ALL
+  scripts run on ONE env. Use `_tools/.venv` for everything now.
+
+**Decisions (Fred, 2026-07-18):** freshness = fresh-to-today live pull (key present at
+`_tools/.entsoe_key`), BUT completeness-gated as above. Consistency mechanism = **shared spec
+(single source of truth)**: extract `deck_spec.py` all builders import; refactor build_deck +
+build_static_deck + render_all + build_frozen_excel to read it; `check_consistency.py` asserts the
+decks match; one unified "generate everything" command.
+
+**REMAINING (Phase 5):** (A) `build_frozen_excel.py` — same 16-sheet structure + styled charts,
+data hardcoded into cells (+fill G1/G2), Power Query stripped. (B) `deck_spec.py` shared spec +
+refactor the 4 builders to consume it + `check_consistency.py` + unified `generate.sh`/`generate.py`
+(fresh fetch → summaries → csvs → render_all → static deck → frozen excel → refresh linked
+workbook+deck → check_consistency). Re-validate linked deck builds identically after refactor.
+
+### Phase 5 — decisions locked (2026-07-18) + remaining B work
+**Static path + frozen Excel: BUILT & delivered.** `build_frozen_excel.py` → `HourlyPowerData_frozen.xlsx`
+(16 sheets, 15 charts, data hardcoded via inlineStr/`<v>`, ALL PQ stripped — connections/tables/
+queryTables/customXml/ExternalData names removed; charts recalc from static cells; validated OPC+
+openpyxl+soffice-render). Delivered to Downloads.
+
+**Single-year charts (Fig6 daily min/max, Fig7 gen-mix) — year policy CONFIRMED (Fred): latest
+complete year in BOTH paths.** Evidence: source sector deck (pre-update_2026-06-12) slide 30 titles
+the gen-mix "…Portugal/Germany (2025)" = last complete year, NOT YTD. The current-year-so-far (YTD)
+treatment in the source is on the DUCK/indexed-intraday-price + neg-hour charts (sl.29 "2019-2026 YTD",
+sl.32 "…so far in 2026") — which the static path already renders as YTD profiles. So: repoint the LINKED
+workbook's Fig6 (chart7) + Fig7 (chart8) from 2024 → 2025 to match the static path.
+
+**REMAINING (B — consistency, shared-spec approach chosen by Fred):**
+1. `deck_spec.py` = single source of truth: ordered SLIDES with per-exhibit {id, caption, box (L/R/1up),
+   linked chart#, png, render-recipe (kind+country+gating)}. Canonical data already enumerated in the
+   two deck builders' SLIDES lists + render_all.main().
+2. Refactor `build_deck.py` (linked), `build_static_deck.py` (static), `render_all.py` to import deck_spec
+   (delete their local SLIDES copies). Re-validate BOTH decks build byte-comparably (same titles/captions).
+   NOTE current drift the spec fixes: build_deck captions say "(Portugal, 2024)"/"(Germany, 2024)";
+   static says year-agnostic — unify to ONE caption.
+3. Repoint linked workbook Fig6(chart7)/Fig7(chart8) 2024→2025 (XML surgery: <c:f> cols + numCache from
+   the 2025 columns on Fig6_MinMax/Fig7_GenMix sheets). Rebuild HourlyPowerData.xlsx + frozen + decks.
+4. `check_consistency.py`: assert both built decks' slide titles+captions+exhibit order == deck_spec, and
+   the workbook has charts 1-15; fail on any mismatch. Run before every delivery.
+5. `generate.py`/`generate.sh` unified: [--fresh] fetch→build_hourly→summaries→extra_summaries→chart_csv,
+   then render_all→build_static_deck→build_frozen_excel→(refresh linked wb via add_phase4)→build_deck→
+   check_consistency. Key present at `_tools/.entsoe_key`. Gating via completeness.py.
+ALL scripts run on `_tools/.venv` (now has python-pptx+openpyxl+pyarrow+matplotlib).
+
+### Phase 5 — ✅ COMPLETE (2026-07-18)
+Shared-spec consistency architecture built, wired, and enforced. `deck_spec.py` is the SINGLE
+SOURCE OF TRUTH (ordered SLIDES; per-exhibit id/caption/box/linked-chart#/png/render-recipe). All
+builders consume it:
+- `render_all.py` (spec-driven dispatch) → 15 gated house-style PNGs.
+- `build_static_deck.py` → self-contained deck (reads deck_spec).
+- `build_deck.py` → linked deck (reads deck_spec; local SLIDES/STATIC_SLIDES deleted).
+- `build_frozen_excel.py` → hardcoded workbook (inherits workbook charts).
+Fig6/Fig7 repointed 2024→2025 (latest complete year) in `add_phase4_charts.py` (fig6 col-shift +1,
+fig7 +20/yr, numCache rebuilt from cells); g2 monthly now uses LCY; profile charts label the partial
+year "<yr> YTD" in BOTH paths (annual charts already stop at last complete year).
+`check_consistency.py` asserts both decks' titles+kickers+captions == deck_spec (+ workbook charts
+1-15); FAILS the build on drift. `generate.py [--fresh] [--deliver]` = ONE command: (fresh ENTSO-E
+pull →) render_all → static deck → frozen Excel → linked workbook+deck → check_consistency. All on
+`_tools/.venv` (python-pptx+openpyxl+pyarrow+matplotlib).
+**Consistency guarantee for the future:** change any exhibit in `deck_spec.py`, run `generate.py`;
+`check_consistency.py` fails if the two paths disagree. To ADD a chart: add it to deck_spec (+ a
+workbook chart in add_phase4 for the linked path + a render recipe for the static path), rerun generate.
+**4 deliverables (all in Downloads, rebuilt by generate --deliver):** HourlyPowerData.xlsx (live/linked,
+PQ), HourlyPowerData.pptx (linked deck), HourlyPowerData_frozen.xlsx (hardcoded snapshot),
+HourlyPowerData_snapshot.pptx (self-contained deck). Plus Deliverables/updating-the-deck.{html,pdf}.
+
+### Fred's remaining work-machine setup → see `WORK_MACHINE_SETUP.md` (written 2026-07-18)
+Verified against delivered files: 12/14 PQ queries already wired; ONLY G1_SolarPeak + G2_MonthDuck
+left to wire. Both live files go in the Redburn `…\Sector Presentation\` folder (deck link target).
+Frozen/static snapshots need no setup. Recommended: Fred sends the wired workbook back once for a
+read-only G1/G2 layout check.

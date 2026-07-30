@@ -185,6 +185,20 @@ TECH_ORDER = [
 TECH_BLOCKS = {
     # Fig 5/47: Solar, Onshore wind, Offshore wind, Hydro pumped, Hydro,
     #           Nuclear, Biomass, Gas, Lignite, Hard coal
+    #
+    # NUCLEAR IS DELIBERATELY LAST (moved 2026-07-30), not in the note's position.
+    # Germany's last three reactors closed 15 April 2023, so the German nuclear
+    # capture series is 2019-22 plus a PART-YEAR 2023 figure of +19.3% — an artefact
+    # of the fleet running only through the high-price winter months before shutting,
+    # not a real premium — and then blank 2024/25 slots. On the capture chart that is
+    # both misleading and the source of the empty-bar gaps, so Fig 5 stops before it.
+    # Fig 9 (installed capacity) KEEPS Nuclear: there the run-down to zero IS the story.
+    #
+    # An Excel series reads one CONTIGUOUS range, so putting Nuclear at the tail lets
+    # each chart take a prefix of the same block — capture 10 rows, capacity 11 — with
+    # no row added or removed. That matters: the Portugal block still starts at row 13
+    # and nothing changes shape on refresh, which is the invariant check_consistency
+    # asserts and the exact fault that silently un-curated chart12 on 2026-07-22.
     "DE": [
         "Solar",
         "Onshore wind",
@@ -192,11 +206,11 @@ TECH_BLOCKS = {
         "Hydro pumped (production)",
         "Hydro reservoir",
         "Hydro run-of-river",
-        "Nuclear",
         "Biomass",
         "Gas",
         "Lignite",
         "Hard coal",
+        "Nuclear",
     ],
     # Fig 50: Solar, Wind, Hydro run-of-river, Hydro reservoir, Hydro pumped,
     #         Biomass, Gas
@@ -217,6 +231,20 @@ _BLOCK_SEQ = ["DE", "PT"]          # stacking order == row order in the CSVs
 def tech_keep(country):
     """Curated technology list for a country's capture / capacity charts."""
     return TECH_BLOCKS.get(country, TECH_BLOCKS["DE"])
+
+
+# Technologies dropped from the CAPTURE chart only, as a count of rows trimmed off
+# the END of the block (they must be contiguous — one Excel series, one range).
+# See the TECH_BLOCKS note: German nuclear is a closed fleet whose only post-2022
+# datapoint is a part-year artefact, so Fig 5 excludes it while Fig 9 keeps it.
+CAPTURE_TAIL_DROP = {"DE": 1}
+
+
+def tech_keep_capture(country):
+    """Technology list for the capture chart (Fig 5) — a prefix of tech_keep()."""
+    keep = tech_keep(country)
+    drop = CAPTURE_TAIL_DROP.get(country, 0)
+    return keep[: len(keep) - drop] if drop else keep
 
 
 def tech_block_start(country):

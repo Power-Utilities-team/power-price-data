@@ -5,7 +5,12 @@ fixed-cell Excel → linked PowerPoint charts (Rothschild/Redburn style)._
 
 ## Orientation
 - `README.md` — what it is, architecture, how to update.
-- `current-status.md` — dated live state (v1 built & validated).
+- `current-status.md` — dated live state (Phase 5 complete: two update paths + shared spec).
+- **`GENERATE.md`** — the two update paths (live-linked vs Claude-generated), `generate.py`, the
+  `deck_spec.py` single source of truth, and the consistency guarantee. **Start here for the deck system.**
+- **`WORK_MACHINE_SETUP.md`** — Fred's remaining to-do on the Windows work PC (wire 2 queries, place files). ← **the exit checklist**
+- `EXCEL_SETUP.md` — one-time Power Query setup for the live-linked workbook (Path A).
+- `Deliverables/updating-the-deck.{md,html,pdf}` — non-technical monthly-refresh one-pager for the team.
 - `LINKING_GUIDE.md` — how to link the workbook to auto-updating PPT charts.
 - `_meta/sources.jsonl` — source ledger (ENTSO-E; IT PUN proxy caveat).
 
