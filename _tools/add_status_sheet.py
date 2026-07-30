@@ -29,26 +29,55 @@ SHEET_NAME = "Status"
 M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
-# --- the two alarm conditions, as Excel formulas over the loaded status row ---------
+# --- the alarm conditions, as Excel formulas over the loaded status row -------------
 # B2 = coverage_end, C2 = last_complete_year, D2 = frozen_history_end,
 # E2 = charts_built_for_year, F2 = expected_refresh_days, A2 = generated_utc
-STALE = 'AND(ISNUMBER($F$2),(TODAY()-DATEVALUE(LEFT($A$2,10)))>$F$2)'
-ROLLOVER_DUE = 'AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2)'
+#
+# A2 ships pre-filled with a SENTINEL, not a date (see add_power_queries.SENTINEL).
+# That is deliberate and load-bearing. The workbook has to carry a preview of the query
+# target, and if that preview were a real timestamp then a workbook whose refresh had
+# silently failed — data connections declined at the prompt, a proxy blocking
+# raw.githubusercontent.com, refresh-on-open not honoured — would display its own BUILD
+# date as though it were the last refresh, and show green while doing it. The banner
+# would then be asserting freshness precisely when it could not know it: failing open,
+# which is the one thing a staleness warning must never do. A non-date sentinel makes
+# the un-refreshed state unrepresentable as "fine".
+NOT_REFRESHED = 'ISERROR(DATEVALUE(LEFT($A$2,10)))'
+DAYS = 'TODAY()-DATEVALUE(LEFT($A$2,10))'
+# AND()/OR() do NOT short-circuit — every argument is evaluated even once the result is
+# decided — so guarding DATEVALUE with a NOT(ISERROR(...)) term inside AND() does not
+# stop it erroring on the sentinel; the #VALUE! propagates out and the cell shows an
+# error instead of a banner. (Caught by rendering the sheet: rows 4/6/8 came back
+# Err:502.) IFERROR wraps the whole comparison instead: un-refreshed simply is not
+# "stale", which is correct — row 3 already reports that state, and more loudly.
+STALE = f'IFERROR(AND(ISNUMBER($F$2),({DAYS})>$F$2),FALSE)'
+ROLLOVER_DUE = 'IFERROR(AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2),FALSE)'
+ANY_ALARM = f'OR({NOT_REFRESHED},{STALE},{ROLLOVER_DUE})'
 
 BANNER = [
-    (4, f'=IF({STALE},"!! STALE DATA - the monthly refresh has not run for "&'
-        f'TEXT(TODAY()-DATEVALUE(LEFT($A$2,10)),"0")&" days. Figures may be out of date.","")',
+    (3, f'=IF({NOT_REFRESHED},"!! NOT REFRESHED - this file is showing built-in preview '
+        f'data, not live data. Close it, re-open, and choose Enable when Excel asks about '
+        f'data connections. If that does not fix it, the network is blocking GitHub.","")',
+     "red"),
+    (4, f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
+        f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")',
      "red"),
     (5, f'=IF({ROLLOVER_DUE},"!! ANNUAL ROLLOVER OVERDUE - charts were built for "&$E$2&'
-        f'", but "&(YEAR(TODAY())-1)&" is now complete. Charts do not show it yet.","")',
-     "red"),
-    (6, f'=IF(OR({STALE},{ROLLOVER_DUE}),"ACTION: send this file back to be rebuilt '
-        f'(see ROLLOVER.md in the repo).","")', "red"),
-    (7, f'=IF(OR({STALE},{ROLLOVER_DUE}),"","OK - data is current. Last refreshed "&'
-        f'LEFT($A$2,10)&", data through "&$B$2&".")', "green"),
-    (9, '="Charts show one series per year up to "&$E$2&'
+        f'", but "&(YEAR(TODAY())-1)&" is now complete. The charts CANNOT show it on '
+        f'refresh - a new year is a new chart series. Replace this file (and the .pptx) '
+        f'with the newest pair from deliverables/ in the repo.","")', "red"),
+    (6, f'=IF({ANY_ALARM},"ACTION: see WORK_MACHINE_SETUP.md in the repo.","")', "red"),
+    # The last-refreshed line is now ALWAYS on, not just when healthy: the single most
+    # asked question of this file is "how current is this?", and hiding the answer behind
+    # a green-only branch meant the alarm state showed a problem without showing the date.
+    (7, f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
+        f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
+        f'Data through "&$B$2&".")', "plain"),
+    (8, f'=IF({ANY_ALARM},"","OK - data is current and the charts are up to date.")',
+     "green"),
+    (10, '="Charts show one series per year up to "&$E$2&'
         '". A newly completed year appears only after a rebuild, not on refresh."', "plain"),
-    (10, '="Frozen history ends "&$D$2&"; last complete year in the data is "&$C$2&"."',
+    (11, '="Frozen history ends "&$D$2&"; last complete year in the data is "&$C$2&"."',
      "plain"),
 ]
 

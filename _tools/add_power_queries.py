@@ -149,6 +149,35 @@ def patch_sheet(xml: str, header, body, kinds, table_rid: str) -> str:
     return xml
 
 
+# Text deliberately chosen NOT to parse as a date: the Status banner keys off
+# ISERROR(DATEVALUE(...)) to tell "never refreshed" from "refreshed and stale".
+SENTINEL = "NOT REFRESHED"
+
+
+def sentinel_status_row(header, body):
+    """Blank the Status row's timestamps in the SHIPPED prefill.
+
+    Every query target ships with a preview of its CSV so the workbook is readable
+    before its first refresh. For the Status tab that preview is actively harmful: it
+    would bake the BUILD time into `generated_utc`, so a workbook whose refresh had
+    silently failed (data connections declined, a proxy blocking raw.githubusercontent,
+    refresh-on-open not honoured) would show its own build date as the last refresh —
+    and show GREEN. A staleness banner that reports freshness it cannot verify fails
+    OPEN, which is the one behaviour it must never have.
+
+    Replacing the two timestamp columns with a non-date sentinel makes the un-refreshed
+    state impossible to mistake for a healthy one. Row COUNT and column count are
+    untouched, so the refresh-stability invariant check_consistency asserts still holds.
+    """
+    if not body:
+        return body
+    out = [list(r) for r in body]
+    for col in ("generated_utc", "coverage_end"):
+        if col in header:
+            out[0][header.index(col)] = SENTINEL
+    return out
+
+
 def next_rid(rels_xml: str) -> str:
     used = {int(n) for n in re.findall(r'Id="rId(\d+)"', rels_xml)}
     return f"rId{max(used) + 1 if used else 1}"
@@ -296,6 +325,8 @@ def main():
 
     for tab, stem in TARGETS:
         header, body, kinds = load_csv(stem)
+        if tab == "Status":
+            body = sentinel_status_row(header, body)
         spart = sheet_part[tab]
         srels_path = spart.replace("worksheets/", "worksheets/_rels/") + ".rels"
         if srels_path not in parts:          # e.g. the Status sheet: no drawing, no rels yet
