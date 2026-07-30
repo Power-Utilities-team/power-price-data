@@ -33,24 +33,58 @@ rebuilt to match — that is the one change that needs someone to rebuild the fi
 - **Monthly** (2nd of each month, 06:00 UTC) GitHub Actions pulls fresh ENTSO-E data,
   republishes the chart CSVs, and **rebuilds all four deliverables**, committing them to
   `deliverables/` in the repo. Your workbook picks the data up on open.
-- **At the turn of the year** the same run folds the completed year into the frozen history
-  and rebuilds the charts so they carry the new year. Nothing manual, no rollover to remember.
-  Mechanically: the January run notices the frozen history still ends two years back, fetches
-  the just-completed year as well as the current one, absorbs it via
-  `build_hourly.py --absorb-prior-year`, and commits the extended history. It does not depend
-  on the Mac's raw archive.
+- **At the turn of the year** the same run folds the completed year into the frozen history and
+  rebuilds the charts so they carry the new year — on the repo's copy. Mechanically: the January
+  run notices the frozen history still ends two years back, fetches the just-completed year as
+  well as the current one, absorbs it via `build_hourly.py --absorb-prior-year`, and commits the
+  extended history. It does not depend on the Mac's raw archive.
 
-  **The one thing worth doing yourself: in mid-January, open the workbook and read the Status
-  tab.** If it is green, the rollover worked and there is nothing to do. If it says
-  *ANNUAL ROLLOVER OVERDUE*, the January run did not do its job — and that is the one failure
-  with a real deadline, because CI only ever fetches the current year, so a completed year that
-  is never absorbed is not in the history either and the dataset loses it. `ROLLOVER.md` is the
-  manual fallback and the Mac holds the full raw archive, so it is recoverable — but the longer
-  it goes unnoticed the more the monthly-granularity charts show a visible 12-month hole.
+### ⚠️ Once a year you MUST replace your workbook file. Refreshing is not enough.
 
-The only reason to fetch a fresh copy from `deliverables/` is if you want the *charts* to show
-a newly completed year — the data in your existing file is current either way. Grab the newest
-`HourlyPowerData.xlsx` / `.pptx` from the repo when the Status tab tells you to.
+This is the one genuine annual action, and it is easy to miss because everything else is automatic.
+
+**Why refreshing cannot do it.** Each year is a separate **chart series**, and the number of series
+is fixed when the workbook is built. Today's file carries seven — 2019 … 2025. The CSVs already
+contain 2026 (it is excluded on purpose: an incomplete year must never be plotted). When 2026
+completes, the chart needs an **eighth series**, and no refresh can add one — Power Query loads
+data into cells, it does not create series. So a refreshed 2026-vintage file will keep showing
+2019–2025 forever, with correct but visibly out-of-date charts.
+
+**What to do, every January:**
+1. Open the workbook and read the **Status** tab.
+2. If it says **ANNUAL ROLLOVER OVERDUE — charts were built for YYYY**, that is this situation.
+3. Download the newest `HourlyPowerData.xlsx` **and** `.pptx` from `deliverables/` in the repo,
+   and replace both files on the network share (they must stay together — the deck links to the
+   workbook by path).
+4. Re-open. The Status tab should go green and the charts should show the new year.
+
+The alarm is what tells you; you do not need to track the date yourself. And if the tab instead
+says nothing is wrong but the charts are missing a completed year, the January CI run failed —
+see `ROLLOVER.md`. That is the one failure with a real deadline: CI only ever fetches the current
+year, so a completed year never absorbed sits in neither the history nor the fetch. The Mac holds
+the full raw archive so it is always recoverable, but the longer it goes unnoticed the more the
+monthly-granularity charts show a visible 12-month hole.
+
+### Triggering a refresh yourself, without a terminal
+
+You do **not** need the Mac, Claude Code, admin rights, or any local install. `workflow_dispatch`
+is enabled, so the workflow has a **Run workflow** button in the browser:
+
+> github.com/fredhill123/power-price-data → **Actions** → *Refresh ENTSO-E power-price data* →
+> **Run workflow** → **Run workflow**
+
+It takes ~20 minutes, then commits fresh CSVs and rebuilt deliverables. A browser and a GitHub
+login with **write** access to the repo is the only requirement — the sandboxed Windows machine
+can do this, since it is just a web page.
+
+Note it cannot be triggered *from inside Excel*: Power Query only issues unauthenticated GETs,
+while starting a run needs an authenticated POST. It is technically possible to POST from Power
+Query with a personal access token in the query — **do not do this.** It would put a credential
+with write access to the repo inside a workbook sitting on a shared drive.
+
+The only reason to fetch a fresh copy from `deliverables/` is to make the *charts* show a newly
+completed year — the data in your existing file is current either way. That is not optional once
+a year has completed, though: see the annual-replacement section above.
 
 ## The Status tab — read this if something looks off
 
