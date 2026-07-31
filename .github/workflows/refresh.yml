@@ -33,6 +33,10 @@ permissions:
   contents: write
 
 concurrency:
+  # Serialise runs. Two overlapping runs on 2026-07-31 raced: the first pushed while the
+  # second was still fetching, and the second then failed trying to reconcile. The commit
+  # step is now conflict-proof on its own, but queueing also stops two 25-minute jobs
+  # burning in parallel to produce the same files.
   group: refresh
   cancel-in-progress: false
 
@@ -146,11 +150,24 @@ jobs:
           git config user.email "actions@github.com"
           # master_fixed/capacity_fixed change only at the rollover, but they MUST be
           # committed when they do — they are the history every later run builds on.
+          # Re-base onto whatever origin has WITHOUT replaying our commit.
+          #
+          # `git pull --rebase` was wrong here and failed for real on 2026-07-31: every
+          # file this job commits is REGENERATED from scratch, so if another run pushed
+          # in the meantime, rebasing replays our commit onto theirs and every single
+          # CSV conflicts (different timestamps, same lines). `|| true` then swallowed
+          # the error, leaving a detached HEAD, and the push died with exit 128 — so a
+          # 25-minute build produced nothing and the fix it carried never shipped.
+          #
+          # There is nothing to merge: this run's output IS the newest complete state.
+          # So fetch, move the branch pointer to origin while KEEPING our files
+          # (--soft), and commit once on top. No replay, so no conflict is possible.
+          git fetch origin main
+          git reset --soft origin/main
           git add published deliverables data/processed/master_fixed.parquet data/processed/capacity_fixed.parquet
           if git diff --staged --quiet; then
             echo "no data changes"
           else
             git commit -m "data refresh $(date -u +'%Y-%m-%d')"
-            git pull --rebase --autostash || true
-            git push
+            git push origin HEAD:main
           fi
