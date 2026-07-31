@@ -62,6 +62,7 @@ def main():
     run("build_deck.py", TEMPLATE, os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData.pptx"))
     # guard
     run("opc_validate.py")        # package joins: content-types, rel types, chart caches
+    run("check_chart_quality.py")  # presentation faults that used to need a human to spot
     run("check_consistency.py")
 
     if DELIVER:

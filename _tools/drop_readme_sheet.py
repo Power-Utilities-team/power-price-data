@@ -120,21 +120,30 @@ def main():
             sxx = sxx.replace(' tabSelected="1"', "")
         parts[sp] = sxx.encode()
 
-    # --- hide the raw status row -------------------------------------------------
-    # Rows 1-2 are the Power Query load target: a 13-column machine record, read
-    # sideways. The sheet now presents the same cells transposed as label/value pairs,
-    # so the raw row is noise. It must stay (the query loads there and every formula
-    # references it) — it just should not be the first thing on screen.
-    # Done HERE rather than in add_status_sheet because add_power_queries rewrites those
-    # two rows afterwards to inject the prefill, discarding any attribute set earlier.
+    # --- shrink (do NOT hide) the raw status row -----------------------------------
+    # Rows 1-2 are the Power Query load target: a 13-column machine record read
+    # sideways, and the sheet now presents the same cells transposed below, so the raw
+    # row is visual noise. It must stay — the query loads there and every formula and
+    # chart-series name references it.
+    #
+    # HIDING it looked like the obvious answer and silently broke the charts: a chart
+    # does not read hidden cells, so the annual bar charts' series names (which point at
+    # Status!$G$2..$M$2 for the rolling year labels) stopped resolving and the legend
+    # fell back to "Column B, Column C, ...". Proven by rendering the same workbook with
+    # and without the hidden attribute — the only difference — and watching the years
+    # come back.
+    #
+    # A tiny ROW HEIGHT gets the same visual result while leaving the cells visible, so
+    # every reference still resolves.
     srid = re.search(r'<sheet name="Status"[^>]*r:id="rId(\d+)"', wb).group(1)
     srel = dict(re.findall(r'Id="rId(\d+)"[^>]*Target="([^"]+)"',
                            parts["xl/_rels/workbook.xml.rels"].decode()))
     spart = "xl/" + srel[srid].lstrip("/")
     sx = parts[spart].decode()
+    sx = sx.replace(' hidden="1"', "")            # undo any earlier hiding
     for r in (1, 2):
-        sx = re.sub(rf'<row r="{r}"((?:(?!hidden)[^>])*?)>',
-                    rf'<row r="{r}"\1 hidden="1">', sx, count=1)
+        sx = re.sub(rf'<row r="{r}"((?:(?!ht=)[^>])*?)>',
+                    rf'<row r="{r}"\1 ht="4" customHeight="1">', sx, count=1)
     parts[spart] = sx.encode()
 
     tmp = WB + ".tmp"
