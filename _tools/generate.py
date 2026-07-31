@@ -53,6 +53,7 @@ def main():
     run("fix_year_colours.py")     # one colour per YEAR, identical across charts
     run("fix_negative_bars.py")   # negative bars must use the series fill, not white
     run("roll_year_window.py")      # annual bar charts read the rolling window, not fixed years
+    run("roll_line_windows.py")    # the 7 line charts read the shared rolling window too
     run("move_status_first.py")     # health banner leftmost; remaps every localSheetId
     run("drop_readme_sheet.py")     # READ_ME_FIRST merged into Status; remaps localSheetIds
     # AFTER the linked workbook exists — it is the source the frozen copy is made from.

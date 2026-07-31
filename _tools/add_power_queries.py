@@ -55,6 +55,7 @@ TARGETS = [
     # roll_year_window.py for why the window rolls rather than grows.
     ("Fig5_Window",      "fig5_capture_window"),
     ("Fig9_Window",      "fig9_capacity_window"),
+    ("Line_Window",      "line_windows"),
 ]
 
 _NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")   # fixed -> deterministic uids

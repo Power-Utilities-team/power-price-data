@@ -434,6 +434,8 @@ NEW_SHEETS = [  # (name, worksheet_no, drawing_no, chart_no, sheetId, rId) — a
 NEW_SHEETS += [
     ("Fig5_Window", 21, None, None, 21, "rId27"),
     ("Fig9_Window", 22, None, None, 22, "rId28"),
+    # ONE tab for all seven LINE charts' rolling windows, rather than five more.
+    ("Line_Window", 23, None, None, 23, "rId29"),
 ]
 
 for name, wsno, dno, cno, sid, rid in NEW_SHEETS:

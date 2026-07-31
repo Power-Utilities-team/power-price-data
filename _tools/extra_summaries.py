@@ -163,11 +163,91 @@ def figD_netload_duck(df):
         out[f"DE_{y}"] = wide[y].round(2).values if y in wide.columns else pd.NA
     _save(out, "figD_netload_duck")                                          # keeps current partial year (YTD profile)
 
+# The LINE charts each read 8 consecutive year-columns (7 complete + the current YTD)
+# from one of five different sheets. Rather than five more window tabs — the pattern that
+# produced three separate package faults on 2026-07-31 — they share ONE table. Row counts
+# differ (24 hours, 101 percentiles, 366 days); short ones leave blanks, which a line
+# chart simply does not draw.
+#
+# Slot 1..7 are the last seven COMPLETE years, slot 8 the current year-to-date, matching
+# what those charts show today. Their POSITION never moves, so the chart references stay
+# valid for ever, while their MEANING advances every January — the same mechanism already
+# proven on the annual bar charts, and it adds no series, so it cannot introduce the dead
+# legend entry that reserving spare series would.
+LINE_WINDOWS = [
+    ("fig2_intraday_indexed", ["DE", "ES"], "i"),
+    ("fig2_intraday_avg",     ["DE"],       "a"),
+    ("fig3_cum_near_neg",     ["DE", "ES"], "c"),
+    ("fig4_duration_curve",   ["PT"],       "d"),
+    ("figD_netload_duck",     ["DE"],       "n"),
+]
+
+# Fig 1 and Fig 3 are the other shape: YEARS are the x-axis CATEGORIES and the series are
+# countries. They look like they should grow by themselves — a new year is just another
+# category — but the range is fixed at rows 2..8, so the 2026 row already holds data the
+# chart cannot see. This is exactly what Fred reported: typing into the 2027 row changes
+# nothing. Same window treatment, transposed: seven ROWS whose meaning rolls, plus a
+# column of year labels for the category axis.
+CATEGORY_WINDOWS = [
+    ("fig1_price_sd",         "f1"),
+    ("fig3_neg_hours_annual", "f3"),
+]
+CATEGORY_COUNTRIES = ["Germany", "Spain", "Portugal", "France", "Italy"]
+
+
+def line_windows():
+    import config as _c
+    from completeness import cutoffs as _cut
+    lcy = _cut()["last_complete_year"]
+    years = _c.window_years(lcy) + [lcy + 1]        # 7 complete + current YTD
+
+    frames, nrows = {}, 0
+    for stem, _co, _tag in LINE_WINDOWS:
+        f = os.path.join(OUT, f"{stem}.csv")
+        if not os.path.exists(f):
+            raise SystemExit(f"line_windows: {stem}.csv missing — build order changed?")
+        frames[stem] = pd.read_csv(f)
+        nrows = max(nrows, len(frames[stem]))
+
+    out = pd.DataFrame({"row": range(1, nrows + 1)})
+
+    # the category-axis charts: 7 rows, the window years, in fixed positions
+    ylab = [""] * nrows
+    for i, y in enumerate(cfg_window := _c.window_years(lcy)):
+        ylab[i] = str(y)
+    out["win_year"] = ylab
+    for stem, tag in CATEGORY_WINDOWS:
+        f = os.path.join(OUT, f"{stem}.csv")
+        if not os.path.exists(f):
+            raise SystemExit(f"line_windows: {stem}.csv missing — build order changed?")
+        src = pd.read_csv(f)
+        ycol = src.columns[0]
+        for country in CATEGORY_COUNTRIES:
+            col = country if country in src.columns else f"{country}_neg"
+            vals = [float("nan")] * nrows
+            if col in src.columns:
+                lut = dict(zip(src[ycol].astype(str), src[col]))
+                for i, y in enumerate(cfg_window):
+                    vals[i] = lut.get(str(y), float("nan"))
+            out[f"{tag}_{country[:2]}_w"] = vals
+
+    for stem, countries, tag in LINE_WINDOWS:
+        src = frames[stem]
+        for c in countries:
+            for i, y in enumerate(years, start=1):
+                col = f"{c}_{y}"
+                vals = src[col].tolist() if col in src.columns else []
+                vals = vals + [float("nan")] * (nrows - len(vals))
+                out[f"{tag}_{c}_w{i}"] = vals[:nrows]
+    _save(out, "line_windows")
+
+
 def main():
     print("building extra chart tables (G1/G2/G3 + charts 16-19) ->", PUB, flush=True)
     df = _load()
     g1(df); g2_quarter(df); g2_month(df); g3_july(df)
     figA_monthly_price(df); figB_penetration(df); figC_capture_erosion(); figD_netload_duck(df)
+    line_windows()   # shared rolling window for the seven LINE charts
     print("done", flush=True)
 
 if __name__ == "__main__":
