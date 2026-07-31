@@ -67,11 +67,21 @@ def cum_neghours(m):
             near=lambda s: (s < cfg.NEAR_NEG_THRESHOLD).sum(),
             neg=lambda s: (s < cfg.NEG_PRICE_THRESHOLD).sum(),
         )
+        # Days with no negative hours legitimately contribute zero, so reindex-with-0
+        # is right WITHIN the covered period. Past the end of the data it is not: the
+        # cumulative total simply repeats, drawing a dead-flat line to 31 December that
+        # asserts "no further negative hours all year" when the truth is "we do not know
+        # yet". On the 2026 YTD series that was 154 days of invented flat line.
+        last_doy = int(g["doy"].max())
         daily = daily.reindex(range(1, 367), fill_value=0)
+        doy = np.arange(1, 367)
+        beyond = doy > last_doy
+        cum_near = np.where(beyond, np.nan, daily["near"].cumsum().to_numpy(float))
+        cum_neg = np.where(beyond, np.nan, daily["neg"].cumsum().to_numpy(float))
         rows.append(pd.DataFrame({
-            "country": c, "year": y, "doy": range(1, 367),
-            "cum_near_neg": daily["near"].cumsum().values,
-            "cum_neg": daily["neg"].cumsum().values,
+            "country": c, "year": y, "doy": doy,
+            "cum_near_neg": cum_near,
+            "cum_neg": cum_neg,
         }))
     return _save(pd.concat(rows, ignore_index=True), "cum_neghours")
 

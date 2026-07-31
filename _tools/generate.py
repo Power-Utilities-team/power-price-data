@@ -49,6 +49,8 @@ def main():
     run("add_status_sheet.py")      # staleness banner (workbook opens on it)
     run("add_power_queries.py")     # re-injects the 6 PQ connections add_phase4 rebuilds over
     run("resync_prefill.py")        # cached data == CSV, so no table changes shape on refresh
+    run("fix_axes.py")            # labels below the plot, not across it; name the x-axis
+    run("fix_year_colours.py")     # one colour per YEAR, identical across charts
     run("fix_negative_bars.py")   # negative bars must use the series fill, not white
     run("roll_year_window.py")      # annual bar charts read the rolling window, not fixed years
     run("move_status_first.py")     # health banner leftmost; remaps every localSheetId
