@@ -1427,125 +1427,125 @@ DE,2025,12,Solar,94.503,93.43,1.15,1516.51
 DE,2025,12,Marine,,93.43,,0.0
 DE,2025,12,Other renewable,93.575,93.43,0.16,64.16
 DE,2025,12,Other,95.085,93.43,1.77,213.9
-DE,2026,1,Nuclear,,,,0.0
-DE,2026,1,Lignite,,,,0.0
-DE,2026,1,Hard coal,,,,0.0
-DE,2026,1,Gas,,,,0.0
-DE,2026,1,Oil & other fossil,,,,0.0
-DE,2026,1,Biomass,,,,0.0
-DE,2026,1,Waste,,,,0.0
-DE,2026,1,Geothermal,,,,0.0
-DE,2026,1,Hydro run-of-river,,,,0.0
-DE,2026,1,Hydro reservoir,,,,0.0
-DE,2026,1,Hydro pumped (production),,,,0.0
-DE,2026,1,Onshore wind,,,,0.0
-DE,2026,1,Offshore wind,,,,0.0
-DE,2026,1,Solar,,,,0.0
-DE,2026,1,Marine,,,,0.0
-DE,2026,1,Other renewable,,,,0.0
-DE,2026,1,Other,,,,0.0
-DE,2026,2,Nuclear,,,,0.0
-DE,2026,2,Lignite,,,,0.0
-DE,2026,2,Hard coal,,,,0.0
-DE,2026,2,Gas,,,,0.0
-DE,2026,2,Oil & other fossil,,,,0.0
-DE,2026,2,Biomass,,,,0.0
-DE,2026,2,Waste,,,,0.0
-DE,2026,2,Geothermal,,,,0.0
-DE,2026,2,Hydro run-of-river,,,,0.0
-DE,2026,2,Hydro reservoir,,,,0.0
-DE,2026,2,Hydro pumped (production),,,,0.0
-DE,2026,2,Onshore wind,,,,0.0
-DE,2026,2,Offshore wind,,,,0.0
-DE,2026,2,Solar,,,,0.0
-DE,2026,2,Marine,,,,0.0
-DE,2026,2,Other renewable,,,,0.0
-DE,2026,2,Other,,,,0.0
-DE,2026,3,Nuclear,,,,0.0
-DE,2026,3,Lignite,,,,0.0
-DE,2026,3,Hard coal,,,,0.0
-DE,2026,3,Gas,,,,0.0
-DE,2026,3,Oil & other fossil,,,,0.0
-DE,2026,3,Biomass,,,,0.0
-DE,2026,3,Waste,,,,0.0
-DE,2026,3,Geothermal,,,,0.0
-DE,2026,3,Hydro run-of-river,,,,0.0
-DE,2026,3,Hydro reservoir,,,,0.0
-DE,2026,3,Hydro pumped (production),,,,0.0
-DE,2026,3,Onshore wind,,,,0.0
-DE,2026,3,Offshore wind,,,,0.0
-DE,2026,3,Solar,,,,0.0
-DE,2026,3,Marine,,,,0.0
-DE,2026,3,Other renewable,,,,0.0
-DE,2026,3,Other,,,,0.0
-DE,2026,4,Nuclear,,,,0.0
-DE,2026,4,Lignite,,,,0.0
-DE,2026,4,Hard coal,,,,0.0
-DE,2026,4,Gas,,,,0.0
-DE,2026,4,Oil & other fossil,,,,0.0
-DE,2026,4,Biomass,,,,0.0
-DE,2026,4,Waste,,,,0.0
-DE,2026,4,Geothermal,,,,0.0
-DE,2026,4,Hydro run-of-river,,,,0.0
-DE,2026,4,Hydro reservoir,,,,0.0
-DE,2026,4,Hydro pumped (production),,,,0.0
-DE,2026,4,Onshore wind,,,,0.0
-DE,2026,4,Offshore wind,,,,0.0
-DE,2026,4,Solar,,,,0.0
-DE,2026,4,Marine,,,,0.0
-DE,2026,4,Other renewable,,,,0.0
-DE,2026,4,Other,,,,0.0
-DE,2026,5,Nuclear,,,,0.0
-DE,2026,5,Lignite,,,,0.0
-DE,2026,5,Hard coal,,,,0.0
-DE,2026,5,Gas,,,,0.0
-DE,2026,5,Oil & other fossil,,,,0.0
-DE,2026,5,Biomass,,,,0.0
-DE,2026,5,Waste,,,,0.0
-DE,2026,5,Geothermal,,,,0.0
-DE,2026,5,Hydro run-of-river,,,,0.0
-DE,2026,5,Hydro reservoir,,,,0.0
-DE,2026,5,Hydro pumped (production),,,,0.0
-DE,2026,5,Onshore wind,,,,0.0
-DE,2026,5,Offshore wind,,,,0.0
-DE,2026,5,Solar,,,,0.0
-DE,2026,5,Marine,,,,0.0
-DE,2026,5,Other renewable,,,,0.0
-DE,2026,5,Other,,,,0.0
-DE,2026,6,Nuclear,,,,0.0
-DE,2026,6,Lignite,,,,0.0
-DE,2026,6,Hard coal,,,,0.0
-DE,2026,6,Gas,,,,0.0
-DE,2026,6,Oil & other fossil,,,,0.0
-DE,2026,6,Biomass,,,,0.0
-DE,2026,6,Waste,,,,0.0
-DE,2026,6,Geothermal,,,,0.0
-DE,2026,6,Hydro run-of-river,,,,0.0
-DE,2026,6,Hydro reservoir,,,,0.0
-DE,2026,6,Hydro pumped (production),,,,0.0
-DE,2026,6,Onshore wind,,,,0.0
-DE,2026,6,Offshore wind,,,,0.0
-DE,2026,6,Solar,,,,0.0
-DE,2026,6,Marine,,,,0.0
-DE,2026,6,Other renewable,,,,0.0
-DE,2026,6,Other,,,,0.0
-DE,2026,7,Nuclear,,103.844,,0.0
-DE,2026,7,Lignite,124.361,103.844,19.76,4668.09
-DE,2026,7,Hard coal,132.687,103.844,27.78,1746.9
-DE,2026,7,Gas,125.156,103.844,20.52,2795.6
-DE,2026,7,Oil & other fossil,104.47,103.844,0.6,258.2
-DE,2026,7,Biomass,105.812,103.844,1.9,2766.03
-DE,2026,7,Waste,104.8,103.844,0.92,618.29
-DE,2026,7,Geothermal,103.844,103.844,-0.0,13.88
-DE,2026,7,Hydro run-of-river,102.159,103.844,-1.62,909.71
-DE,2026,7,Hydro reservoir,125.681,103.844,21.03,107.89
-DE,2026,7,Hydro pumped (production),156.439,103.844,50.65,955.34
-DE,2026,7,Onshore wind,92.764,103.844,-10.67,7930.71
-DE,2026,7,Offshore wind,100.193,103.844,-3.52,2000.63
-DE,2026,7,Solar,53.249,103.844,-48.72,11834.24
-DE,2026,7,Marine,,103.844,,0.0
-DE,2026,7,Other renewable,103.473,103.844,-0.36,51.02
-DE,2026,7,Other,103.8,103.844,-0.04,98.69
+DE,2026,1,Nuclear,,110.141,,0.0
+DE,2026,1,Lignite,117.951,110.141,7.09,6861.35
+DE,2026,1,Hard coal,116.346,110.141,5.63,4405.24
+DE,2026,1,Gas,117.677,110.141,6.84,10227.72
+DE,2026,1,Oil & other fossil,111.18,110.141,0.94,195.56
+DE,2026,1,Biomass,111.879,110.141,1.58,3210.44
+DE,2026,1,Waste,111.692,110.141,1.41,556.86
+DE,2026,1,Geothermal,109.627,110.141,-0.47,23.7
+DE,2026,1,Hydro run-of-river,112.164,110.141,1.84,840.77
+DE,2026,1,Hydro reservoir,142.03,110.141,28.95,83.23
+DE,2026,1,Hydro pumped (production),146.107,110.141,32.65,754.21
+DE,2026,1,Onshore wind,97.018,110.141,-11.92,13063.95
+DE,2026,1,Offshore wind,108.354,110.141,-1.62,3727.27
+DE,2026,1,Solar,111.259,110.141,1.01,1641.64
+DE,2026,1,Marine,,110.141,,0.0
+DE,2026,1,Other renewable,109.835,110.141,-0.28,59.27
+DE,2026,1,Other,112.055,110.141,1.74,227.39
+DE,2026,2,Nuclear,,96.504,,0.0
+DE,2026,2,Lignite,102.543,96.504,6.26,6432.31
+DE,2026,2,Hard coal,106.448,96.504,10.3,3318.27
+DE,2026,2,Gas,103.852,96.504,7.61,8382.12
+DE,2026,2,Oil & other fossil,98.827,96.504,2.41,224.39
+DE,2026,2,Biomass,98.06,96.504,1.61,2879.2
+DE,2026,2,Waste,96.443,96.504,-0.06,522.35
+DE,2026,2,Geothermal,98.192,96.504,1.75,19.01
+DE,2026,2,Hydro run-of-river,94.411,96.504,-2.17,952.11
+DE,2026,2,Hydro reservoir,109.739,96.504,13.71,53.92
+DE,2026,2,Hydro pumped (production),119.536,96.504,23.87,607.83
+DE,2026,2,Onshore wind,87.999,96.504,-8.81,11213.43
+DE,2026,2,Offshore wind,93.603,96.504,-3.01,3690.05
+DE,2026,2,Solar,78.693,96.504,-18.46,2547.27
+DE,2026,2,Marine,,96.504,,0.0
+DE,2026,2,Other renewable,96.431,96.504,-0.08,54.65
+DE,2026,2,Other,99.008,96.504,2.59,199.61
+DE,2026,3,Nuclear,,99.46,,0.0
+DE,2026,3,Lignite,114.229,99.46,14.85,6846.78
+DE,2026,3,Hard coal,114.966,99.46,15.59,2987.48
+DE,2026,3,Gas,117.123,99.46,17.76,5068.63
+DE,2026,3,Oil & other fossil,102.208,99.46,2.76,192.96
+DE,2026,3,Biomass,103.889,99.46,4.45,3075.55
+DE,2026,3,Waste,100.751,99.46,1.3,552.87
+DE,2026,3,Geothermal,101.443,99.46,1.99,19.83
+DE,2026,3,Hydro run-of-river,101.13,99.46,1.68,1053.44
+DE,2026,3,Hydro reservoir,127.57,99.46,28.26,90.23
+DE,2026,3,Hydro pumped (production),148.712,99.46,49.52,867.72
+DE,2026,3,Onshore wind,79.837,99.46,-19.73,9142.39
+DE,2026,3,Offshore wind,83.655,99.46,-15.89,2314.11
+DE,2026,3,Solar,57.498,99.46,-42.19,7342.13
+DE,2026,3,Marine,,99.46,,0.0
+DE,2026,3,Other renewable,99.953,99.46,0.5,53.66
+DE,2026,3,Other,105.763,99.46,6.34,172.32
+DE,2026,4,Nuclear,,78.426,,0.0
+DE,2026,4,Lignite,101.319,78.426,29.19,4207.32
+DE,2026,4,Hard coal,107.843,78.426,37.51,2218.43
+DE,2026,4,Gas,104.087,78.426,32.72,4156.37
+DE,2026,4,Oil & other fossil,84.123,78.426,7.26,225.83
+DE,2026,4,Biomass,84.123,78.426,7.26,2975.04
+DE,2026,4,Waste,81.622,78.426,4.08,546.39
+DE,2026,4,Geothermal,81.699,78.426,4.17,17.6
+DE,2026,4,Hydro run-of-river,80.702,78.426,2.9,1007.3
+DE,2026,4,Hydro reservoir,94.137,78.426,20.03,69.85
+DE,2026,4,Hydro pumped (production),128.287,78.426,63.58,915.26
+DE,2026,4,Onshore wind,71.472,78.426,-8.87,7914.13
+DE,2026,4,Offshore wind,77.165,78.426,-1.61,1843.6
+DE,2026,4,Solar,20.265,78.426,-74.16,10109.38
+DE,2026,4,Marine,,78.426,,0.0
+DE,2026,4,Other renewable,79.357,78.426,1.19,56.22
+DE,2026,4,Other,87.273,78.426,11.28,142.13
+DE,2026,5,Nuclear,,97.615,,0.0
+DE,2026,5,Lignite,116.282,97.615,19.12,4516.05
+DE,2026,5,Hard coal,123.989,97.615,27.02,1924.05
+DE,2026,5,Gas,118.08,97.615,20.97,3513.33
+DE,2026,5,Oil & other fossil,96.894,97.615,-0.74,209.62
+DE,2026,5,Biomass,100.812,97.615,3.27,3039.94
+DE,2026,5,Waste,100.006,97.615,2.45,507.32
+DE,2026,5,Geothermal,97.614,97.615,-0.0,14.15
+DE,2026,5,Hydro run-of-river,99.246,97.615,1.67,1063.87
+DE,2026,5,Hydro reservoir,126.553,97.615,29.65,100.22
+DE,2026,5,Hydro pumped (production),151.867,97.615,55.58,940.28
+DE,2026,5,Onshore wind,101.514,97.615,3.99,5551.19
+DE,2026,5,Offshore wind,100.46,97.615,2.91,1519.08
+DE,2026,5,Solar,38.11,97.615,-60.96,10929.89
+DE,2026,5,Marine,,97.615,,0.0
+DE,2026,5,Other renewable,98.265,97.615,0.67,59.98
+DE,2026,5,Other,103.625,97.615,6.16,134.17
+DE,2026,6,Nuclear,,109.58,,0.0
+DE,2026,6,Lignite,131.246,109.58,19.77,4340.6
+DE,2026,6,Hard coal,138.248,109.58,26.16,1516.57
+DE,2026,6,Gas,136.709,109.58,24.76,3220.98
+DE,2026,6,Oil & other fossil,114.853,109.58,4.81,230.33
+DE,2026,6,Biomass,111.898,109.58,2.12,2701.59
+DE,2026,6,Waste,109.336,109.58,-0.22,471.21
+DE,2026,6,Geothermal,109.532,109.58,-0.04,14.11
+DE,2026,6,Hydro run-of-river,110.99,109.58,1.29,1250.16
+DE,2026,6,Hydro reservoir,154.644,109.58,41.12,170.82
+DE,2026,6,Hydro pumped (production),183.63,109.58,67.58,930.79
+DE,2026,6,Onshore wind,87.956,109.58,-19.73,6425.59
+DE,2026,6,Offshore wind,90.046,109.58,-17.83,1499.74
+DE,2026,6,Solar,64.656,109.58,-41.0,11233.58
+DE,2026,6,Marine,,109.58,,0.0
+DE,2026,6,Other renewable,108.73,109.58,-0.78,56.79
+DE,2026,6,Other,112.406,109.58,2.58,98.77
+DE,2026,7,Nuclear,,104.616,,0.0
+DE,2026,7,Lignite,124.894,104.616,19.38,4789.81
+DE,2026,7,Hard coal,133.056,104.616,27.19,1802.13
+DE,2026,7,Gas,125.782,104.616,20.23,2878.09
+DE,2026,7,Oil & other fossil,105.208,104.616,0.57,263.47
+DE,2026,7,Biomass,106.533,104.616,1.83,2821.37
+DE,2026,7,Waste,105.363,104.616,0.71,628.1
+DE,2026,7,Geothermal,104.616,104.616,0.0,14.17
+DE,2026,7,Hydro run-of-river,103.27,104.616,-1.29,935.65
+DE,2026,7,Hydro reservoir,127.148,104.616,21.54,112.77
+DE,2026,7,Hydro pumped (production),156.708,104.616,49.79,965.91
+DE,2026,7,Onshore wind,93.102,104.616,-11.01,7987.74
+DE,2026,7,Offshore wind,100.358,104.616,-4.07,2007.73
+DE,2026,7,Solar,54.636,104.616,-47.77,12083.74
+DE,2026,7,Marine,,104.616,,0.0
+DE,2026,7,Other renewable,104.28,104.616,-0.32,52.12
+DE,2026,7,Other,104.575,104.616,-0.04,100.75
 ES,2019,1,Nuclear,61.888,61.96,-0.12,5051.71
 ES,2019,1,Lignite,64.155,61.96,3.54,352.19
 ES,2019,1,Hard coal,63.738,61.96,2.87,2762.8
@@ -2974,125 +2974,125 @@ ES,2025,12,Solar,64.326,77.934,-17.46,2237.48
 ES,2025,12,Marine,,77.934,,0.0
 ES,2025,12,Other renewable,78.313,77.934,0.49,51.29
 ES,2025,12,Other,80.256,77.934,2.98,4.43
-ES,2026,1,Nuclear,,,,0.0
-ES,2026,1,Lignite,,,,0.0
-ES,2026,1,Hard coal,,,,0.0
-ES,2026,1,Gas,,,,0.0
-ES,2026,1,Oil & other fossil,,,,0.0
-ES,2026,1,Biomass,,,,0.0
-ES,2026,1,Waste,,,,0.0
-ES,2026,1,Geothermal,,,,0.0
-ES,2026,1,Hydro run-of-river,,,,0.0
-ES,2026,1,Hydro reservoir,,,,0.0
-ES,2026,1,Hydro pumped (production),,,,0.0
-ES,2026,1,Onshore wind,,,,0.0
-ES,2026,1,Offshore wind,,,,0.0
-ES,2026,1,Solar,,,,0.0
-ES,2026,1,Marine,,,,0.0
-ES,2026,1,Other renewable,,,,0.0
-ES,2026,1,Other,,,,0.0
-ES,2026,2,Nuclear,,,,0.0
-ES,2026,2,Lignite,,,,0.0
-ES,2026,2,Hard coal,,,,0.0
-ES,2026,2,Gas,,,,0.0
-ES,2026,2,Oil & other fossil,,,,0.0
-ES,2026,2,Biomass,,,,0.0
-ES,2026,2,Waste,,,,0.0
-ES,2026,2,Geothermal,,,,0.0
-ES,2026,2,Hydro run-of-river,,,,0.0
-ES,2026,2,Hydro reservoir,,,,0.0
-ES,2026,2,Hydro pumped (production),,,,0.0
-ES,2026,2,Onshore wind,,,,0.0
-ES,2026,2,Offshore wind,,,,0.0
-ES,2026,2,Solar,,,,0.0
-ES,2026,2,Marine,,,,0.0
-ES,2026,2,Other renewable,,,,0.0
-ES,2026,2,Other,,,,0.0
-ES,2026,3,Nuclear,,,,0.0
-ES,2026,3,Lignite,,,,0.0
-ES,2026,3,Hard coal,,,,0.0
-ES,2026,3,Gas,,,,0.0
-ES,2026,3,Oil & other fossil,,,,0.0
-ES,2026,3,Biomass,,,,0.0
-ES,2026,3,Waste,,,,0.0
-ES,2026,3,Geothermal,,,,0.0
-ES,2026,3,Hydro run-of-river,,,,0.0
-ES,2026,3,Hydro reservoir,,,,0.0
-ES,2026,3,Hydro pumped (production),,,,0.0
-ES,2026,3,Onshore wind,,,,0.0
-ES,2026,3,Offshore wind,,,,0.0
-ES,2026,3,Solar,,,,0.0
-ES,2026,3,Marine,,,,0.0
-ES,2026,3,Other renewable,,,,0.0
-ES,2026,3,Other,,,,0.0
-ES,2026,4,Nuclear,,,,0.0
-ES,2026,4,Lignite,,,,0.0
-ES,2026,4,Hard coal,,,,0.0
-ES,2026,4,Gas,,,,0.0
-ES,2026,4,Oil & other fossil,,,,0.0
-ES,2026,4,Biomass,,,,0.0
-ES,2026,4,Waste,,,,0.0
-ES,2026,4,Geothermal,,,,0.0
-ES,2026,4,Hydro run-of-river,,,,0.0
-ES,2026,4,Hydro reservoir,,,,0.0
-ES,2026,4,Hydro pumped (production),,,,0.0
-ES,2026,4,Onshore wind,,,,0.0
-ES,2026,4,Offshore wind,,,,0.0
-ES,2026,4,Solar,,,,0.0
-ES,2026,4,Marine,,,,0.0
-ES,2026,4,Other renewable,,,,0.0
-ES,2026,4,Other,,,,0.0
-ES,2026,5,Nuclear,,,,0.0
-ES,2026,5,Lignite,,,,0.0
-ES,2026,5,Hard coal,,,,0.0
-ES,2026,5,Gas,,,,0.0
-ES,2026,5,Oil & other fossil,,,,0.0
-ES,2026,5,Biomass,,,,0.0
-ES,2026,5,Waste,,,,0.0
-ES,2026,5,Geothermal,,,,0.0
-ES,2026,5,Hydro run-of-river,,,,0.0
-ES,2026,5,Hydro reservoir,,,,0.0
-ES,2026,5,Hydro pumped (production),,,,0.0
-ES,2026,5,Onshore wind,,,,0.0
-ES,2026,5,Offshore wind,,,,0.0
-ES,2026,5,Solar,,,,0.0
-ES,2026,5,Marine,,,,0.0
-ES,2026,5,Other renewable,,,,0.0
-ES,2026,5,Other,,,,0.0
-ES,2026,6,Nuclear,,,,0.0
-ES,2026,6,Lignite,,,,0.0
-ES,2026,6,Hard coal,,,,0.0
-ES,2026,6,Gas,,,,0.0
-ES,2026,6,Oil & other fossil,,,,0.0
-ES,2026,6,Biomass,,,,0.0
-ES,2026,6,Waste,,,,0.0
-ES,2026,6,Geothermal,,,,0.0
-ES,2026,6,Hydro run-of-river,,,,0.0
-ES,2026,6,Hydro reservoir,,,,0.0
-ES,2026,6,Hydro pumped (production),,,,0.0
-ES,2026,6,Onshore wind,,,,0.0
-ES,2026,6,Offshore wind,,,,0.0
-ES,2026,6,Solar,,,,0.0
-ES,2026,6,Marine,,,,0.0
-ES,2026,6,Other renewable,,,,0.0
-ES,2026,6,Other,,,,0.0
-ES,2026,7,Nuclear,104.244,105.263,-0.97,4797.38
-ES,2026,7,Lignite,,105.263,,0.0
-ES,2026,7,Hard coal,136.603,105.263,29.77,20.85
-ES,2026,7,Gas,131.616,105.263,25.04,5641.25
-ES,2026,7,Oil & other fossil,119.111,105.263,13.16,13.38
-ES,2026,7,Biomass,110.184,105.263,4.68,319.16
-ES,2026,7,Waste,106.156,105.263,0.85,172.2
-ES,2026,7,Geothermal,,105.263,,0.0
-ES,2026,7,Hydro run-of-river,110.513,105.263,4.99,462.12
-ES,2026,7,Hydro reservoir,140.831,105.263,33.79,1191.68
-ES,2026,7,Hydro pumped (production),146.849,105.263,39.51,874.03
-ES,2026,7,Onshore wind,109.418,105.263,3.95,3353.36
-ES,2026,7,Offshore wind,,105.263,,0.0
-ES,2026,7,Solar,58.894,105.263,-44.05,7998.89
-ES,2026,7,Marine,,105.263,,0.0
-ES,2026,7,Other renewable,107.731,105.263,2.34,46.34
-ES,2026,7,Other,110.765,105.263,5.23,9.8
+ES,2026,1,Nuclear,71.188,71.529,-0.48,5234.11
+ES,2026,1,Lignite,,71.529,,0.0
+ES,2026,1,Hard coal,30.928,71.529,-56.76,20.21
+ES,2026,1,Gas,86.115,71.529,20.39,4645.09
+ES,2026,1,Oil & other fossil,79.928,71.529,11.74,19.74
+ES,2026,1,Biomass,74.888,71.529,4.69,306.86
+ES,2026,1,Waste,73.929,71.529,3.35,130.11
+ES,2026,1,Geothermal,,71.529,,0.0
+ES,2026,1,Hydro run-of-river,70.244,71.529,-1.8,782.08
+ES,2026,1,Hydro reservoir,76.039,71.529,6.3,2061.18
+ES,2026,1,Hydro pumped (production),91.339,71.529,27.69,765.81
+ES,2026,1,Onshore wind,61.137,71.529,-14.53,7815.44
+ES,2026,1,Offshore wind,,71.529,,0.0
+ES,2026,1,Solar,64.131,71.529,-10.34,2223.28
+ES,2026,1,Marine,,71.529,,0.0
+ES,2026,1,Other renewable,72.149,71.529,0.87,47.09
+ES,2026,1,Other,84.546,71.529,18.2,3.73
+ES,2026,2,Nuclear,16.471,16.454,0.1,4028.54
+ES,2026,2,Lignite,,16.454,,0.0
+ES,2026,2,Hard coal,,16.454,,0.0
+ES,2026,2,Gas,23.5,16.454,42.83,2865.66
+ES,2026,2,Oil & other fossil,19.266,16.454,17.09,12.25
+ES,2026,2,Biomass,18.863,16.454,14.65,205.37
+ES,2026,2,Waste,17.424,16.454,5.9,91.59
+ES,2026,2,Geothermal,,16.454,,0.0
+ES,2026,2,Hydro run-of-river,18.784,16.454,14.16,947.31
+ES,2026,2,Hydro reservoir,21.318,16.454,29.56,3227.66
+ES,2026,2,Hydro pumped (production),36.386,16.454,121.14,737.18
+ES,2026,2,Onshore wind,14.809,16.454,-10.0,5904.38
+ES,2026,2,Offshore wind,,16.454,,0.0
+ES,2026,2,Solar,3.027,16.454,-81.6,2562.07
+ES,2026,2,Marine,,16.454,,0.0
+ES,2026,2,Other renewable,17.492,16.454,6.31,40.7
+ES,2026,2,Other,30.171,16.454,83.37,3.54
+ES,2026,3,Nuclear,39.721,41.684,-4.71,3915.61
+ES,2026,3,Lignite,,41.684,,0.0
+ES,2026,3,Hard coal,108.527,41.684,160.36,13.07
+ES,2026,3,Gas,57.13,41.684,37.06,3322.78
+ES,2026,3,Oil & other fossil,49.462,41.684,18.66,14.34
+ES,2026,3,Biomass,44.915,41.684,7.75,308.19
+ES,2026,3,Waste,43.919,41.684,5.36,104.59
+ES,2026,3,Geothermal,,41.684,,0.0
+ES,2026,3,Hydro run-of-river,48.504,41.684,16.36,1001.1
+ES,2026,3,Hydro reservoir,61.074,41.684,46.52,2850.6
+ES,2026,3,Hydro pumped (production),71.446,41.684,71.4,1036.84
+ES,2026,3,Onshore wind,33.503,41.684,-19.63,4893.97
+ES,2026,3,Offshore wind,,41.684,,0.0
+ES,2026,3,Solar,15.619,41.684,-62.53,4646.46
+ES,2026,3,Marine,,41.684,,0.0
+ES,2026,3,Other renewable,43.6,41.684,4.6,51.35
+ES,2026,3,Other,40.06,41.684,-3.9,5.86
+ES,2026,4,Nuclear,43.426,42.719,1.66,3886.63
+ES,2026,4,Lignite,,42.719,,0.0
+ES,2026,4,Hard coal,,42.719,,0.0
+ES,2026,4,Gas,53.284,42.719,24.73,3061.53
+ES,2026,4,Oil & other fossil,45.293,42.719,6.03,11.81
+ES,2026,4,Biomass,42.983,42.719,0.62,274.71
+ES,2026,4,Waste,45.111,42.719,5.6,137.56
+ES,2026,4,Geothermal,,42.719,,0.0
+ES,2026,4,Hydro run-of-river,47.527,42.719,11.26,809.04
+ES,2026,4,Hydro reservoir,66.934,42.719,56.68,1519.32
+ES,2026,4,Hydro pumped (production),77.385,42.719,81.15,858.92
+ES,2026,4,Onshore wind,42.074,42.719,-1.51,3645.75
+ES,2026,4,Offshore wind,,42.719,,0.0
+ES,2026,4,Solar,11.693,42.719,-72.63,5416.87
+ES,2026,4,Marine,,42.719,,0.0
+ES,2026,4,Other renewable,44.417,42.719,3.97,49.02
+ES,2026,4,Other,49.229,42.719,15.24,10.41
+ES,2026,5,Nuclear,54.219,54.202,0.03,3751.74
+ES,2026,5,Lignite,,54.202,,0.0
+ES,2026,5,Hard coal,61.781,54.202,13.98,80.62
+ES,2026,5,Gas,68.532,54.202,26.44,3478.76
+ES,2026,5,Oil & other fossil,59.628,54.202,10.01,12.57
+ES,2026,5,Biomass,56.37,54.202,4.0,305.12
+ES,2026,5,Waste,54.319,54.202,0.21,158.86
+ES,2026,5,Geothermal,,54.202,,0.0
+ES,2026,5,Hydro run-of-river,58.5,54.202,7.93,873.46
+ES,2026,5,Hydro reservoir,82.396,54.202,52.02,1617.48
+ES,2026,5,Hydro pumped (production),99.56,54.202,83.68,837.57
+ES,2026,5,Onshore wind,58.379,54.202,7.7,3138.87
+ES,2026,5,Offshore wind,,54.202,,0.0
+ES,2026,5,Solar,16.726,54.202,-69.14,6629.08
+ES,2026,5,Marine,,54.202,,0.0
+ES,2026,5,Other renewable,56.96,54.202,5.09,48.22
+ES,2026,5,Other,65.106,54.202,20.12,12.61
+ES,2026,6,Nuclear,71.815,69.657,3.1,4452.62
+ES,2026,6,Lignite,,69.657,,0.0
+ES,2026,6,Hard coal,99.069,69.657,42.23,12.87
+ES,2026,6,Gas,88.983,69.657,27.74,4182.84
+ES,2026,6,Oil & other fossil,87.231,69.657,25.23,14.35
+ES,2026,6,Biomass,71.781,69.657,3.05,326.75
+ES,2026,6,Waste,70.093,69.657,0.63,165.3
+ES,2026,6,Geothermal,,69.657,,0.0
+ES,2026,6,Hydro run-of-river,74.569,69.657,7.05,632.01
+ES,2026,6,Hydro reservoir,100.88,69.657,44.82,1231.36
+ES,2026,6,Hydro pumped (production),112.586,69.657,61.63,877.7
+ES,2026,6,Onshore wind,78.282,69.657,12.38,3498.86
+ES,2026,6,Offshore wind,,69.657,,0.0
+ES,2026,6,Solar,32.014,69.657,-54.04,7623.39
+ES,2026,6,Marine,,69.657,,0.0
+ES,2026,6,Other renewable,71.653,69.657,2.87,45.85
+ES,2026,6,Other,74.619,69.657,7.12,8.54
+ES,2026,7,Nuclear,103.243,104.285,-1.0,4902.13
+ES,2026,7,Lignite,,104.285,,0.0
+ES,2026,7,Hard coal,136.603,104.285,30.99,20.85
+ES,2026,7,Gas,130.711,104.285,25.34,5718.26
+ES,2026,7,Oil & other fossil,117.873,104.285,13.03,13.68
+ES,2026,7,Biomass,109.273,104.285,4.78,325.07
+ES,2026,7,Waste,105.142,104.285,0.82,175.91
+ES,2026,7,Geothermal,,104.285,,0.0
+ES,2026,7,Hydro run-of-river,109.432,104.285,4.94,472.7
+ES,2026,7,Hydro reservoir,139.918,104.285,34.17,1208.92
+ES,2026,7,Hydro pumped (production),146.15,104.285,40.14,885.53
+ES,2026,7,Onshore wind,107.795,104.285,3.37,3478.0
+ES,2026,7,Offshore wind,,104.285,,0.0
+ES,2026,7,Solar,58.188,104.285,-44.2,8189.18
+ES,2026,7,Marine,,104.285,,0.0
+ES,2026,7,Other renewable,106.746,104.285,2.36,47.3
+ES,2026,7,Other,109.702,104.285,5.19,9.98
 FR,2019,1,Nuclear,61.308,61.15,0.26,40009.14
 FR,2019,1,Lignite,,61.15,,0.0
 FR,2019,1,Hard coal,67.005,61.15,9.57,433.64
@@ -4521,125 +4521,125 @@ FR,2025,12,Solar,65.473,68.724,-4.73,1093.64
 FR,2025,12,Marine,,68.724,,0.0
 FR,2025,12,Other renewable,,68.724,,0.0
 FR,2025,12,Other,75.034,68.724,9.18,11.94
-FR,2026,1,Nuclear,,,,0.0
-FR,2026,1,Lignite,,,,0.0
-FR,2026,1,Hard coal,,,,0.0
-FR,2026,1,Gas,,,,0.0
-FR,2026,1,Oil & other fossil,,,,0.0
-FR,2026,1,Biomass,,,,0.0
-FR,2026,1,Waste,,,,0.0
-FR,2026,1,Geothermal,,,,0.0
-FR,2026,1,Hydro run-of-river,,,,0.0
-FR,2026,1,Hydro reservoir,,,,0.0
-FR,2026,1,Hydro pumped (production),,,,0.0
-FR,2026,1,Onshore wind,,,,0.0
-FR,2026,1,Offshore wind,,,,0.0
-FR,2026,1,Solar,,,,0.0
-FR,2026,1,Marine,,,,0.0
-FR,2026,1,Other renewable,,,,0.0
-FR,2026,1,Other,,,,0.0
-FR,2026,2,Nuclear,,,,0.0
-FR,2026,2,Lignite,,,,0.0
-FR,2026,2,Hard coal,,,,0.0
-FR,2026,2,Gas,,,,0.0
-FR,2026,2,Oil & other fossil,,,,0.0
-FR,2026,2,Biomass,,,,0.0
-FR,2026,2,Waste,,,,0.0
-FR,2026,2,Geothermal,,,,0.0
-FR,2026,2,Hydro run-of-river,,,,0.0
-FR,2026,2,Hydro reservoir,,,,0.0
-FR,2026,2,Hydro pumped (production),,,,0.0
-FR,2026,2,Onshore wind,,,,0.0
-FR,2026,2,Offshore wind,,,,0.0
-FR,2026,2,Solar,,,,0.0
-FR,2026,2,Marine,,,,0.0
-FR,2026,2,Other renewable,,,,0.0
-FR,2026,2,Other,,,,0.0
-FR,2026,3,Nuclear,,,,0.0
-FR,2026,3,Lignite,,,,0.0
-FR,2026,3,Hard coal,,,,0.0
-FR,2026,3,Gas,,,,0.0
-FR,2026,3,Oil & other fossil,,,,0.0
-FR,2026,3,Biomass,,,,0.0
-FR,2026,3,Waste,,,,0.0
-FR,2026,3,Geothermal,,,,0.0
-FR,2026,3,Hydro run-of-river,,,,0.0
-FR,2026,3,Hydro reservoir,,,,0.0
-FR,2026,3,Hydro pumped (production),,,,0.0
-FR,2026,3,Onshore wind,,,,0.0
-FR,2026,3,Offshore wind,,,,0.0
-FR,2026,3,Solar,,,,0.0
-FR,2026,3,Marine,,,,0.0
-FR,2026,3,Other renewable,,,,0.0
-FR,2026,3,Other,,,,0.0
-FR,2026,4,Nuclear,,,,0.0
-FR,2026,4,Lignite,,,,0.0
-FR,2026,4,Hard coal,,,,0.0
-FR,2026,4,Gas,,,,0.0
-FR,2026,4,Oil & other fossil,,,,0.0
-FR,2026,4,Biomass,,,,0.0
-FR,2026,4,Waste,,,,0.0
-FR,2026,4,Geothermal,,,,0.0
-FR,2026,4,Hydro run-of-river,,,,0.0
-FR,2026,4,Hydro reservoir,,,,0.0
-FR,2026,4,Hydro pumped (production),,,,0.0
-FR,2026,4,Onshore wind,,,,0.0
-FR,2026,4,Offshore wind,,,,0.0
-FR,2026,4,Solar,,,,0.0
-FR,2026,4,Marine,,,,0.0
-FR,2026,4,Other renewable,,,,0.0
-FR,2026,4,Other,,,,0.0
-FR,2026,5,Nuclear,,,,0.0
-FR,2026,5,Lignite,,,,0.0
-FR,2026,5,Hard coal,,,,0.0
-FR,2026,5,Gas,,,,0.0
-FR,2026,5,Oil & other fossil,,,,0.0
-FR,2026,5,Biomass,,,,0.0
-FR,2026,5,Waste,,,,0.0
-FR,2026,5,Geothermal,,,,0.0
-FR,2026,5,Hydro run-of-river,,,,0.0
-FR,2026,5,Hydro reservoir,,,,0.0
-FR,2026,5,Hydro pumped (production),,,,0.0
-FR,2026,5,Onshore wind,,,,0.0
-FR,2026,5,Offshore wind,,,,0.0
-FR,2026,5,Solar,,,,0.0
-FR,2026,5,Marine,,,,0.0
-FR,2026,5,Other renewable,,,,0.0
-FR,2026,5,Other,,,,0.0
-FR,2026,6,Nuclear,,,,0.0
-FR,2026,6,Lignite,,,,0.0
-FR,2026,6,Hard coal,,,,0.0
-FR,2026,6,Gas,,,,0.0
-FR,2026,6,Oil & other fossil,,,,0.0
-FR,2026,6,Biomass,,,,0.0
-FR,2026,6,Waste,,,,0.0
-FR,2026,6,Geothermal,,,,0.0
-FR,2026,6,Hydro run-of-river,,,,0.0
-FR,2026,6,Hydro reservoir,,,,0.0
-FR,2026,6,Hydro pumped (production),,,,0.0
-FR,2026,6,Onshore wind,,,,0.0
-FR,2026,6,Offshore wind,,,,0.0
-FR,2026,6,Solar,,,,0.0
-FR,2026,6,Marine,,,,0.0
-FR,2026,6,Other renewable,,,,0.0
-FR,2026,6,Other,,,,0.0
-FR,2026,7,Nuclear,96.337,94.638,1.8,28740.19
-FR,2026,7,Lignite,,94.638,,0.0
-FR,2026,7,Hard coal,,94.638,,0.0
-FR,2026,7,Gas,133.612,94.638,41.18,1170.72
-FR,2026,7,Oil & other fossil,110.885,94.638,17.17,37.95
-FR,2026,7,Biomass,94.418,94.638,-0.23,209.8
-FR,2026,7,Waste,94.367,94.638,-0.29,298.41
-FR,2026,7,Geothermal,,94.638,,0.0
-FR,2026,7,Hydro run-of-river,100.058,94.638,5.73,1971.9
-FR,2026,7,Hydro reservoir,121.56,94.638,28.45,828.27
-FR,2026,7,Hydro pumped (production),140.953,94.638,48.94,527.0
-FR,2026,7,Onshore wind,103.373,94.638,9.23,2506.7
-FR,2026,7,Offshore wind,108.239,94.638,14.37,409.73
-FR,2026,7,Solar,46.61,94.638,-50.75,4782.32
-FR,2026,7,Marine,,94.638,,0.0
-FR,2026,7,Other renewable,,94.638,,0.0
-FR,2026,7,Other,122.372,94.638,29.31,37.55
+FR,2026,1,Nuclear,102.686,100.695,1.98,36862.32
+FR,2026,1,Lignite,,100.695,,0.0
+FR,2026,1,Hard coal,107.621,100.695,6.88,253.36
+FR,2026,1,Gas,109.562,100.695,8.81,3711.06
+FR,2026,1,Oil & other fossil,117.78,100.695,16.97,87.09
+FR,2026,1,Biomass,103.615,100.695,2.9,240.39
+FR,2026,1,Waste,102.496,100.695,1.79,256.85
+FR,2026,1,Geothermal,,100.695,,0.0
+FR,2026,1,Hydro run-of-river,105.888,100.695,5.16,3375.13
+FR,2026,1,Hydro reservoir,108.335,100.695,7.59,1835.42
+FR,2026,1,Hydro pumped (production),122.859,100.695,22.01,726.43
+FR,2026,1,Onshore wind,96.441,100.695,-4.22,5053.11
+FR,2026,1,Offshore wind,98.381,100.695,-2.3,712.65
+FR,2026,1,Solar,103.022,100.695,2.31,1103.86
+FR,2026,1,Marine,,100.695,,0.0
+FR,2026,1,Other renewable,,100.695,,0.0
+FR,2026,1,Other,108.031,100.695,7.28,12.35
+FR,2026,2,Nuclear,47.372,45.907,3.19,32435.24
+FR,2026,2,Lignite,,45.907,,0.0
+FR,2026,2,Hard coal,,45.907,,0.0
+FR,2026,2,Gas,60.002,45.907,30.7,1361.96
+FR,2026,2,Oil & other fossil,57.611,45.907,25.5,39.26
+FR,2026,2,Biomass,45.281,45.907,-1.36,278.8
+FR,2026,2,Waste,45.639,45.907,-0.58,244.24
+FR,2026,2,Geothermal,,45.907,,0.0
+FR,2026,2,Hydro run-of-river,46.062,45.907,0.34,3987.75
+FR,2026,2,Hydro reservoir,52.943,45.907,15.33,1378.03
+FR,2026,2,Hydro pumped (production),70.702,45.907,54.01,737.32
+FR,2026,2,Onshore wind,38.338,45.907,-16.49,5502.11
+FR,2026,2,Offshore wind,42.112,45.907,-8.27,744.0
+FR,2026,2,Solar,32.0,45.907,-30.29,1467.18
+FR,2026,2,Marine,,45.907,,0.0
+FR,2026,2,Other renewable,,45.907,,0.0
+FR,2026,2,Other,49.161,45.907,7.09,9.6
+FR,2026,3,Nuclear,66.274,64.07,3.44,33042.75
+FR,2026,3,Lignite,,64.07,,0.0
+FR,2026,3,Hard coal,,64.07,,0.0
+FR,2026,3,Gas,76.557,64.07,19.49,1306.28
+FR,2026,3,Oil & other fossil,86.487,64.07,34.99,58.39
+FR,2026,3,Biomass,64.239,64.07,0.26,338.91
+FR,2026,3,Waste,64.158,64.07,0.14,290.19
+FR,2026,3,Geothermal,,64.07,,0.0
+FR,2026,3,Hydro run-of-river,69.471,64.07,8.43,3909.7
+FR,2026,3,Hydro reservoir,80.975,64.07,26.38,1650.07
+FR,2026,3,Hydro pumped (production),105.314,64.07,64.37,935.03
+FR,2026,3,Onshore wind,53.71,64.07,-16.17,4063.66
+FR,2026,3,Offshore wind,52.905,64.07,-17.43,538.97
+FR,2026,3,Solar,30.56,64.07,-52.3,3021.95
+FR,2026,3,Marine,,64.07,,0.0
+FR,2026,3,Other renewable,,64.07,,0.0
+FR,2026,3,Other,70.57,64.07,10.14,10.8
+FR,2026,4,Nuclear,44.066,39.557,11.4,29162.71
+FR,2026,4,Lignite,,39.557,,0.0
+FR,2026,4,Hard coal,,39.557,,0.0
+FR,2026,4,Gas,82.561,39.557,108.71,523.26
+FR,2026,4,Oil & other fossil,42.054,39.557,6.31,38.99
+FR,2026,4,Biomass,39.688,39.557,0.33,334.95
+FR,2026,4,Waste,39.592,39.557,0.09,277.95
+FR,2026,4,Geothermal,,39.557,,0.0
+FR,2026,4,Hydro run-of-river,46.035,39.557,16.37,3330.09
+FR,2026,4,Hydro reservoir,67.281,39.557,70.08,765.89
+FR,2026,4,Hydro pumped (production),71.739,39.557,81.35,736.66
+FR,2026,4,Onshore wind,36.989,39.557,-6.49,3101.11
+FR,2026,4,Offshore wind,37.177,39.557,-6.02,481.21
+FR,2026,4,Solar,4.056,39.557,-89.75,3473.02
+FR,2026,4,Marine,,39.557,,0.0
+FR,2026,4,Other renewable,,39.557,,0.0
+FR,2026,4,Other,48.335,39.557,22.19,16.13
+FR,2026,5,Nuclear,55.577,52.245,6.38,28664.5
+FR,2026,5,Lignite,,52.245,,0.0
+FR,2026,5,Hard coal,,52.245,,0.0
+FR,2026,5,Gas,71.95,52.245,37.72,344.89
+FR,2026,5,Oil & other fossil,71.482,52.245,36.82,38.14
+FR,2026,5,Biomass,52.272,52.245,0.05,271.18
+FR,2026,5,Waste,52.029,52.245,-0.41,299.55
+FR,2026,5,Geothermal,,52.245,,0.0
+FR,2026,5,Hydro run-of-river,58.555,52.245,12.08,3629.72
+FR,2026,5,Hydro reservoir,76.252,52.245,45.95,1072.95
+FR,2026,5,Hydro pumped (production),90.191,52.245,72.63,896.53
+FR,2026,5,Onshore wind,49.946,52.245,-4.4,2339.15
+FR,2026,5,Offshore wind,49.804,52.245,-4.67,367.1
+FR,2026,5,Solar,14.368,52.245,-72.5,3950.54
+FR,2026,5,Marine,,52.245,,0.0
+FR,2026,5,Other renewable,,52.245,,0.0
+FR,2026,5,Other,71.621,52.245,37.09,24.19
+FR,2026,6,Nuclear,67.469,66.242,1.85,27764.52
+FR,2026,6,Lignite,,66.242,,0.0
+FR,2026,6,Hard coal,,66.242,,0.0
+FR,2026,6,Gas,122.205,66.242,84.48,953.85
+FR,2026,6,Oil & other fossil,115.456,66.242,74.29,58.51
+FR,2026,6,Biomass,66.42,66.242,0.27,223.53
+FR,2026,6,Waste,65.63,66.242,-0.92,276.07
+FR,2026,6,Geothermal,,66.242,,0.0
+FR,2026,6,Hydro run-of-river,69.149,66.242,4.39,2767.67
+FR,2026,6,Hydro reservoir,95.706,66.242,44.48,789.83
+FR,2026,6,Hydro pumped (production),109.054,66.242,64.63,650.95
+FR,2026,6,Onshore wind,54.574,66.242,-17.61,2579.92
+FR,2026,6,Offshore wind,46.923,66.242,-29.16,391.7
+FR,2026,6,Solar,41.879,66.242,-36.78,4384.43
+FR,2026,6,Marine,,66.242,,0.0
+FR,2026,6,Other renewable,,66.242,,0.0
+FR,2026,6,Other,92.349,66.242,39.41,32.48
+FR,2026,7,Nuclear,96.293,94.623,1.77,29321.7
+FR,2026,7,Lignite,,94.623,,0.0
+FR,2026,7,Hard coal,,94.623,,0.0
+FR,2026,7,Gas,133.023,94.623,40.58,1186.52
+FR,2026,7,Oil & other fossil,110.225,94.623,16.49,38.78
+FR,2026,7,Biomass,94.415,94.623,-0.22,214.5
+FR,2026,7,Waste,94.359,94.623,-0.28,304.4
+FR,2026,7,Geothermal,,94.623,,0.0
+FR,2026,7,Hydro run-of-river,99.959,94.623,5.64,2022.67
+FR,2026,7,Hydro reservoir,121.121,94.623,28.0,844.73
+FR,2026,7,Hydro pumped (production),140.374,94.623,48.35,535.35
+FR,2026,7,Onshore wind,103.2,94.623,9.06,2556.23
+FR,2026,7,Offshore wind,108.117,94.623,14.26,414.5
+FR,2026,7,Solar,47.491,94.623,-49.81,4909.23
+FR,2026,7,Marine,,94.623,,0.0
+FR,2026,7,Other renewable,,94.623,,0.0
+FR,2026,7,Other,122.021,94.623,28.96,37.94
 IT,2019,1,Nuclear,,67.644,,0.0
 IT,2019,1,Lignite,,67.644,,0.0
 IT,2019,1,Hard coal,69.477,67.644,2.71,2338.95
@@ -6068,125 +6068,125 @@ IT,2025,12,Solar,111.874,115.483,-3.13,1341.84
 IT,2025,12,Marine,,115.483,,0.0
 IT,2025,12,Other renewable,,115.483,,0.0
 IT,2025,12,Other,121.153,115.483,4.91,1688.9
-IT,2026,1,Nuclear,,,,0.0
-IT,2026,1,Lignite,,,,0.0
-IT,2026,1,Hard coal,,,,0.0
-IT,2026,1,Gas,,,,0.0
-IT,2026,1,Oil & other fossil,,,,0.0
-IT,2026,1,Biomass,,,,0.0
-IT,2026,1,Waste,,,,0.0
-IT,2026,1,Geothermal,,,,0.0
-IT,2026,1,Hydro run-of-river,,,,0.0
-IT,2026,1,Hydro reservoir,,,,0.0
-IT,2026,1,Hydro pumped (production),,,,0.0
-IT,2026,1,Onshore wind,,,,0.0
-IT,2026,1,Offshore wind,,,,0.0
-IT,2026,1,Solar,,,,0.0
-IT,2026,1,Marine,,,,0.0
-IT,2026,1,Other renewable,,,,0.0
-IT,2026,1,Other,,,,0.0
-IT,2026,2,Nuclear,,,,0.0
-IT,2026,2,Lignite,,,,0.0
-IT,2026,2,Hard coal,,,,0.0
-IT,2026,2,Gas,,,,0.0
-IT,2026,2,Oil & other fossil,,,,0.0
-IT,2026,2,Biomass,,,,0.0
-IT,2026,2,Waste,,,,0.0
-IT,2026,2,Geothermal,,,,0.0
-IT,2026,2,Hydro run-of-river,,,,0.0
-IT,2026,2,Hydro reservoir,,,,0.0
-IT,2026,2,Hydro pumped (production),,,,0.0
-IT,2026,2,Onshore wind,,,,0.0
-IT,2026,2,Offshore wind,,,,0.0
-IT,2026,2,Solar,,,,0.0
-IT,2026,2,Marine,,,,0.0
-IT,2026,2,Other renewable,,,,0.0
-IT,2026,2,Other,,,,0.0
-IT,2026,3,Nuclear,,,,0.0
-IT,2026,3,Lignite,,,,0.0
-IT,2026,3,Hard coal,,,,0.0
-IT,2026,3,Gas,,,,0.0
-IT,2026,3,Oil & other fossil,,,,0.0
-IT,2026,3,Biomass,,,,0.0
-IT,2026,3,Waste,,,,0.0
-IT,2026,3,Geothermal,,,,0.0
-IT,2026,3,Hydro run-of-river,,,,0.0
-IT,2026,3,Hydro reservoir,,,,0.0
-IT,2026,3,Hydro pumped (production),,,,0.0
-IT,2026,3,Onshore wind,,,,0.0
-IT,2026,3,Offshore wind,,,,0.0
-IT,2026,3,Solar,,,,0.0
-IT,2026,3,Marine,,,,0.0
-IT,2026,3,Other renewable,,,,0.0
-IT,2026,3,Other,,,,0.0
-IT,2026,4,Nuclear,,,,0.0
-IT,2026,4,Lignite,,,,0.0
-IT,2026,4,Hard coal,,,,0.0
-IT,2026,4,Gas,,,,0.0
-IT,2026,4,Oil & other fossil,,,,0.0
-IT,2026,4,Biomass,,,,0.0
-IT,2026,4,Waste,,,,0.0
-IT,2026,4,Geothermal,,,,0.0
-IT,2026,4,Hydro run-of-river,,,,0.0
-IT,2026,4,Hydro reservoir,,,,0.0
-IT,2026,4,Hydro pumped (production),,,,0.0
-IT,2026,4,Onshore wind,,,,0.0
-IT,2026,4,Offshore wind,,,,0.0
-IT,2026,4,Solar,,,,0.0
-IT,2026,4,Marine,,,,0.0
-IT,2026,4,Other renewable,,,,0.0
-IT,2026,4,Other,,,,0.0
-IT,2026,5,Nuclear,,,,0.0
-IT,2026,5,Lignite,,,,0.0
-IT,2026,5,Hard coal,,,,0.0
-IT,2026,5,Gas,,,,0.0
-IT,2026,5,Oil & other fossil,,,,0.0
-IT,2026,5,Biomass,,,,0.0
-IT,2026,5,Waste,,,,0.0
-IT,2026,5,Geothermal,,,,0.0
-IT,2026,5,Hydro run-of-river,,,,0.0
-IT,2026,5,Hydro reservoir,,,,0.0
-IT,2026,5,Hydro pumped (production),,,,0.0
-IT,2026,5,Onshore wind,,,,0.0
-IT,2026,5,Offshore wind,,,,0.0
-IT,2026,5,Solar,,,,0.0
-IT,2026,5,Marine,,,,0.0
-IT,2026,5,Other renewable,,,,0.0
-IT,2026,5,Other,,,,0.0
-IT,2026,6,Nuclear,,,,0.0
-IT,2026,6,Lignite,,,,0.0
-IT,2026,6,Hard coal,,,,0.0
-IT,2026,6,Gas,,,,0.0
-IT,2026,6,Oil & other fossil,,,,0.0
-IT,2026,6,Biomass,,,,0.0
-IT,2026,6,Waste,,,,0.0
-IT,2026,6,Geothermal,,,,0.0
-IT,2026,6,Hydro run-of-river,,,,0.0
-IT,2026,6,Hydro reservoir,,,,0.0
-IT,2026,6,Hydro pumped (production),,,,0.0
-IT,2026,6,Onshore wind,,,,0.0
-IT,2026,6,Offshore wind,,,,0.0
-IT,2026,6,Solar,,,,0.0
-IT,2026,6,Marine,,,,0.0
-IT,2026,6,Other renewable,,,,0.0
-IT,2026,6,Other,,,,0.0
-IT,2026,7,Nuclear,,156.707,,0.0
-IT,2026,7,Lignite,,156.707,,0.0
-IT,2026,7,Hard coal,162.288,156.707,3.56,192.66
-IT,2026,7,Gas,165.11,156.707,5.36,11052.98
-IT,2026,7,Oil & other fossil,159.469,156.707,1.76,154.09
-IT,2026,7,Biomass,158.133,156.707,0.91,306.05
-IT,2026,7,Waste,,156.707,,0.0
-IT,2026,7,Geothermal,156.521,156.707,-0.12,411.49
-IT,2026,7,Hydro run-of-river,159.832,156.707,1.99,1907.79
-IT,2026,7,Hydro reservoir,170.652,156.707,8.9,383.38
-IT,2026,7,Hydro pumped (production),186.924,156.707,19.28,226.89
-IT,2026,7,Onshore wind,151.077,156.707,-3.59,1434.31
-IT,2026,7,Offshore wind,145.839,156.707,-6.94,2.95
-IT,2026,7,Solar,138.788,156.707,-11.43,4652.42
-IT,2026,7,Marine,,156.707,,0.0
-IT,2026,7,Other renewable,,156.707,,0.0
-IT,2026,7,Other,160.577,156.707,2.47,1353.27
+IT,2026,1,Nuclear,,132.645,,0.0
+IT,2026,1,Lignite,,132.645,,0.0
+IT,2026,1,Hard coal,136.677,132.645,3.04,166.33
+IT,2026,1,Gas,138.61,132.645,4.5,13569.35
+IT,2026,1,Oil & other fossil,138.78,132.645,4.63,9.19
+IT,2026,1,Biomass,131.722,132.645,-0.7,209.51
+IT,2026,1,Waste,129.943,132.645,-2.04,2.7
+IT,2026,1,Geothermal,131.788,132.645,-0.65,14.04
+IT,2026,1,Hydro run-of-river,136.185,132.645,2.67,1482.33
+IT,2026,1,Hydro reservoir,143.948,132.645,8.52,267.43
+IT,2026,1,Hydro pumped (production),156.991,132.645,18.35,124.08
+IT,2026,1,Onshore wind,129.072,132.645,-2.69,2992.98
+IT,2026,1,Offshore wind,126.207,132.645,-4.85,6.65
+IT,2026,1,Solar,133.645,132.645,0.75,1281.09
+IT,2026,1,Marine,,132.645,,0.0
+IT,2026,1,Other renewable,,132.645,,0.0
+IT,2026,1,Other,134.854,132.645,1.67,1569.81
+IT,2026,2,Nuclear,,114.303,,0.0
+IT,2026,2,Lignite,,114.303,,0.0
+IT,2026,2,Hard coal,119.758,114.303,4.77,121.43
+IT,2026,2,Gas,121.099,114.303,5.95,9364.43
+IT,2026,2,Oil & other fossil,109.009,114.303,-4.63,21.08
+IT,2026,2,Biomass,112.221,114.303,-1.82,258.23
+IT,2026,2,Waste,114.303,114.303,0.0,3.1
+IT,2026,2,Geothermal,109.739,114.303,-3.99,311.85
+IT,2026,2,Hydro run-of-river,115.848,114.303,1.35,1591.06
+IT,2026,2,Hydro reservoir,118.504,114.303,3.68,269.13
+IT,2026,2,Hydro pumped (production),128.272,114.303,12.22,129.35
+IT,2026,2,Onshore wind,113.625,114.303,-0.59,2756.01
+IT,2026,2,Offshore wind,112.71,114.303,-1.39,6.03
+IT,2026,2,Solar,101.896,114.303,-10.85,1977.02
+IT,2026,2,Marine,,114.303,,0.0
+IT,2026,2,Other renewable,,114.303,,0.0
+IT,2026,2,Other,116.223,114.303,1.68,1476.11
+IT,2026,3,Nuclear,,143.44,,0.0
+IT,2026,3,Lignite,,143.44,,0.0
+IT,2026,3,Hard coal,148.395,143.44,3.45,193.92
+IT,2026,3,Gas,150.592,143.44,4.99,8175.79
+IT,2026,3,Oil & other fossil,143.456,143.44,0.01,6.87
+IT,2026,3,Biomass,143.454,143.44,0.01,558.51
+IT,2026,3,Waste,146.708,143.44,2.28,3.84
+IT,2026,3,Geothermal,143.451,143.44,0.01,451.31
+IT,2026,3,Hydro run-of-river,147.195,143.44,2.62,1601.71
+IT,2026,3,Hydro reservoir,155.796,143.44,8.61,276.63
+IT,2026,3,Hydro pumped (production),173.2,143.44,20.75,149.24
+IT,2026,3,Onshore wind,140.774,143.44,-1.86,1943.41
+IT,2026,3,Offshore wind,139.607,143.44,-2.67,4.0
+IT,2026,3,Solar,123.702,143.44,-13.76,2870.77
+IT,2026,3,Marine,,143.44,,0.0
+IT,2026,3,Other renewable,,143.44,,0.0
+IT,2026,3,Other,147.137,143.44,2.58,1584.64
+IT,2026,4,Nuclear,,119.305,,0.0
+IT,2026,4,Lignite,,119.305,,0.0
+IT,2026,4,Hard coal,121.727,119.305,2.03,158.92
+IT,2026,4,Gas,135.937,119.305,13.94,5537.59
+IT,2026,4,Oil & other fossil,118.917,119.305,-0.33,24.5
+IT,2026,4,Biomass,119.623,119.305,0.27,290.41
+IT,2026,4,Waste,,119.305,,0.0
+IT,2026,4,Geothermal,119.379,119.305,0.06,429.57
+IT,2026,4,Hydro run-of-river,123.763,119.305,3.74,1988.96
+IT,2026,4,Hydro reservoir,135.308,119.305,13.41,278.57
+IT,2026,4,Hydro pumped (production),147.737,119.305,23.83,193.55
+IT,2026,4,Onshore wind,123.313,119.305,3.36,1924.74
+IT,2026,4,Offshore wind,126.518,119.305,6.05,5.46
+IT,2026,4,Solar,83.977,119.305,-29.61,3705.01
+IT,2026,4,Marine,,119.305,,0.0
+IT,2026,4,Other renewable,,119.305,,0.0
+IT,2026,4,Other,125.419,119.305,5.12,1532.19
+IT,2026,5,Nuclear,,119.339,,0.0
+IT,2026,5,Lignite,,119.339,,0.0
+IT,2026,5,Hard coal,123.742,119.339,3.69,157.55
+IT,2026,5,Gas,136.879,119.339,14.7,5754.27
+IT,2026,5,Oil & other fossil,124.69,119.339,4.48,28.61
+IT,2026,5,Biomass,118.943,119.339,-0.33,358.34
+IT,2026,5,Waste,,119.339,,0.0
+IT,2026,5,Geothermal,119.314,119.339,-0.02,425.33
+IT,2026,5,Hydro run-of-river,125.825,119.339,5.44,2309.06
+IT,2026,5,Hydro reservoir,142.168,119.339,19.13,250.07
+IT,2026,5,Hydro pumped (production),152.281,119.339,27.6,219.14
+IT,2026,5,Onshore wind,119.695,119.339,0.3,2125.13
+IT,2026,5,Offshore wind,116.531,119.339,-2.35,5.66
+IT,2026,5,Solar,79.4,119.339,-33.47,4120.37
+IT,2026,5,Marine,,119.339,,0.0
+IT,2026,5,Other renewable,,119.339,,0.0
+IT,2026,5,Other,125.197,119.339,4.91,1473.62
+IT,2026,6,Nuclear,,132.548,,0.0
+IT,2026,6,Lignite,,132.548,,0.0
+IT,2026,6,Hard coal,132.771,132.548,0.17,142.04
+IT,2026,6,Gas,147.542,132.548,11.31,8242.16
+IT,2026,6,Oil & other fossil,142.918,132.548,7.82,52.72
+IT,2026,6,Biomass,132.406,132.548,-0.11,521.83
+IT,2026,6,Waste,,132.548,,0.0
+IT,2026,6,Geothermal,132.383,132.548,-0.12,415.66
+IT,2026,6,Hydro run-of-river,136.753,132.548,3.17,2503.99
+IT,2026,6,Hydro reservoir,151.069,132.548,13.97,322.23
+IT,2026,6,Hydro pumped (production),167.832,132.548,26.62,199.69
+IT,2026,6,Onshore wind,128.99,132.548,-2.68,1179.78
+IT,2026,6,Offshore wind,125.093,132.548,-5.62,1.7
+IT,2026,6,Solar,109.447,132.548,-17.43,4442.55
+IT,2026,6,Marine,,132.548,,0.0
+IT,2026,6,Other renewable,,132.548,,0.0
+IT,2026,6,Other,137.24,132.548,3.54,1378.8
+IT,2026,7,Nuclear,,156.533,,0.0
+IT,2026,7,Lignite,,156.533,,0.0
+IT,2026,7,Hard coal,161.787,156.533,3.36,198.94
+IT,2026,7,Gas,164.65,156.533,5.19,11346.11
+IT,2026,7,Oil & other fossil,159.152,156.533,1.67,157.74
+IT,2026,7,Biomass,157.946,156.533,0.9,312.42
+IT,2026,7,Waste,,156.533,,0.0
+IT,2026,7,Geothermal,156.358,156.533,-0.11,419.75
+IT,2026,7,Hydro run-of-river,159.519,156.533,1.91,1950.83
+IT,2026,7,Hydro reservoir,170.408,156.533,8.86,390.05
+IT,2026,7,Hydro pumped (production),186.906,156.533,19.4,227.24
+IT,2026,7,Onshore wind,151.122,156.533,-3.46,1453.42
+IT,2026,7,Offshore wind,145.777,156.533,-6.87,3.0
+IT,2026,7,Solar,139.126,156.533,-11.12,4778.56
+IT,2026,7,Marine,,156.533,,0.0
+IT,2026,7,Other renewable,,156.533,,0.0
+IT,2026,7,Other,160.332,156.533,2.43,1380.26
 PT,2019,1,Nuclear,,62.663,,0.0
 PT,2019,1,Lignite,,62.663,,0.0
 PT,2019,1,Hard coal,64.205,62.663,2.46,1019.52
@@ -7615,122 +7615,122 @@ PT,2025,12,Solar,67.699,77.935,-13.13,268.2
 PT,2025,12,Marine,,77.935,,0.0
 PT,2025,12,Other renewable,,77.935,,0.0
 PT,2025,12,Other,76.872,77.935,-1.36,19.77
-PT,2026,1,Nuclear,,,,0.0
-PT,2026,1,Lignite,,,,0.0
-PT,2026,1,Hard coal,,,,0.0
-PT,2026,1,Gas,,,,0.0
-PT,2026,1,Oil & other fossil,,,,0.0
-PT,2026,1,Biomass,,,,0.0
-PT,2026,1,Waste,,,,0.0
-PT,2026,1,Geothermal,,,,0.0
-PT,2026,1,Hydro run-of-river,,,,0.0
-PT,2026,1,Hydro reservoir,,,,0.0
-PT,2026,1,Hydro pumped (production),,,,0.0
-PT,2026,1,Onshore wind,,,,0.0
-PT,2026,1,Offshore wind,,,,0.0
-PT,2026,1,Solar,,,,0.0
-PT,2026,1,Marine,,,,0.0
-PT,2026,1,Other renewable,,,,0.0
-PT,2026,1,Other,,,,0.0
-PT,2026,2,Nuclear,,,,0.0
-PT,2026,2,Lignite,,,,0.0
-PT,2026,2,Hard coal,,,,0.0
-PT,2026,2,Gas,,,,0.0
-PT,2026,2,Oil & other fossil,,,,0.0
-PT,2026,2,Biomass,,,,0.0
-PT,2026,2,Waste,,,,0.0
-PT,2026,2,Geothermal,,,,0.0
-PT,2026,2,Hydro run-of-river,,,,0.0
-PT,2026,2,Hydro reservoir,,,,0.0
-PT,2026,2,Hydro pumped (production),,,,0.0
-PT,2026,2,Onshore wind,,,,0.0
-PT,2026,2,Offshore wind,,,,0.0
-PT,2026,2,Solar,,,,0.0
-PT,2026,2,Marine,,,,0.0
-PT,2026,2,Other renewable,,,,0.0
-PT,2026,2,Other,,,,0.0
-PT,2026,3,Nuclear,,,,0.0
-PT,2026,3,Lignite,,,,0.0
-PT,2026,3,Hard coal,,,,0.0
-PT,2026,3,Gas,,,,0.0
-PT,2026,3,Oil & other fossil,,,,0.0
-PT,2026,3,Biomass,,,,0.0
-PT,2026,3,Waste,,,,0.0
-PT,2026,3,Geothermal,,,,0.0
-PT,2026,3,Hydro run-of-river,,,,0.0
-PT,2026,3,Hydro reservoir,,,,0.0
-PT,2026,3,Hydro pumped (production),,,,0.0
-PT,2026,3,Onshore wind,,,,0.0
-PT,2026,3,Offshore wind,,,,0.0
-PT,2026,3,Solar,,,,0.0
-PT,2026,3,Marine,,,,0.0
-PT,2026,3,Other renewable,,,,0.0
-PT,2026,3,Other,,,,0.0
-PT,2026,4,Nuclear,,,,0.0
-PT,2026,4,Lignite,,,,0.0
-PT,2026,4,Hard coal,,,,0.0
-PT,2026,4,Gas,,,,0.0
-PT,2026,4,Oil & other fossil,,,,0.0
-PT,2026,4,Biomass,,,,0.0
-PT,2026,4,Waste,,,,0.0
-PT,2026,4,Geothermal,,,,0.0
-PT,2026,4,Hydro run-of-river,,,,0.0
-PT,2026,4,Hydro reservoir,,,,0.0
-PT,2026,4,Hydro pumped (production),,,,0.0
-PT,2026,4,Onshore wind,,,,0.0
-PT,2026,4,Offshore wind,,,,0.0
-PT,2026,4,Solar,,,,0.0
-PT,2026,4,Marine,,,,0.0
-PT,2026,4,Other renewable,,,,0.0
-PT,2026,4,Other,,,,0.0
-PT,2026,5,Nuclear,,,,0.0
-PT,2026,5,Lignite,,,,0.0
-PT,2026,5,Hard coal,,,,0.0
-PT,2026,5,Gas,,,,0.0
-PT,2026,5,Oil & other fossil,,,,0.0
-PT,2026,5,Biomass,,,,0.0
-PT,2026,5,Waste,,,,0.0
-PT,2026,5,Geothermal,,,,0.0
-PT,2026,5,Hydro run-of-river,,,,0.0
-PT,2026,5,Hydro reservoir,,,,0.0
-PT,2026,5,Hydro pumped (production),,,,0.0
-PT,2026,5,Onshore wind,,,,0.0
-PT,2026,5,Offshore wind,,,,0.0
-PT,2026,5,Solar,,,,0.0
-PT,2026,5,Marine,,,,0.0
-PT,2026,5,Other renewable,,,,0.0
-PT,2026,5,Other,,,,0.0
-PT,2026,6,Nuclear,,,,0.0
-PT,2026,6,Lignite,,,,0.0
-PT,2026,6,Hard coal,,,,0.0
-PT,2026,6,Gas,,,,0.0
-PT,2026,6,Oil & other fossil,,,,0.0
-PT,2026,6,Biomass,,,,0.0
-PT,2026,6,Waste,,,,0.0
-PT,2026,6,Geothermal,,,,0.0
-PT,2026,6,Hydro run-of-river,,,,0.0
-PT,2026,6,Hydro reservoir,,,,0.0
-PT,2026,6,Hydro pumped (production),,,,0.0
-PT,2026,6,Onshore wind,,,,0.0
-PT,2026,6,Offshore wind,,,,0.0
-PT,2026,6,Solar,,,,0.0
-PT,2026,6,Marine,,,,0.0
-PT,2026,6,Other renewable,,,,0.0
-PT,2026,6,Other,,,,0.0
-PT,2026,7,Nuclear,,107.569,,0.0
-PT,2026,7,Lignite,,107.569,,0.0
-PT,2026,7,Hard coal,,107.569,,0.0
-PT,2026,7,Gas,117.667,107.569,9.39,571.06
-PT,2026,7,Oil & other fossil,,107.569,,0.0
-PT,2026,7,Biomass,108.225,107.569,0.61,207.72
-PT,2026,7,Waste,,107.569,,0.0
-PT,2026,7,Geothermal,,107.569,,0.0
-PT,2026,7,Hydro run-of-river,145.229,107.569,35.01,393.06
-PT,2026,7,Hydro reservoir,154.002,107.569,43.17,200.7
-PT,2026,7,Hydro pumped (production),155.177,107.569,44.26,614.18
-PT,2026,7,Onshore wind,101.072,107.569,-6.04,613.71
-PT,2026,7,Offshore wind,87.423,107.569,-18.73,2.79
-PT,2026,7,Solar,62.236,107.569,-42.14,868.85
-PT,2026,7,Marine,,107.569,,0.0
-PT,2026,7,Other renewable,,107.569,,0.0
-PT,2026,7,Other,108.557,107.569,0.92,20.12
+PT,2026,1,Nuclear,,71.043,,0.0
+PT,2026,1,Lignite,,71.043,,0.0
+PT,2026,1,Hard coal,,71.043,,0.0
+PT,2026,1,Gas,75.41,71.043,6.15,756.34
+PT,2026,1,Oil & other fossil,,71.043,,0.0
+PT,2026,1,Biomass,74.796,71.043,5.28,228.07
+PT,2026,1,Waste,,71.043,,0.0
+PT,2026,1,Geothermal,,71.043,,0.0
+PT,2026,1,Hydro run-of-river,77.278,71.043,8.78,924.86
+PT,2026,1,Hydro reservoir,74.276,71.043,4.55,634.41
+PT,2026,1,Hydro pumped (production),79.193,71.043,11.47,756.02
+PT,2026,1,Onshore wind,60.861,71.043,-14.33,1907.78
+PT,2026,1,Offshore wind,76.322,71.043,7.43,7.61
+PT,2026,1,Solar,64.786,71.043,-8.81,239.03
+PT,2026,1,Marine,,71.043,,0.0
+PT,2026,1,Other renewable,,71.043,,0.0
+PT,2026,1,Other,68.905,71.043,-3.01,18.94
+PT,2026,2,Nuclear,,10.689,,0.0
+PT,2026,2,Lignite,,10.689,,0.0
+PT,2026,2,Hard coal,,10.689,,0.0
+PT,2026,2,Gas,12.878,10.689,20.48,954.63
+PT,2026,2,Oil & other fossil,,10.689,,0.0
+PT,2026,2,Biomass,10.641,10.689,-0.45,182.43
+PT,2026,2,Waste,,10.689,,0.0
+PT,2026,2,Geothermal,,10.689,,0.0
+PT,2026,2,Hydro run-of-river,17.129,10.689,60.24,786.68
+PT,2026,2,Hydro reservoir,13.393,10.689,25.3,482.38
+PT,2026,2,Hydro pumped (production),13.999,10.689,30.96,865.29
+PT,2026,2,Onshore wind,5.859,10.689,-45.18,1571.25
+PT,2026,2,Offshore wind,7.127,10.689,-33.33,9.6
+PT,2026,2,Solar,3.641,10.689,-65.94,268.16
+PT,2026,2,Marine,,10.689,,0.0
+PT,2026,2,Other renewable,,10.689,,0.0
+PT,2026,2,Other,11.339,10.689,6.07,16.17
+PT,2026,3,Nuclear,,40.775,,0.0
+PT,2026,3,Lignite,,40.775,,0.0
+PT,2026,3,Hard coal,,40.775,,0.0
+PT,2026,3,Gas,46.679,40.775,14.48,673.21
+PT,2026,3,Oil & other fossil,,40.775,,0.0
+PT,2026,3,Biomass,40.324,40.775,-1.11,217.56
+PT,2026,3,Waste,,40.775,,0.0
+PT,2026,3,Geothermal,,40.775,,0.0
+PT,2026,3,Hydro run-of-river,54.322,40.775,33.22,1192.77
+PT,2026,3,Hydro reservoir,71.805,40.775,76.1,296.21
+PT,2026,3,Hydro pumped (production),72.515,40.775,77.84,589.11
+PT,2026,3,Onshore wind,34.867,40.775,-14.49,1234.93
+PT,2026,3,Offshore wind,31.839,40.775,-21.92,8.59
+PT,2026,3,Solar,15.845,40.775,-61.14,446.1
+PT,2026,3,Marine,,40.775,,0.0
+PT,2026,3,Other renewable,,40.775,,0.0
+PT,2026,3,Other,40.989,40.775,0.52,21.41
+PT,2026,4,Nuclear,,42.692,,0.0
+PT,2026,4,Lignite,,42.692,,0.0
+PT,2026,4,Hard coal,,42.692,,0.0
+PT,2026,4,Gas,42.559,42.692,-0.31,557.06
+PT,2026,4,Oil & other fossil,,42.692,,0.0
+PT,2026,4,Biomass,42.858,42.692,0.39,234.02
+PT,2026,4,Waste,,42.692,,0.0
+PT,2026,4,Geothermal,,42.692,,0.0
+PT,2026,4,Hydro run-of-river,59.037,42.692,38.29,561.95
+PT,2026,4,Hydro reservoir,75.501,42.692,76.85,188.54
+PT,2026,4,Hydro pumped (production),74.488,42.692,74.48,628.4
+PT,2026,4,Onshore wind,35.48,42.692,-16.89,774.98
+PT,2026,4,Offshore wind,32.982,42.692,-22.75,5.64
+PT,2026,4,Solar,9.598,42.692,-77.52,589.81
+PT,2026,4,Marine,,42.692,,0.0
+PT,2026,4,Other renewable,,42.692,,0.0
+PT,2026,4,Other,42.244,42.692,-1.05,18.22
+PT,2026,5,Nuclear,,54.054,,0.0
+PT,2026,5,Lignite,,54.054,,0.0
+PT,2026,5,Hard coal,,54.054,,0.0
+PT,2026,5,Gas,55.721,54.054,3.08,478.19
+PT,2026,5,Oil & other fossil,,54.054,,0.0
+PT,2026,5,Biomass,54.302,54.054,0.46,220.74
+PT,2026,5,Waste,,54.054,,0.0
+PT,2026,5,Geothermal,,54.054,,0.0
+PT,2026,5,Hydro run-of-river,80.852,54.054,49.58,598.05
+PT,2026,5,Hydro reservoir,96.847,54.054,79.17,148.79
+PT,2026,5,Hydro pumped (production),97.835,54.054,81.0,635.61
+PT,2026,5,Onshore wind,51.113,54.054,-5.44,827.33
+PT,2026,5,Offshore wind,53.658,54.054,-0.73,5.51
+PT,2026,5,Solar,12.523,54.054,-76.83,730.31
+PT,2026,5,Marine,,54.054,,0.0
+PT,2026,5,Other renewable,,54.054,,0.0
+PT,2026,5,Other,54.123,54.054,0.13,19.14
+PT,2026,6,Nuclear,,70.313,,0.0
+PT,2026,6,Lignite,,70.313,,0.0
+PT,2026,6,Hard coal,,70.313,,0.0
+PT,2026,6,Gas,73.363,70.313,4.34,492.96
+PT,2026,6,Oil & other fossil,,70.313,,0.0
+PT,2026,6,Biomass,70.5,70.313,0.27,194.51
+PT,2026,6,Waste,,70.313,,0.0
+PT,2026,6,Geothermal,,70.313,,0.0
+PT,2026,6,Hydro run-of-river,97.807,70.313,39.1,268.53
+PT,2026,6,Hydro reservoir,118.588,70.313,68.66,122.63
+PT,2026,6,Hydro pumped (production),111.493,70.313,58.57,570.57
+PT,2026,6,Onshore wind,69.17,70.313,-1.63,865.67
+PT,2026,6,Offshore wind,68.541,70.313,-2.52,6.17
+PT,2026,6,Solar,28.269,70.313,-59.8,832.15
+PT,2026,6,Marine,,70.313,,0.0
+PT,2026,6,Other renewable,,70.313,,0.0
+PT,2026,6,Other,68.215,70.313,-2.98,16.85
+PT,2026,7,Nuclear,,106.544,,0.0
+PT,2026,7,Lignite,,106.544,,0.0
+PT,2026,7,Hard coal,,106.544,,0.0
+PT,2026,7,Gas,116.686,106.544,9.52,580.49
+PT,2026,7,Oil & other fossil,,106.544,,0.0
+PT,2026,7,Biomass,107.219,106.544,0.63,211.89
+PT,2026,7,Waste,,106.544,,0.0
+PT,2026,7,Geothermal,,106.544,,0.0
+PT,2026,7,Hydro run-of-river,144.483,106.544,35.61,397.59
+PT,2026,7,Hydro reservoir,153.451,106.544,44.03,202.88
+PT,2026,7,Hydro pumped (production),154.853,106.544,45.34,618.1
+PT,2026,7,Onshore wind,99.815,106.544,-6.32,636.34
+PT,2026,7,Offshore wind,83.912,106.544,-21.24,3.15
+PT,2026,7,Solar,61.456,106.544,-42.32,889.15
+PT,2026,7,Marine,,106.544,,0.0
+PT,2026,7,Other renewable,,106.544,,0.0
+PT,2026,7,Other,107.535,106.544,0.93,20.49
