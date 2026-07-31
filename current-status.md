@@ -35,6 +35,14 @@ run if anything outside the publish set is staged.
 `81873cb` (back to 480). `_tools/coverage_eyeball.py` draws this — 212 solid days across all five
 countries, nothing past the cutoff.
 
+**The gate caught a real bug on its first live run.** Run 30648716543 passed fetch, build and Open
+XML validation and was refused at the gate: France and Italy had lost January–June 2026 from
+`capture_monthly` — six months of capture prices — while DE/ES/PT were fine. `_merge_into` treated
+any column-set difference as a schema change and returned the 30-day window, discarding the stored
+year (`generation 20213 -> 2880 rows`). ENTSO-E returns a column per generation type that actually
+reported, so a technology idle for 30 days changes the column set — the normal case, not a schema
+change. The merge now takes the union of columns and refuses to return fewer rows than it was given.
+
 **Still open:** `pending-updates.md` row 5. The cron is `23 7 3 * *`, so the first unattended firing
 is **2026-08-03 07:23 UTC** — row 5 previously said 2 August, which was wrong from the day it was
 written.
