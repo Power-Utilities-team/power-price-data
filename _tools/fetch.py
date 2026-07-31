@@ -106,12 +106,36 @@ def _merge_into(path, fresh):
     else:
         fresh = fresh.copy()
         fresh.columns = [str(c) for c in fresh.columns]
-    # a column set that changed shape means the schema moved; keep the fresh one whole
+    # A column set that differs is NORMAL for a trailing window and must not be treated
+    # as a schema change. ENTSO-E returns a column per generation type that actually
+    # reported, so a technology that produced nothing in the last 30 days simply is not
+    # in the fresh frame — which says nothing about the rest of the year.
+    #
+    # This branch used to `return fresh`, discarding the stored series. On 2026-07-31 that
+    # took FR generation from 20,213 rows to 2,880 and IT with it, deleting January to
+    # June from capture_monthly for both countries. Every validator passed: the remaining
+    # data was entirely valid, just six months short. Take the UNION of the columns
+    # instead, so an absent technology reads as "did not generate in this window" rather
+    # than "this year did not happen".
     if list(old.columns) != list(fresh.columns):
-        log(f"  note  {os.path.basename(path)}: column set changed — replacing wholesale")
-        return fresh
+        cols = list(dict.fromkeys(list(old.columns) + list(fresh.columns)))
+        added = [c for c in fresh.columns if c not in old.columns]
+        gone = [c for c in old.columns if c not in fresh.columns]
+        log(f"  note  {os.path.basename(path)}: column set differs "
+            f"(+{len(added)} / -{len(gone)}) — taking the union, history kept")
+        old = old.reindex(columns=cols)
+        fresh = fresh.reindex(columns=cols)
     keep = old[~old.index.isin(fresh.index)]
-    return pd.concat([keep, fresh]).sort_index()
+    merged = pd.concat([keep, fresh]).sort_index()
+    # A merge exists to ADD to the stored series. If it ever returns less than it was
+    # given, something has gone wrong upstream and the stored copy is the better one —
+    # this is the same "coverage may not shrink" rule the publish gate applies, asserted
+    # at the point the data is written rather than eight steps later.
+    if len(merged) < len(old):
+        log(f"  WARN  {os.path.basename(path)}: merge would shrink {len(old)} -> "
+            f"{len(merged)} rows; keeping the stored series")
+        return old
+    return merged
 
 
 def _attempt(label, fn, path, force, merge=False):
