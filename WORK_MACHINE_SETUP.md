@@ -91,6 +91,31 @@ year, so a completed year never absorbed sits in neither the history nor the fet
 the full raw archive so it is always recoverable, but the longer it goes unnoticed the more the
 monthly-granularity charts show a visible 12-month hole.
 
+### For the team — who does what
+
+Almost nobody needs to "update" anything. The three situations, in the order they come up:
+
+| Situation | What to do | Who can |
+|---|---|---|
+| **Normal use** — you want current numbers | **Just open the workbook.** It pulls the latest published data on open. | Anyone |
+| **You want data fresher than the last monthly run** | Open the status page and press **Start a refresh** (~20 min), then re-open the workbook. | Anyone with the link |
+| **The chart itself is wrong** — a missing year, an unwanted technology | Download the newest workbook + deck from the status page and replace both on the share. | Anyone |
+
+**The status page is the one link to share:**
+<https://power-price-data.fredhill.workers.dev>
+It shows when the data was last refreshed, when the next automatic run is due, download
+links for all four files, and the refresh button. No login, no GitHub account, nothing to
+install — it works from a locked-down machine because it is just a web page. The link is
+also in cell A6 of the workbook's `READ_ME_FIRST` tab.
+
+**What the team does NOT need:** a GitHub account, Power Query knowledge, this Mac, or any
+admin rights. Nobody should hand-edit the data tabs — they are Power Query load targets and
+anything typed there is overwritten on the next refresh, and can shift columns and detach a
+chart.
+
+**The refresh button is rate-limited on purpose:** it refuses if a run is already going or
+one finished in the last 30 minutes, so two people pressing it cannot start duplicate runs.
+
 ### Triggering a refresh yourself, without a terminal
 
 You do **not** need the Mac, Claude Code, admin rights, or any local install. `workflow_dispatch`

@@ -211,13 +211,21 @@ Python pipeline here is the initial build, but ongoing refresh is Excel-native. 
 - Drafted first M query: `_tools/powerquery/01_DE_prices.m` (DE prices -> hourly UTC).
 - Made scratch `outputs/Test_PQ.xlsx`; began driving Excel via AppleScript automation.
 
-**⚠️ BLOCKER discovered — must resolve first:** This Mac's Excel (v16.111) menu bar does NOT expose
-Power Query "Get Data / From Web / Blank Query / Advanced Editor". Data > Get External Data only has
-the LEGACY "Run Web Query..." + Microsoft Query — not Power Query authoring. Took a screenshot
-(`$CLAUDE_JOB_DIR/tmp/excel_state.png`) to check the ribbon but PAUSED before reading it.
-**Open question:** does Mac Excel 16.111 have Power Query authoring in the ribbon (not menu bar), or
-is it too limited to author/test here? If limited, on-device testing of C isn't viable on this Mac and
-we need another test path (Windows VM, or test directly on the work PC, or reconsider).
+**⚠️ ~~BLOCKER~~ — RESOLVED 2026-07-31: this Mac DOES have Power Query.** The note below looked at
+the MENU BAR only and paused before checking the ribbon, so the open question sat unanswered for two
+weeks and drove a "we may need a Windows VM" plan that was never necessary.
+
+Checked against the installed app instead of the UI: `Microsoft Excel.app/Contents/SharedSupport/`
+ships **`Microsoft.Mashup.Container.app` (16.111.2)** — Mashup is Power Query's engine — and the
+en_GB string bundle contains **Get Data · From Web · New Query · Launch Power Query Editor ·
+Queries & Connections · Refresh All**. Only **Advanced Editor** (hand-writing M) is absent, which
+matters for authoring raw M and for nothing else this project does.
+
+So: refreshing the workbook, and creating a From-Web query through the UI, both work here. On-device
+testing needs no VM and no work PC. The commands live on the **Data tab of the ribbon**, not the
+menu bar — which is why they were missed.
+
+~~**Open question:** does Mac Excel 16.111 have Power Query authoring in the ribbon…~~ Answered above.
 
 **Excel is currently open** with Test_PQ.xlsx; M code was on the clipboard.
 
