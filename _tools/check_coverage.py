@@ -143,6 +143,13 @@ def published_csvs() -> list[str]:
     return sorted(out)
 
 
+def baseline_csvs(ref: str) -> set[str]:
+    """Every published CSV that existed at `ref`."""
+    p = subprocess.run(["git", "ls-tree", "-r", "--name-only", ref, "published/"],
+                       cwd=ROOT, capture_output=True, text=True)
+    return {ln for ln in p.stdout.split() if ln.endswith(".csv")}
+
+
 def check(ref: str):
     errs, notes = [], []
 
@@ -151,9 +158,21 @@ def check(ref: str):
                            if os.path.exists(os.path.join(ROOT, status)) else None)
     old_base = window_base(git_show(ref, status))
     shift = (now_base - old_base) if (now_base and old_base) else 0
-    if shift:
+    if shift > 0:
         notes.append(f"rolling window advanced {shift} year(s) ({old_base} -> {now_base}) "
                      f"— slot columns compared against their previous position")
+    elif shift < 0:
+        # The window only ever moves forward. Backwards means the build read a stale or
+        # truncated history, which is the same class of fault as a shrunken feed.
+        errs.append(f"{status}: the rolling window moved BACKWARDS, {old_base} -> "
+                    f"{now_base}. The slot labels only ever advance")
+        shift = 0
+
+    # A feed that vanishes is the largest possible shrink, and walking only the current
+    # tree would never see it.
+    current = set(published_csvs())
+    for rel in sorted(baseline_csvs(ref) - current):
+        errs.append(f"{rel}: published feed has DISAPPEARED since {ref}")
 
     for rel in published_csvs():
         base = git_show(ref, rel)
