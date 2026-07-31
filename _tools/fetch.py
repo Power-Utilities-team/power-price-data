@@ -138,12 +138,29 @@ def _merge_into(path, fresh):
     return merged
 
 
-def _attempt(label, fn, path, force, merge=False):
+def _attempt(label, fn, path, force, merge=False, full_start=None):
+    """Fetch one series. `fn` takes (start, end).
+
+    The incremental decision is made HERE, per series, not once per country-year. The
+    country-level check asks only whether SOME series is stored, so a country whose
+    generation fetch had failed on an earlier run — while its prices cached fine — would
+    still take the 30-day path for generation and end up with a 30-day year. That is the
+    same fault that cost FR and IT six months on 2026-07-31, one step upstream: a window
+    is only safe to merge when there is something to merge INTO, and that is a property
+    of the individual file.
+    """
+    if merge and full_start is not None and not (os.path.exists(path)
+                                                 and os.path.getsize(path) > 0):
+        log(f"  widen {label}: nothing stored — fetching the full period, not the window")
+        merge = False
+        _start = full_start
+    else:
+        _start = None
     if not merge and not _need(path, force):
         log(f"  skip  {label} (cached)")
         return
     try:
-        obj = fn()
+        obj = fn(_start)
         obj = _to_utc(obj) if obj is not None and len(obj) else obj
         if merge:
             before = 0
@@ -178,6 +195,7 @@ def fetch_country_year(country, year, force=False, since_days=None):
     meta = cfg.COUNTRIES[country]
     code = meta["code"]
     s, e = year_bounds(year)
+    s_full = s                      # kept so a series with nothing stored can widen back
     merge = False
     if since_days:
         # An incremental window is only safe if there is something to merge INTO.
@@ -201,36 +219,42 @@ def fetch_country_year(country, year, force=False, since_days=None):
         return
     log(f"== {country} ({code}) {year}  [{s.date()}..{e.date()}] ==")
 
+    # `ov` is the per-series widen-to-full-year override: _attempt passes the full start
+    # when THIS series has nothing stored to merge into, and None otherwise.
+    full = s_full if merge else None
+
     # ---- prices (per zone) ----
     for zone in meta["price_zones"]:
         _attempt(f"price {zone}",
-                 lambda z=zone: client.query_day_ahead_prices(z, start=s, end=e),
-                 raw_path(country, f"price_{zone}", year), force, merge)
+                 lambda ov=None, z=zone: client.query_day_ahead_prices(z, start=ov or s, end=e),
+                 raw_path(country, f"price_{zone}", year), force, merge, full)
 
     # ---- load (national) ----
     _attempt("load",
-             lambda: client.query_load(code, start=s, end=e),
-             raw_path(country, "load", year), force, merge)
+             lambda ov=None: client.query_load(code, start=ov or s, end=e),
+             raw_path(country, "load", year), force, merge, full)
 
     # ---- per-zone load for IT PUN weighting ----
     if len(meta["price_zones"]) > 1:
         for zone in meta["price_zones"]:
             _attempt(f"load {zone}",
-                     lambda z=zone: client.query_load(z, start=s, end=e),
-                     raw_path(country, f"load_{zone}", year), force, merge)
+                     lambda ov=None, z=zone: client.query_load(z, start=ov or s, end=e),
+                     raw_path(country, f"load_{zone}", year), force, merge, full)
 
     # ---- generation per type (national) ----
     _attempt("generation",
-             lambda: client.query_generation(code, start=s, end=e, psr_type=None),
-             raw_path(country, "generation", year), force, merge)
+             lambda ov=None: client.query_generation(code, start=ov or s, end=e, psr_type=None),
+             raw_path(country, "generation", year), force, merge, full)
 
     # ---- cross-border physical flows (all borders) ----
     _attempt("flow_import",
-             lambda: client.query_physical_crossborder_allborders(code, start=s, end=e, export=False),
-             raw_path(country, "flow_import", year), force, merge)
+             lambda ov=None: client.query_physical_crossborder_allborders(
+                 code, start=ov or s, end=e, export=False),
+             raw_path(country, "flow_import", year), force, merge, full)
     _attempt("flow_export",
-             lambda: client.query_physical_crossborder_allborders(code, start=s, end=e, export=True),
-             raw_path(country, "flow_export", year), force, merge)
+             lambda ov=None: client.query_physical_crossborder_allborders(
+                 code, start=ov or s, end=e, export=True),
+             raw_path(country, "flow_export", year), force, merge, full)
 
     # ---- installed capacity (annual) ----
     cs = pd.Timestamp(f"{year}-01-01", tz="UTC")
@@ -239,7 +263,7 @@ def fetch_country_year(country, year, force=False, since_days=None):
     # Merging a 30-day window into it would keep only the technologies present in that
     # window and silently drop the rest.
     _attempt("capacity",
-             lambda: client.query_installed_generation_capacity(code, start=cs, end=ce),
+             lambda ov=None: client.query_installed_generation_capacity(code, start=cs, end=ce),
              raw_path(country, "capacity", year), force or merge)
 
 def main():
