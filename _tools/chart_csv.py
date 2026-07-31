@@ -27,6 +27,34 @@ CO = cfg.COUNTRY_ORDER
 CY = [(c, y) for c in CO for y in YRS]  # country-year column order
 def cyname(c, y): return f"{c}_{y}"
 
+from completeness import cutoffs as _cutoffs
+_LCY = _cutoffs()["last_complete_year"]
+WINDOW = cfg.window_years(_LCY)          # e.g. [2019..2025]; rolls every January
+
+
+def save_window(out, index_col, name):
+    """Write a SEPARATE rolling-window table for the annual bar charts.
+
+    A separate file, not extra columns on the existing one, because the twelve original
+    Fig sheets carry tables inherited from the Redburn workbook that are a fixed 86
+    columns wide (A1:CH). Anything past CH falls outside the table and the chart cannot
+    see it, so widening would mean rewriting table + queryTable + column definitions on
+    legacy parts — exactly the surgery that broke chart12 in July. Its own tab uses the
+    same proven load path as the six Phase-4 tabs.
+
+    The columns are {country}_w1..wN: their POSITION never changes, so the chart's
+    references stay valid for ever, while their MEANING advances one year each January.
+    build_status publishes the same year list as the w1..wN labels the legends read, so
+    data and labels cannot drift apart.
+    """
+    w = pd.DataFrame({index_col: out[index_col]})
+    for c in CO:
+        for i, y in enumerate(WINDOW, start=1):
+            src = cyname(c, y)
+            w[cfg.wcol(c, i)] = out[src] if src in out.columns else np.nan
+    save(w, name)
+
+
 def load(n): return pd.read_parquet(os.path.join(SUM, f"{n}.parquet"))
 def save(df, name):
     p = os.path.join(OUT, f"{name}.csv"); df.to_csv(p, index=False, encoding="utf-8")
@@ -85,6 +113,8 @@ def fig5():
             out[cyname(c, y)] = [look.get((c, y, t), np.nan)
                                  for t in cfg.tech_row_order()]
         save(out.round(2), name)
+        if name == "fig5_capture_pct":
+            save_window(out.round(2), "technology", "fig5_capture_window")
 
 # --- Fig 6: daily min/max, rows=doy, cols=country_year_{min,max} ------------
 def fig6():
@@ -121,6 +151,7 @@ def fig9():
         out[cyname(c, y)] = [look.get((c, y, t), np.nan)
                              for t in cfg.tech_row_order()]
     save(out.round(1), "fig9_capacity")
+    save_window(out.round(1), "technology", "fig9_capacity_window")
 
 # --- Capture monthly, rows=YYYY-MM, cols=country_tech -----------------------
 def capture_monthly():

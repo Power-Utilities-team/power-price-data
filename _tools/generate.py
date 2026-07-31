@@ -49,6 +49,7 @@ def main():
     run("add_status_sheet.py")      # staleness banner (workbook opens on it)
     run("add_power_queries.py")     # re-injects the 6 PQ connections add_phase4 rebuilds over
     run("resync_prefill.py")        # cached data == CSV, so no table changes shape on refresh
+    run("roll_year_window.py")      # annual bar charts read the rolling window, not fixed years
     run("move_status_first.py")     # health banner leftmost; remaps every localSheetId
     run("fix_readme_sheet.py")      # drop the stale setup steps; link the status page
     # AFTER the linked workbook exists — it is the source the frozen copy is made from.

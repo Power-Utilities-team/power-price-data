@@ -49,6 +49,12 @@ TARGETS = [
     ("C_CaptureErosion", "figC_capture_erosion"),
     ("D_NetloadDuck",    "figD_netload_duck"),
     ("Status",           "status"),
+    # Rolling-window tables for the annual bar charts. Data-only tabs (no chart of their
+    # own): chart6/12 and chart9 read them, so a new complete year reaches those charts
+    # on an ordinary refresh instead of needing the workbook rebuilt. See
+    # roll_year_window.py for why the window rolls rather than grows.
+    ("Fig5_Window",      "fig5_capture_window"),
+    ("Fig9_Window",      "fig9_capacity_window"),
 ]
 
 _NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")   # fixed -> deterministic uids

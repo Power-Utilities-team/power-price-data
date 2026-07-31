@@ -228,6 +228,37 @@ TECH_BLOCKS = {
 _BLOCK_SEQ = ["DE", "PT"]          # stacking order == row order in the CSVs
 
 
+# ---------------------------------------------------------------------------
+# Rolling year window — how the annual bar charts survive the year turn
+# ---------------------------------------------------------------------------
+# A year is a chart SERIES, and Excel fixes the series count when the file is built,
+# so a refresh can never add one: a workbook built in 2026 keeps showing 2019-2025 for
+# ever. Reserving empty series in advance does not work on a BAR chart — measured
+# 2026-07-30, an empty series still claims its slot, so seven bars became twelve slots
+# and the visible bars lost ~40% of their width with blank gaps in every cluster.
+#
+# So the window rolls instead of growing. The chart always reads the same WINDOW_YEARS
+# columns, and the build decides which years those are; the series NAMES point at label
+# cells that roll with them (verified: a name read from a cell renders that cell's text —
+# a probe showed 2013-2019 in the legend from cells alone, with bar width unchanged).
+# Nothing about the chart's shape changes, so nothing compresses, and the new year
+# appears on an ordinary Power Query refresh.
+#
+# The trade: the exhibit becomes "the last seven complete years" rather than "everything
+# since 2019", so 2019 drops off in 2027. Fred chose that over the alternatives.
+WINDOW_YEARS = 7
+
+
+def window_years(last_complete_year):
+    """The WINDOW_YEARS complete years ending at last_complete_year, oldest first."""
+    return list(range(last_complete_year - WINDOW_YEARS + 1, last_complete_year + 1))
+
+
+def wcol(country, i):
+    """Window column name: i is 1-based, 1 = oldest year in the window."""
+    return f"{country}_w{i}"
+
+
 def tech_keep(country):
     """Curated technology list for a country's capture / capacity charts."""
     return TECH_BLOCKS.get(country, TECH_BLOCKS["DE"])

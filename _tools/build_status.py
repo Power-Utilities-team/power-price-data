@@ -47,6 +47,15 @@ def main():
         "charts_built_for_year": c["last_complete_year"],
         "expected_refresh_days": EXPECTED_REFRESH_DAYS,
     }
+
+    # Rolling-window labels (w1..wN), read directly by the annual bar charts' series
+    # names. These are the ONLY reason the legend can roll on a refresh: a chart series
+    # name pointing at a cell renders that cell's text, so when this row is republished
+    # with a later window the legend follows, without the workbook being rebuilt.
+    # They must stay in step with chart_csv.add_window, which fills the matching
+    # {country}_w{i} data columns from the same cfg.window_years() list.
+    for i, y in enumerate(cfg.window_years(c["last_complete_year"]), start=1):
+        row[f"w{i}"] = y
     df = pd.DataFrame([row])
     for d in (OUT, PUB):
         os.makedirs(d, exist_ok=True)

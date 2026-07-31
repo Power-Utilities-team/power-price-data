@@ -414,12 +414,26 @@ NEW_SHEETS = [  # (name, worksheet_no, drawing_no, chart_no, sheetId, rId) — a
     ("C_CaptureErosion", 19, 15, 18, 19, "rId25"),
     ("D_NetloadDuck", 20, 16, 19, 20, "rId26"),
 ]
+# Data-only tabs: no chart, no drawing — they exist purely as Power Query load targets.
+# The annual bar charts read their rolling window from here rather than from the twelve
+# original Fig sheets, whose tables are a fixed 86 columns wide (A1:CH) inherited from the
+# Redburn workbook. Widening those would mean rewriting table + queryTable + column
+# definitions on legacy parts; a fresh tab uses the same proven path as the six above.
+# chart_no None => data-only. Appended at the END like the rest, so no localSheetId moves.
+NEW_SHEETS += [
+    ("Fig5_Window", 21, None, None, 21, "rId27"),
+    ("Fig9_Window", 22, None, None, 22, "rId28"),
+]
+
 for name, wsno, dno, cno, sid, rid in NEW_SHEETS:
     parts[f"xl/worksheets/sheet{wsno}.xml"] = empty_sheet_xml()
+    order.append(f"xl/worksheets/sheet{wsno}.xml")
+    if cno is None:                     # data-only tab
+        continue
     parts[f"xl/worksheets/_rels/sheet{wsno}.xml.rels"] = sheet_drawing_rels(dno)
     parts[f"xl/drawings/drawing{dno}.xml"] = new_drawing_xml("rId1")
     parts[f"xl/drawings/_rels/drawing{dno}.xml.rels"] = new_drawing_rels(cno)
-    order += [f"xl/worksheets/sheet{wsno}.xml", f"xl/worksheets/_rels/sheet{wsno}.xml.rels",
+    order += [f"xl/worksheets/_rels/sheet{wsno}.xml.rels",
               f"xl/drawings/drawing{dno}.xml", f"xl/drawings/_rels/drawing{dno}.xml.rels"]
 
 # workbook.xml: append the two <sheet> entries (END -> preserves existing localSheetId indices)
