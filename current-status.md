@@ -43,6 +43,14 @@ year (`generation 20213 -> 2880 rows`). ENTSO-E returns a column per generation 
 reported, so a technology idle for 30 days changes the column set — the normal case, not a schema
 change. The merge now takes the union of columns and refuses to return fewer rows than it was given.
 
+**And looking would NOT have caught it** — worth knowing, because "open the workbook and look" is the
+habit that found three chart faults the day before. Plotting the blocked run's `capture_monthly`
+against main's shows the two lines identical for 85 of 91 months, and then the damaged one simply
+draws a *smoother, straighter* line across the six missing ones. Excel and matplotlib both bridge
+missing points rather than leaving a gap, so six months of France and Italy disappearing renders as a
+slightly calmer chart, not a broken one. Looking catches RENDERING faults; it does not catch missing
+data a renderer interpolates over. The two checks are complementary, not substitutes.
+
 **Still open:** `pending-updates.md` row 5. The cron is `23 7 3 * *`, so the first unattended firing
 is **2026-08-03 07:23 UTC** — row 5 previously said 2 August, which was wrong from the day it was
 written.
