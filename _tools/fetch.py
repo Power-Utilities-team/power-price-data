@@ -23,7 +23,7 @@ Usage:
   python fetch.py --force               # re-fetch even if cached
 """
 from __future__ import annotations
-import argparse, os, sys, time, traceback
+import argparse, glob, os, sys, time, traceback
 import warnings; warnings.filterwarnings("ignore")
 import pandas as pd
 from entsoe import EntsoePandasClient
@@ -156,12 +156,22 @@ def fetch_country_year(country, year, force=False, since_days=None):
     s, e = year_bounds(year)
     merge = False
     if since_days:
+        # An incremental window is only safe if there is something to merge INTO.
+        # Without this guard the first run on a cold cache fetched 30 days, merged them
+        # into nothing, and published a 31-day "year" — destroying seven months of
+        # history in the deliverables. The fallback was designed and then not written.
+        stored = glob.glob(os.path.join(cfg.RAW_DIR, f"{country}_*_{year}.parquet"))
+        stored = [f for f in stored if os.path.getsize(f) > 0]
         w = e - pd.Timedelta(days=int(since_days))
-        if w > s:
-            s, merge = w, True
-            log(f"   incremental: last {since_days} days only, merging into stored data")
-        else:
+        if not stored:
+            log(f"   no stored data for {country} {year} — FULL fetch (incremental needs "
+                f"an existing series to merge into)")
+        elif w <= s:
             log(f"   incremental window covers the whole year — full fetch")
+        else:
+            s, merge = w, True
+            log(f"   incremental: last {since_days} days, merging into "
+                f"{len(stored)} stored series")
     if s >= e:
         log(f"{country} {year}: future/empty window, skip")
         return
