@@ -375,11 +375,22 @@ print("anchored chart10-13 on Charts tab")
 # ---------------------------------------------------------------------------
 # D. New empty sheets G1_SolarPeak / G2_MonthDuck (chart14/15) appended at END
 # ---------------------------------------------------------------------------
-def empty_sheet_xml():
+def empty_sheet_xml(with_drawing=True):
+    """A blank worksheet. with_drawing=False for a DATA-ONLY tab.
+
+    The <drawing r:id="rId1"/> element is only valid when rId1 really is a drawing
+    relationship. On a data-only tab there is no drawing, so add_power_queries' table
+    relationship takes rId1 instead — and the sheet then points its drawing at a TABLE.
+    Excel rejects the package for it ("We found a problem with some content … recover?",
+    and recovering strips Power Query), while every structural check still passes,
+    because the XML is well-formed and the relationship exists — it is merely the wrong
+    TYPE. Found 2026-07-31 only by opening the file in Excel.
+    """
+    drawing = '<drawing r:id="rId1"/>' if with_drawing else ''
     return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
             f'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
             f'xmlns:r="{RNS}"><dimension ref="A1"/><sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-            '<sheetFormatPr defaultRowHeight="15"/><sheetData/><drawing r:id="rId1"/></worksheet>').encode()
+            f'<sheetFormatPr defaultRowHeight="15"/><sheetData/>{drawing}</worksheet>').encode()
 
 def sheet_drawing_rels(drawing_no):
     return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
@@ -426,9 +437,9 @@ NEW_SHEETS += [
 ]
 
 for name, wsno, dno, cno, sid, rid in NEW_SHEETS:
-    parts[f"xl/worksheets/sheet{wsno}.xml"] = empty_sheet_xml()
+    parts[f"xl/worksheets/sheet{wsno}.xml"] = empty_sheet_xml(with_drawing=cno is not None)
     order.append(f"xl/worksheets/sheet{wsno}.xml")
-    if cno is None:                     # data-only tab
+    if cno is None:                     # data-only tab: no drawing, no chart
         continue
     parts[f"xl/worksheets/_rels/sheet{wsno}.xml.rels"] = sheet_drawing_rels(dno)
     parts[f"xl/drawings/drawing{dno}.xml"] = new_drawing_xml("rId1")
@@ -462,7 +473,13 @@ for n in range(10, 20):
 for dno in (11, 12, 13, 14, 15, 16):
     adds += (f'<Override PartName="/xl/drawings/drawing{dno}.xml" '
              'ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>')
-for wsno in (15, 16, 17, 18, 19, 20):
+# DERIVED from NEW_SHEETS, never hardcoded. A worksheet part with no Content_Types
+# override is invalid OPC: Excel opens with "We found a problem with some content …
+# Do you want us to try to recover", and recovering STRIPS POWER QUERY. This list was a
+# literal (15..20), so adding Fig5_Window/Fig9_Window silently produced exactly that —
+# and neither XML well-formedness nor check_consistency noticed, because every part was
+# individually valid; only the package manifest was incomplete.
+for _, wsno, _, _, _, _ in NEW_SHEETS:
     adds += (f'<Override PartName="/xl/worksheets/sheet{wsno}.xml" '
              'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>')
 ct = ct.replace("</Types>", adds + "</Types>")

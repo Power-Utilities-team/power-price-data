@@ -58,6 +58,7 @@ def main():
     run("build_frozen_excel.py", os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData_frozen.xlsx"))
     run("build_deck.py", TEMPLATE, os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData.pptx"))
     # guard
+    run("opc_validate.py")        # package joins: content-types, rel types, chart caches
     run("check_consistency.py")
 
     if DELIVER:

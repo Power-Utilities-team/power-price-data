@@ -85,6 +85,9 @@ def main():
 
     sp = sheet_parts(parts)
 
+    from completeness import cutoffs
+    window = cfg.window_years(cutoffs()["last_complete_year"])
+
     # --- where are the w1..wN labels on the Status sheet? ------------------------
     shdr = header_of(parts, sp[STATUS_SHEET])
     label_cell = {}
@@ -124,12 +127,21 @@ def main():
         for i, s in enumerate(sers, start=1):
             letter = wcols[i]
             new = s
-            # name -> the rolling label cell (cache the current year so the pre-refresh
-            # preview reads correctly too)
+            # name -> the rolling label cell.
+            #
+            # The cache MUST carry the value as well as the count. `<c:ptCount val="1"/>`
+            # with no <c:pt> is internally inconsistent OOXML, and Excel rejects the whole
+            # package for it: "We found a problem with some content … recover?", where
+            # recovering strips Power Query. It cost a second failed open on 2026-07-31,
+            # and no structural check saw it because the XML itself parses perfectly.
+            # Caching the year also means the legend reads correctly BEFORE the first
+            # refresh, which is what the reader sees on opening a freshly downloaded file.
             new = re.sub(
                 r"<c:tx>.*?</c:tx>",
                 f'<c:tx><c:strRef><c:f>{STATUS_SHEET}!{label_cell[i]}</c:f>'
-                f'<c:strCache><c:ptCount val="1"/></c:strCache></c:strRef></c:tx>',
+                f'<c:strCache><c:ptCount val="1"/>'
+                f'<c:pt idx="0"><c:v>{window[i - 1]}</c:v></c:pt>'
+                f'</c:strCache></c:strRef></c:tx>',
                 new, count=1, flags=re.S)
             # values -> this country's window column, same rows as before
             new = re.sub(r"(<c:val>.*?<c:f>)[^<]*(</c:f>)",

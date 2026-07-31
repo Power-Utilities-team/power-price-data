@@ -129,6 +129,48 @@ def check_refresh_stability(path):
     return errs
 
 
+def check_content_types(path, label):
+    """Every part in the package must be declared in [Content_Types].xml.
+
+    A part that is perfectly well-formed XML but undeclared makes the PACKAGE invalid.
+    Excel then opens with "We found a problem with some content … do you want us to try
+    to recover", and recovering strips Power Query — the one outcome this project treats
+    as unacceptable.
+
+    This is not hypothetical: on 2026-07-31 two new worksheets were added while the
+    content-type list was still a hardcoded literal, so their overrides were omitted.
+    Every existing check passed — the XML was well-formed, chart structure matched the
+    spec — because they all inspect parts individually and none inspected the manifest.
+    Only opening the file in Excel revealed it. Hence this gate.
+    """
+    errs = []
+    z = zipfile.ZipFile(path)
+    ct = z.read("[Content_Types].xml").decode()
+    overrides = set(re.findall(r'PartName="([^"]+)"', ct))
+    defaults = set(re.findall(r'Extension="([^"]+)"', ct))
+    for n in z.namelist():
+        if n == "[Content_Types].xml" or n.endswith("/"):
+            continue
+        ext = n.rsplit(".", 1)[-1].lower() if "." in n else ""
+        if ("/" + n) in overrides:
+            continue
+        # These part families are TYPED: each needs its own Override. The package also
+        # carries `Default xml -> application/xml`, so an undeclared worksheet does not
+        # look missing — it silently inherits the WRONG type, which is exactly why the
+        # 2026-07-31 build looked fine to every structural check and still made Excel
+        # offer to Recover. A Default must therefore never satisfy these.
+        if n.startswith(("xl/worksheets/", "xl/charts/", "xl/drawings/", "xl/tables/")) \
+                and ext == "xml":
+            errs.append(f"{label}: {n} has no Content_Types Override — it falls back to "
+                        f"the generic xml Default, and Excel will offer to Recover "
+                        f"(which strips Power Query)")
+            continue
+        if ext in defaults:
+            continue        # genuinely covered by a Default — .rels, images, .bin
+        errs.append(f"{label}: {n} has no Content_Types entry at all")
+    return errs
+
+
 def check_no_future_data():
     """No published feed may carry data for a period that has not finished.
 
@@ -202,12 +244,14 @@ def main():
         if nums != list(range(1, 20)):
             errs.append(f"WORKBOOK charts: {nums} != 1..19")
         errs += check_xml_wellformed(WORKBOOK, 'WORKBOOK')
+        errs += check_content_types(WORKBOOK, 'WORKBOOK')
         errs += check_refresh_stability(WORKBOOK)
     else:
         errs.append(f"WORKBOOK missing ({WORKBOOK})")
     frozen = os.path.join(ROOT, 'outputs', 'HourlyPowerData_frozen.xlsx')
     if os.path.exists(frozen):
         errs += check_xml_wellformed(frozen, 'FROZEN')
+        errs += check_content_types(frozen, 'FROZEN')
 
     if errs:
         print("CONSISTENCY: FAIL")
