@@ -4,7 +4,40 @@
 > superseded by later ones further down. The authority on what is still open is
 > `pending-updates.md` § OPEN COMMITMENTS. Add an open item there, not here.
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-07-31_
+
+## Update 2026-07-31 (later) — nothing reaches `main` unchecked
+
+The publish path was restructured so that every gate runs BEFORE anything is written to the
+repository, and a new gate was added for the one failure mode nothing covered.
+
+**Job order is now `fetch → build → validate → publish`.** `build` commits nothing; it hands
+everything on as the `publish-payload` artifact. `publish` is the only job that writes to the repo
+and it runs last. Previously the Windows Open XML validator ran *after* the build job had already
+committed, so an invalid package landed in `deliverables/` and only then turned the run red.
+
+**`_tools/check_coverage.py` — published data may not SHRINK.** Every other check asks whether the
+data is valid; this asks whether it is the data we already had, plus more. It compares each
+published feed against the previous commit on two measures — row count, and populated cells per
+COLUMN. Both are needed: the wide chart CSVs Excel loads are fixed-shape, so a coverage collapse
+blanks cells without moving a single row. It is rollover-aware, reading the window slot labels from
+`status.csv` so the January run compares slot `w_k` against its previous position. Replayed over all
+24 published transitions in this repo's history: silent on every ordinary refresh, fires on the
+commits that shipped bad data.
+
+**The commit step no longer reverts human work.** It used `git reset --soft origin/main`, which
+leaves the index holding the run-start checkout, so `git commit` wrote back every file that had
+changed on `main` during the ~40-minute run. It is now a mixed reset, plus a guard that fails the
+run if anything outside the publish set is staged.
+
+**Verified by artefact, not by claim:** the 31-day collapse really did reach `published/` in commits
+`d4bdc58` and `8db1093` (`fig7_gen_mix` DE_2026: 480 populated cells → 48) and really is restored in
+`81873cb` (back to 480). `_tools/coverage_eyeball.py` draws this — 212 solid days across all five
+countries, nothing past the cutoff.
+
+**Still open:** `pending-updates.md` row 5. The cron is `23 7 3 * *`, so the first unattended firing
+is **2026-08-03 07:23 UTC** — row 5 previously said 2 August, which was wrong from the day it was
+written.
 
 ## Update 2026-07-21 — new chart data published to GitHub (unblocks the Windows setup)
 The four new CSVs and their producer had never been pushed — the Phase-6 charts' From-Web URLs

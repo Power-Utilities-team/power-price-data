@@ -182,40 +182,25 @@ jobs:
              deliverables/
           ls -la deliverables/
 
-      # Hand the built files to the Windows job below, which validates them with
-      # Microsoft's own SDK before anything is committed.
+      # NOTHING is committed by this job. Everything it produced is handed on as an
+      # artifact and committed by `publish` below, only once the Windows validator and
+      # the coverage guard have both passed. Until 2026-07-31 this job committed first
+      # and validated afterwards, so an invalid package landed in the repo and only
+      # THEN turned the run red — which is exactly how a workbook that made Excel offer
+      # to Recover reached deliverables/.
+      - name: Stage the data to publish
+        run: |
+          mkdir -p payload/data/processed
+          cp -r published payload/published
+          cp -r deliverables payload/deliverables
+          cp data/processed/master_fixed.parquet data/processed/capacity_fixed.parquet \
+             payload/data/processed/
+          du -sh payload
       - uses: actions/upload-artifact@v4
         with:
-          name: built-deliverables
-          path: deliverables/
+          name: publish-payload
+          path: payload/
           retention-days: 1
-      - name: Commit published data
-        run: |
-          git config user.name  "power-price-bot"
-          git config user.email "actions@github.com"
-          # master_fixed/capacity_fixed change only at the rollover, but they MUST be
-          # committed when they do — they are the history every later run builds on.
-          # Re-base onto whatever origin has WITHOUT replaying our commit.
-          #
-          # `git pull --rebase` was wrong here and failed for real on 2026-07-31: every
-          # file this job commits is REGENERATED from scratch, so if another run pushed
-          # in the meantime, rebasing replays our commit onto theirs and every single
-          # CSV conflicts (different timestamps, same lines). `|| true` then swallowed
-          # the error, leaving a detached HEAD, and the push died with exit 128 — so a
-          # 25-minute build produced nothing and the fix it carried never shipped.
-          #
-          # There is nothing to merge: this run's output IS the newest complete state.
-          # So fetch, move the branch pointer to origin while KEEPING our files
-          # (--soft), and commit once on top. No replay, so no conflict is possible.
-          git fetch origin main
-          git reset --soft origin/main
-          git add published deliverables data/processed/master_fixed.parquet data/processed/capacity_fixed.parquet
-          if git diff --staged --quiet; then
-            echo "no data changes"
-          else
-            git commit -m "data refresh $(date -u +'%Y-%m-%d')"
-            git push origin HEAD:main
-          fi
 
   # ---- 3) validate the built files with Microsoft's OWN schema validator -------
   # windows-latest is free and unlimited on a public repo and ships .NET, so this costs
@@ -227,6 +212,9 @@ jobs:
   #
   # It CANNOT render anything — Microsoft does not licence Excel on hosted runners — so
   # this answers "is the package valid", never "does the chart look right".
+  #
+  # This job now GATES the publish rather than trailing it, so a package it rejects
+  # never reaches the repository at all.
   validate:
     needs: build
     runs-on: windows-latest
@@ -234,14 +222,98 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: built-deliverables
-          path: deliverables
+          name: publish-payload
+          path: payload
       - name: Install dotnet-script
         run: dotnet tool install -g dotnet-script
       - name: Validate every deliverable against the Open XML schema
         shell: pwsh
         run: |
-          $files = Get-ChildItem deliverables -Include *.xlsx,*.pptx -Recurse |
+          $files = Get-ChildItem payload/deliverables -Include *.xlsx,*.pptx -Recurse |
                    ForEach-Object { $_.FullName }
           Write-Host "validating $($files.Count) file(s)"
+          if ($files.Count -lt 4) { throw "expected 4 deliverables, found $($files.Count)" }
           dotnet script _tools/validate_ooxml.csx -- @files
+
+  # ---- 4) guard the data, then commit ----------------------------------------
+  # The LAST job, and the only one that writes to the repository. It runs after every
+  # check has passed, which is the whole point: nothing reaches main that the Open XML
+  # validator or the coverage guard rejected.
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/download-artifact@v4
+        with:
+          name: publish-payload
+          path: payload
+      - name: Lay the built files over the checked-out repo
+        run: |
+          test -d payload/published && test -d payload/deliverables || {
+            echo "publish-payload is not shaped as expected:"; find payload -maxdepth 2; exit 1; }
+          mkdir -p published deliverables data/processed
+          cp -r payload/published/. published/
+          cp -r payload/deliverables/. deliverables/
+          cp payload/data/processed/*.parquet data/processed/
+          git status --short | head -40
+
+      # THE COVERAGE GUARD. Everything else asks "is this data valid?"; this asks "is it
+      # the data we already had, plus more?" On 2026-07-31 the answer was no and nothing
+      # noticed: a cold cache made the incremental fetch publish a 31-day "year" in place
+      # of 212 days, twice (commits d4bdc58 and 8db1093). The run was fast and green and
+      # every validator passed — correctly, because a 31-day series is perfectly VALID
+      # data. It is just the wrong data.
+      #
+      # Replayed over the repo's whole published history: silent on every ordinary
+      # refresh, and it fires on exactly the commits that shipped or restored bad data.
+      #
+      # The baseline is origin/main rather than the checkout, because that is the state
+      # this run is about to commit on top of — the same ref the reset below moves to.
+      - name: Assert published coverage has not shrunk
+        run: |
+          git fetch origin main
+          python _tools/check_coverage.py --baseline origin/main
+
+      - name: Commit published data
+        run: |
+          git config user.name  "power-price-bot"
+          git config user.email "actions@github.com"
+          # master_fixed/capacity_fixed change only at the rollover, but they MUST be
+          # committed when they do — they are the history every later run builds on.
+          #
+          # `git pull --rebase` was wrong here and failed for real on 2026-07-31: every
+          # file this job commits is REGENERATED from scratch, so if another run pushed
+          # in the meantime, rebasing replays our commit onto theirs and every single
+          # CSV conflicts (different timestamps, same lines). `|| true` then swallowed
+          # the error, leaving a detached HEAD, and the push died with exit 128 — so a
+          # 25-minute build produced nothing and the fix it carried never shipped.
+          #
+          # There is nothing to merge: this run's output IS the newest complete state.
+          # So move the branch pointer to origin and commit once on top of it. No
+          # replay, so no conflict is possible.
+          #
+          # The reset is MIXED, not --soft, and that distinction is load-bearing. A soft
+          # reset moves HEAD but leaves the INDEX holding the checkout, so `git commit`
+          # writes back every file that changed on main during the run — reverting it
+          # silently. That is not hypothetical: on 2026-07-31 commit 8db1093 deleted a
+          # pending-updates.md row a human had added 30 minutes earlier, and the run went
+          # green. A mixed reset rebuilds the index from origin, so `git add` below
+          # stages OUR paths and nothing else can ride along.
+          git fetch origin main
+          git reset --mixed origin/main
+          git add published deliverables data/processed/master_fixed.parquet data/processed/capacity_fixed.parquet
+          # Anything staged that we did not name is a file this job must not touch.
+          UNEXPECTED=$(git diff --staged --name-only |
+                       grep -Ev '^(published/|deliverables/|data/processed/(master|capacity)_fixed\.parquet$)' || true)
+          if [ -n "$UNEXPECTED" ]; then
+            echo "refusing to commit files outside the publish set:"; echo "$UNEXPECTED"; exit 1
+          fi
+          if git diff --staged --quiet; then
+            echo "no data changes"
+          else
+            git commit -m "data refresh $(date -u +'%Y-%m-%d')"
+            git push origin HEAD:main
+          fi
