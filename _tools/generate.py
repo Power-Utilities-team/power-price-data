@@ -52,7 +52,7 @@ def main():
     run("fix_negative_bars.py")   # negative bars must use the series fill, not white
     run("roll_year_window.py")      # annual bar charts read the rolling window, not fixed years
     run("move_status_first.py")     # health banner leftmost; remaps every localSheetId
-    run("fix_readme_sheet.py")      # drop the stale setup steps; link the status page
+    run("drop_readme_sheet.py")     # READ_ME_FIRST merged into Status; remaps localSheetIds
     # AFTER the linked workbook exists — it is the source the frozen copy is made from.
     # Running it earlier meant consuming the PREVIOUS run's workbook (and failing outright
     # on a clean checkout, e.g. in CI).

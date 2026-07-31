@@ -25,6 +25,23 @@ import config as cfg
 
 WB = os.path.join(cfg.ROOT, "outputs", "HourlyPowerData.xlsx")
 SHEET_NAME = "Status"
+RAW_BASE = ("https://raw.githubusercontent.com/fredhill123/power-price-data/"
+            "main/published/charts")
+
+# tab -> published CSV stem, for the recovery-reference table at the bottom of the sheet.
+URL_TABS = [
+    ("Fig1_PriceSD", "fig1_price_sd"), ("Fig2_Intraday", "fig2_intraday_indexed"),
+    ("Fig3_NegHours", "fig3_neg_hours_annual"), ("Fig3_CumNeg", "fig3_cum_near_neg"),
+    ("Fig4_Duration", "fig4_duration_curve"), ("Fig5_Capture", "fig5_capture_pct"),
+    ("Fig6_MinMax", "fig6_daily_minmax"), ("Fig7_GenMix", "fig7_gen_mix"),
+    ("Fig9_Capacity", "fig9_capacity"), ("Fig2_Intraday_avg", "fig2_intraday_avg"),
+    ("Fig5_Capture_abs", "fig5_capture_abs"), ("CaptureMonthly", "capture_monthly"),
+    ("G1_SolarPeak", "g1_solar_peakhour"), ("G2_MonthDuck", "g2_price_by_month"),
+    ("A_MonthPrice", "figA_monthly_price"), ("B_Penetration", "figB_penetration"),
+    ("C_CaptureErosion", "figC_capture_erosion"), ("D_NetloadDuck", "figD_netload_duck"),
+    ("Fig5_Window", "fig5_capture_window"), ("Fig9_Window", "fig9_capacity_window"),
+    ("Status", "status"),
+]
 
 M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -54,75 +71,158 @@ STALE = f'IFERROR(AND(ISNUMBER($F$2),({DAYS})>$F$2),FALSE)'
 ROLLOVER_DUE = 'IFERROR(AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2),FALSE)'
 ANY_ALARM = f'OR({NOT_REFRESHED},{STALE},{ROLLOVER_DUE})'
 
-BANNER = [
-    (3, f'=IF({NOT_REFRESHED},"!! NOT REFRESHED - this file is showing built-in preview '
-        f'data, not live data. Close it, re-open, and choose Enable when Excel asks about '
-        f'data connections. If that does not fix it, the network is blocking GitHub.","")',
-     "red"),
-    (4, f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
-        f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")',
-     "red"),
-    (5, f'=IF({ROLLOVER_DUE},"!! ANNUAL ROLLOVER OVERDUE - charts were built for "&$E$2&'
-        f'", but "&(YEAR(TODAY())-1)&" is now complete. The charts CANNOT show it on '
-        f'refresh - a new year is a new chart series. Replace this file (and the .pptx) '
-        f'with the newest pair from deliverables/ in the repo.","")', "red"),
-    (6, f'=IF({ANY_ALARM},"ACTION: see WORK_MACHINE_SETUP.md in the repo.","")', "red"),
-    # The last-refreshed line is now ALWAYS on, not just when healthy: the single most
-    # asked question of this file is "how current is this?", and hiding the answer behind
-    # a green-only branch meant the alarm state showed a problem without showing the date.
-    (7, f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
-        f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
-        f'Data through "&$B$2&".")', "plain"),
-    (8, f'=IF({ANY_ALARM},"","OK - data is current and the charts are up to date.")',
+STATUS_URL = "https://power-price-data.fredhill.workers.dev"
+
+# The whole sheet, as (row, column, formula-or-text, style).
+#
+# Rows 1-2 stay the Power Query load target and are HIDDEN: that row is a machine
+# record with 13 wide columns, and reading it sideways is exactly what Fred asked to
+# stop doing. Everything below is a transposed, labelled view of the same cells, so
+# there is still only one source of truth — the loaded row — and no risk of the display
+# drifting from it.
+#
+# READ_ME_FIRST is merged in here (bottom section). It used to be a separate tab telling
+# the reader to wire queries that have been wired for weeks; the genuinely useful part
+# was the tab->URL map, kept below as recovery reference and clearly labelled as such.
+LAYOUT = [
+    (4, "A", "Power Price Data", "title"),
+    (5, "A", "European hourly power prices — Germany, Spain, Portugal, France, Italy. "
+             "Source: ENTSO-E Transparency Platform.", "plain"),
+
+    # --- alarms ---------------------------------------------------------------
+    (7, "A", f'=IF({NOT_REFRESHED},"!! NOT REFRESHED - this file is showing built-in preview '
+             f'data, not live data. Close it, re-open, and choose Enable Content when Excel '
+             f'asks about data connections. If that does not fix it, the network is blocking '
+             f'GitHub.","")', "red"),
+    (8, "A", f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
+             f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")', "red"),
+    (9, "A", f'=IF({ROLLOVER_DUE},"!! NEW YEAR - charts were built for "&$E$2&", but "&'
+             f'(YEAR(TODAY())-1)&" is now complete. Some charts cannot show it on refresh. '
+             f'Replace this file AND the .pptx with the newest pair - see below.","")', "red"),
+    (10, "A", f'=IF({ANY_ALARM},"ACTION: see \'What you need to do\' below.","")', "red"),
+    (11, "A", f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
+              f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
+              f'Data through "&$B$2&".")', "plain"),
+    (12, "A", f'=IF({ANY_ALARM},"","OK - data is current and the charts are up to date.")',
      "green"),
-    (10, '="Charts show one series per year up to "&$E$2&'
-        '". A newly completed year appears only after a rebuild, not on refresh."', "plain"),
-    (11, '="Frozen history ends "&$D$2&"; last complete year in the data is "&$C$2&"."',
-     "plain"),
+
+    # --- the status row, transposed into label/value pairs ---------------------
+    (14, "A", "STATUS", "head"),
+    (15, "A", "Last refreshed", "label"),      (15, "B", "=$A$2", "val"),
+    (16, "A", "Data through", "label"),        (16, "B", "=$B$2", "val"),
+    (17, "A", "Last complete year", "label"),  (17, "B", "=$C$2", "val"),
+    (18, "A", "Frozen history ends", "label"), (18, "B", "=$D$2", "val"),
+    (19, "A", "Charts built for year", "label"), (19, "B", "=$E$2", "val"),
+    (20, "A", "Chart year window", "label"),   (20, "B", '=$G$2&" to "&$M$2', "val"),
+    (21, "A", "Refresh tolerance", "label"),   (21, "B", '=$F$2&" days"', "val"),
+
+    # --- what the reader actually has to do ------------------------------------
+    # One short line per row. Long paragraphs either wrap into very tall rows or get
+    # cut off at the column edge; short lines overflow cleanly across the empty cells
+    # to the right and stay readable at any column width.
+    (23, "A", "WHAT YOU NEED TO DO", "head"),
+
+    (24, "A", "EVERY MONTH — nothing at all.", "sub"),
+    (25, "A", "The data refreshes itself when you open this file.", "plain"),
+    (26, "A", "A job re-publishes the figures on the 3rd of each month.", "plain"),
+    (27, "A", "You do not need to download anything, or press Refresh.", "plain"),
+
+    (29, "A", "WHEN A NEW CALENDAR YEAR STARTS — replace this file, once.", "sub"),
+    (30, "A", "In mid-January, open this tab and look at the lines above.", "plain"),
+    (31, "A", "If the red NEW YEAR line is showing: download the newest .xlsx AND .pptx,", "plain"),
+    (32, "A", "and replace both on the shared drive, keeping them together.", "plain"),
+    (33, "A", "If it is not showing, there is nothing to do.", "plain"),
+    (34, "A", "Why a refresh is not enough: it writes numbers into cells, but cannot add", "plain"),
+    (35, "A", "a new line to a chart legend. A new year is a new series, and that only", "plain"),
+    (36, "A", "exists in a rebuilt file.", "plain"),
+
+    (38, "A", "Download the newest pair, and see when the next update is due:", "plain"),
+    (39, "A", STATUS_URL, "link"),
+
+    # --- reference: the plumbing, already done ---------------------------------
+    (41, "A", "IF SOMETHING BREAKS — reference only, nothing to set up", "head"),
+    (42, "A", "Every connection below is ALREADY configured here and refreshes on open.", "plain"),
+    (43, "A", "This map exists only so one can be rebuilt by hand if it is ever lost.", "plain"),
+    (44, "A", "Do not type into the data tabs — they are load targets, and anything", "plain"),
+    (45, "A", "typed there is overwritten on the next refresh.", "plain"),
+    (47, "A", "Tab", "label"),  (47, "B", "Loads from", "label"),
 ]
 
 
 def add_styles(styles: str) -> tuple[str, dict]:
-    """Append a red-20pt-bold, a green-14pt-bold and a plain font + their cellXfs."""
+    """Append the fonts this sheet needs and return {name: cellXf index}."""
     def count_of(tag, xml):
         m = re.search(rf"<{tag} count=\"(\d+)\"", xml)
         return int(m.group(1)) if m else 0
 
+    FONTS = [
+        ("red",   '<b/><sz val="16"/><color rgb="FFC00000"/><name val="Calibri"/>'),
+        ("green", '<b/><sz val="13"/><color rgb="FF006100"/><name val="Calibri"/>'),
+        ("plain", '<sz val="11"/><color rgb="FF3F3F3F"/><name val="Calibri"/>'),
+        ("title", '<b/><sz val="20"/><color rgb="FF2E3E80"/><name val="Calibri"/>'),
+        ("head",  '<b/><sz val="12"/><color rgb="FF2E3E80"/><name val="Calibri"/>'),
+        ("sub",   '<b/><sz val="11"/><color rgb="FF1F1F1F"/><name val="Calibri"/>'),
+        ("label", '<sz val="11"/><color rgb="FF7F7F7F"/><name val="Calibri"/>'),
+        ("val",   '<b/><sz val="11"/><color rgb="FF1F1F1F"/><name val="Calibri"/>'),
+        ("link",  '<u/><sz val="11"/><color rgb="FF2E3E80"/><name val="Calibri"/>'),
+    ]
     nfonts = count_of("fonts", styles)
-    new_fonts = (
-        '<font><b/><sz val="20"/><color rgb="FFC00000"/><name val="Calibri"/></font>'
-        '<font><b/><sz val="14"/><color rgb="FF006100"/><name val="Calibri"/></font>'
-        '<font><sz val="11"/><color rgb="FF595959"/><name val="Calibri"/></font>'
-    )
     styles = re.sub(r"(<fonts count=\")(\d+)(\"[^>]*>)",
-                    lambda m: f"{m.group(1)}{nfonts+3}{m.group(3)}", styles, count=1)
-    styles = styles.replace("</fonts>", new_fonts + "</fonts>")
+                    lambda m: f"{m.group(1)}{nfonts+len(FONTS)}{m.group(3)}", styles, count=1)
+    styles = styles.replace("</fonts>",
+                            "".join(f"<font>{f}</font>" for _, f in FONTS) + "</fonts>")
 
     nxf = count_of("cellXfs", styles)
-    new_xfs = "".join(
-        f'<xf numFmtId="0" fontId="{nfonts+i}" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
-        for i in range(3))
     styles = re.sub(r"(<cellXfs count=\")(\d+)(\")",
-                    lambda m: f"{m.group(1)}{nxf+3}{m.group(3)}", styles, count=1)
-    styles = styles.replace("</cellXfs>", new_xfs + "</cellXfs>")
-    return styles, {"red": nxf, "green": nxf + 1, "plain": nxf + 2}
+                    lambda m: f"{m.group(1)}{nxf+len(FONTS)}{m.group(3)}", styles, count=1)
+    styles = styles.replace("</cellXfs>", "".join(
+        f'<xf numFmtId="0" fontId="{nfonts+i}" fillId="0" borderId="0" xfId="0" '
+        f'applyFont="1" applyAlignment="1">'
+        f'<alignment horizontal="left" vertical="center"/></xf>'
+        for i in range(len(FONTS))) + "</cellXfs>")
+    return styles, {name: nxf + i for i, (name, _) in enumerate(FONTS)}
 
 
-def sheet_xml(styleids: dict) -> str:
-    rows = []
-    for r, formula, style in BANNER:
-        s = f' s="{styleids[style]}"' if style in styleids else ""
-        f = formula[1:].replace("&", "&amp;").replace("<", "&lt;")   # XML-escape the formula
-        rows.append(f'<row r="{r}" ht="26" customHeight="1">'
-                    f'<c r="A{r}"{s} t="str"><f>{f}</f></c></row>')
+def sheet_xml(styleids: dict, urlmap) -> str:
+    """The whole Status sheet: hidden load row, alarms, transposed status, instructions."""
+    cells = {}
+
+    def put(r, col, text, style):
+        esc = (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+        sid = f' s="{styleids[style]}"' if style in styleids else ""
+        if str(text).startswith("="):
+            cells.setdefault(r, []).append(
+                f'<c r="{col}{r}"{sid} t="str"><f>{esc[1:]}</f></c>')
+        else:
+            cells.setdefault(r, []).append(
+                f'<c r="{col}{r}"{sid} t="inlineStr"><is><t>{esc}</t></is></c>')
+
+    for r, col, text, style in LAYOUT:
+        put(r, col, text, style)
+
+    # the tab -> URL reference map, appended under the header row of the last section
+    row = max(r for r, *_ in LAYOUT) + 1
+    for tab, url in urlmap:
+        put(row, "A", tab, "plain")
+        put(row, "B", url, "plain")
+        row += 1
+
+    body = ""
+    for r in sorted(cells):
+        # rows 1-2 are the Power Query load target: keep them, hide them
+        hidden = ' hidden="1"' if r <= 2 else ""
+        ht = ' ht="30" customHeight="1"' if r in (4,) else ""
+        body += f'<row r="{r}"{hidden}{ht}>{"".join(cells[r])}</row>'
+
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         f'<worksheet xmlns="{M}" xmlns:r="{RNS}">'
-        '<dimension ref="A1:F10"/>'
+        f'<dimension ref="A1:M{row}"/>'
         '<sheetViews><sheetView showGridLines="0" tabSelected="1" workbookViewId="0"/></sheetViews>'
         '<sheetFormatPr defaultRowHeight="15"/>'
-        '<cols><col min="1" max="1" width="140" customWidth="1"/></cols>'
-        f'<sheetData>{"".join(rows)}</sheetData>'
+        '<cols><col min="1" max="1" width="30" customWidth="1"/>'
+        '<col min="2" max="2" width="26" customWidth="1"/></cols>'
+        f'<sheetData>{body}</sheetData>'
         '</worksheet>')
 
 
@@ -148,9 +248,25 @@ def main():
     parts["xl/styles.xml"], styleids = add_styles(parts["xl/styles.xml"].decode())
     parts["xl/styles.xml"] = parts["xl/styles.xml"].encode()
 
+    # The tab -> URL map is derived from the published CSVs the queries actually load,
+    # so the reference section cannot drift from the wiring the way the old
+    # READ_ME_FIRST tab did (it still described work that had been done for weeks).
+    urlmap = [(tab, f"{RAW_BASE}/{stem}.csv") for tab, stem in URL_TABS]
+
     ws_part = f"xl/worksheets/sheet{next_ws}.xml"
-    parts[ws_part] = sheet_xml(styleids).encode()
+    parts[ws_part] = sheet_xml(styleids, urlmap).encode()
     order.append(ws_part)
+
+    # the status page, as a real clickable hyperlink on the URL cell
+    parts[ws_part.replace("worksheets/", "worksheets/_rels/") + ".rels"] = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f'<Relationship Id="rId1" Type="{RNS}/hyperlink" Target="{STATUS_URL}" '
+        f'TargetMode="External"/></Relationships>').encode()
+    order.append(ws_part.replace("worksheets/", "worksheets/_rels/") + ".rels")
+    parts[ws_part] = parts[ws_part].decode().replace(
+        "</sheetData>",
+        '</sheetData><hyperlinks><hyperlink ref="A39" r:id="rId1"/></hyperlinks>').encode()
 
     # append LAST so every existing ExternalData_1 localSheetId stays valid
     wb = wb.replace("</sheets>",
