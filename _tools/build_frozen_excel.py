@@ -125,6 +125,52 @@ def main():
     ct = re.sub(r'<Override PartName="/customXml/[^"]*"[^>]*/>', "", ct)
     parts["[Content_Types].xml"] = ct.encode()
 
+    # --- sweep every relationship whose target no longer exists --------------------
+    # The per-sheet cleanup above only touches sheets rebuilt from a CSV, but step 2
+    # drops EVERY xl/tables part. Any sheet not in that list therefore kept a
+    # <tableParts> element and a rels entry pointing at a table that had been deleted.
+    # Microsoft's Open XML SDK rejects the package outright for it ("Specified part does
+    # not exist in the package") — caught on the validator's first CI run, on the Status,
+    # Fig5_Window and Fig9_Window tabs, and invisible to every check we had because
+    # opc_validate had only ever been pointed at the LIVE workbook, never this one.
+    #
+    # Sweeping by "does the target exist" rather than by sheet name cannot miss a tab,
+    # including any added later.
+    import posixpath
+    swept = 0
+    for rel_name in [n for n in parts if n.endswith(".rels")]:
+        base = posixpath.dirname(posixpath.dirname(rel_name))
+        rr = parts[rel_name].decode()
+
+        def _drop_dead(m):
+            nonlocal swept
+            tag = m.group(0)
+            if 'TargetMode="External"' in tag:
+                return tag
+            tgt = re.search(r'Target="([^"]+)"', tag)
+            if not tgt:
+                return tag
+            resolved = posixpath.normpath(posixpath.join(base, tgt.group(1)))
+            if resolved in parts:
+                return tag
+            swept += 1
+            rid = re.search(r'Id="([^"]+)"', tag)
+            # a sheet that referenced it must lose the reference too
+            owner = posixpath.join(base, posixpath.basename(rel_name)[:-5])
+            if owner in parts and rid:
+                ox = parts[owner].decode()
+                ox = re.sub(rf'<tablePart[^>]*r:id="{rid.group(1)}"[^>]*/>', "", ox)
+                ox = re.sub(r"<tableParts[^>]*count=\"0\"[^>]*/>", "", ox)
+                ox = re.sub(r"<tableParts[^>]*>\s*</tableParts>", "", ox)
+                parts[owner] = ox.encode()
+            return ""
+
+        new = re.sub(r"<Relationship\b[^>]*/>", _drop_dead, rr)
+        if new != rr:
+            parts[rel_name] = new.encode()
+    if swept:
+        print(f"  swept {swept} dangling relationship(s) left by the PQ strip")
+
     # --- 3. write ---
     seen = set(); final = []
     for n in order:

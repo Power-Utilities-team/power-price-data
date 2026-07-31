@@ -106,18 +106,32 @@ def validate(path: str) -> list[str]:
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "outputs", "HourlyPowerData.xlsx")
-    errs = validate(path)
-    print(f"OPC validate: {os.path.basename(path)}")
-    if not errs:
-        print("  PASS — package joins are consistent")
-        return 0
-    for e in errs:
-        print("  ✗", e)
-    print(f"  {len(errs)} problem(s)")
-    return 1
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = os.path.join(root, "outputs")
+    # EVERY deliverable, not just the live workbook. Checking only HourlyPowerData.xlsx
+    # is how three dangling table relationships shipped in the FROZEN workbook on
+    # 2026-07-31 — the PQ strip deleted the tables and left the sheets pointing at them,
+    # and Microsoft's SDK rejected the package while every local check passed, because
+    # no local check had ever opened that file.
+    paths = sys.argv[1:] or [os.path.join(out, f) for f in (
+        "HourlyPowerData.xlsx", "HourlyPowerData_frozen.xlsx")]
+
+    total = 0
+    for path in paths:
+        if not os.path.exists(path):
+            print(f"OPC validate: {os.path.basename(path)} — MISSING")
+            total += 1
+            continue
+        errs = validate(path)
+        print(f"OPC validate: {os.path.basename(path)}")
+        if not errs:
+            print("  PASS — package joins are consistent")
+            continue
+        for e in errs:
+            print("  ✗", e)
+        print(f"  {len(errs)} problem(s)")
+        total += len(errs)
+    return 1 if total else 0
 
 
 if __name__ == "__main__":
