@@ -5,10 +5,41 @@ workbook (set to *refresh-on-open*) is always current — a non-technical user
 just opens the file. Nobody has to run anything.
 
 ## How it works
-- `.github/workflows/refresh.yml` runs on a schedule (monthly, 2nd @ 06:00 UTC)
+- `.github/workflows/refresh.yml` runs on a schedule (monthly, **3rd @ 07:23 UTC**)
   and on demand. It fetches ENTSO-E, rebuilds the summaries, and publishes CSVs
   to `published/` (served at stable raw URLs).
 - The workbook's Power Query connections point at those URLs and refresh on open.
+
+### The four jobs, and why they are in that order
+`fetch` → `build` → `validate` → `publish`. Only the **last** one writes to the
+repository, and that is the whole point: everything that can reject a build runs
+first, so a bad package or a shrunken feed never reaches `main`.
+
+| job | runner | what it does |
+|---|---|---|
+| `fetch` | ubuntu ×5 | one country each, in parallel; caches `data/raw` between runs |
+| `build` | ubuntu | assembles, summarises, exports, rebuilds the workbook and decks. **Commits nothing** — it uploads everything as the `publish-payload` artifact |
+| `validate` | windows | Microsoft's own Open XML SDK on all four deliverables. Free and unlimited on a public repo, and it catches the schema faults our hand-written checks do not |
+| `publish` | ubuntu | asserts coverage has not shrunk, then commits and pushes |
+
+Until 2026-07-31 the build job committed and `validate` ran afterwards, so an
+invalid workbook landed in `deliverables/` and only then turned the run red.
+
+### The coverage gate
+`publish` runs `_tools/check_coverage.py` before it commits. Every other check asks
+whether the data is *valid*; this asks whether it is the data we already had, **plus
+more**. It compares each published feed against the previous commit on row count and
+on populated cells per column, and fails the run on a large drop.
+
+It exists because on 2026-07-31 a cold cache made the incremental fetch publish a
+31-day "year" in place of 212 days. It shipped because the run was fast and green and
+every validator passed — correctly, since a 31-day series is perfectly valid data. It
+is just the wrong data.
+
+**If it trips**, do not loosen the tolerance. Either the fetch lost data (re-run with
+`full_refetch=true`), or the shrink is deliberate — a clipping fix, a chart
+restructure — in which case commit that change yourself and push, since the gate only
+runs in CI. `_tools/coverage_eyeball.py` draws the coverage so you can see which.
 
 ## Run it manually (anyone with repo access)
 GitHub → **Actions** tab → *Refresh ENTSO-E power-price data* → **Run workflow**.

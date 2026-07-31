@@ -26,8 +26,13 @@ Italy), 2019 → present, from the ENTSO-E Transparency Platform.
 - **Python env:** `_tools/.venv` (activate with `source _tools/.venv/bin/activate`, run
   everything from inside `_tools/`)
 - **API key:** `_tools/.entsoe_key` locally; `ENTSOE_API_KEY` GitHub secret in CI. Never hardcode it.
-- **Monthly automation:** `.github/workflows/refresh.yml`, 06:00 UTC on the 2nd — fetches the
-  current year, rebuilds the chart CSVs, commits them to `published/charts/`.
+- **Monthly automation:** `.github/workflows/refresh.yml`, **07:23 UTC on the 3rd** — fetches the
+  current year, rebuilds the chart CSVs, validates the packages on a Windows runner, checks that
+  no published feed has shrunk, and only then commits to `published/charts/`.
+  ⚠ At the January rollover the coverage guard reads the window slot labels from
+  `published/charts/status.csv` to follow the slots as they advance. If you hand-edit that file
+  during a rollover, do it before the run, not after — the guard compares slot `w_k` against its
+  previous position and a mismatched label is what would make it fire spuriously.
 - **Deliverables:** `HourlyPowerData.xlsx` (live, Power-Query linked) + `HourlyPowerData.pptx`
   (linked deck), plus a self-contained `_frozen.xlsx` / `_snapshot.pptx` pair.
 

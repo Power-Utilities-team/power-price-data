@@ -25,6 +25,8 @@ fixed-cell Excel → linked PowerPoint charts (Rothschild/Redburn style)._
 | `_tools/build_excel.py` | fixed-cell workbook → `outputs/PowerPriceData.xlsx` |
 | `_tools/charts.py` | Rothschild-style reference PNGs → `outputs/charts/` |
 | `_tools/validate.py` | adversarial checks vs Redburn figures |
+| `_tools/check_coverage.py` | published data may not SHRINK vs the previous commit — gates the CI publish |
+| `_tools/coverage_eyeball.py` | draws what that guard counts → `outputs/coverage.png` |
 | `_tools/refresh.sh` | one-shot update (fetch → build → summarise → excel) |
 | `data/raw/` · `data/processed/` | Parquet store + DuckDB |
 | `outputs/` | `PowerPriceData.xlsx` + `charts/` |
