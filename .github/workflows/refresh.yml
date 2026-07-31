@@ -27,7 +27,12 @@ on:
     # The monthly commit normally resets that clock, but two consecutive failed runs
     # would reach 60 days and the schedule would switch itself off silently. If the
     # Status tab ever shows STALE, check the Actions tab for a disabled schedule.
-  workflow_dispatch: {}       # manual "Run workflow" button
+  workflow_dispatch:
+    inputs:
+      full_refetch:
+        description: "Re-pull the whole year from ENTSO-E (slow, ~20 min). Leave off for the fast incremental refresh."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -54,6 +59,26 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -r requirements.txt
+      # Persist THIS year's raw between runs so the fetch can be incremental. ~16 MB per
+      # country-set. The cache is an OPTIMISATION, never a correctness dependency: on a
+      # miss, data/raw is empty, fetch.py finds nothing stored and pulls the whole year,
+      # which is exactly the old behaviour. So the fast path can never leave worse data
+      # than the slow one — only take longer when cold.
+      #
+      # This also gives self-healing for free, and it is worth stating so nobody "fixes"
+      # it later: GitHub evicts a cache after ~7 days unused, so the MONTHLY run almost
+      # always finds it cold and re-pulls the whole year, while on-demand presses close
+      # together find it warm and finish in a couple of minutes. Frequent = fast,
+      # infrequent = thorough, with no configuration and nothing to remember.
+      - name: Restore cached raw data
+        id: rawcache
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: raw-${{ matrix.country }}-${{ github.run_id }}
+          restore-keys: |
+            raw-${{ matrix.country }}-
+
       - name: Fetch ${{ matrix.country }} (current year, plus the prior year at rollover)
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
@@ -73,9 +98,21 @@ jobs:
             python fetch.py --country ${{ matrix.country }} --years $PRIOR --force
             python fetch.py --country ${{ matrix.country }} --years $PRIOR
           fi
-          echo "fetching ${{ matrix.country }} $YEAR"
-          python fetch.py --country ${{ matrix.country }} --years $YEAR --force
-          python fetch.py --country ${{ matrix.country }} --years $YEAR          # 2nd pass fills 503 gaps
+          # Incremental by default. A 30-day trailing window catches both ENTSO-E's
+          # revisions to already-published data and any hour a 503 left empty; measured
+          # 2026-07-31, there were ZERO gaps inside the covered span across 2024, 2025
+          # and 2026, so the in-run second pass already handles transient failures.
+          # `full_refetch` forces the old whole-year pull when belt-and-braces is wanted,
+          # and the annual rollover above always re-pulls the prior year in full.
+          if [ "${{ inputs.full_refetch }}" = "true" ]; then
+            echo "FULL re-fetch of ${{ matrix.country }} $YEAR (requested)"
+            python fetch.py --country ${{ matrix.country }} --years $YEAR --force
+            python fetch.py --country ${{ matrix.country }} --years $YEAR
+          else
+            echo "incremental refresh of ${{ matrix.country }} $YEAR (30-day window)"
+            python fetch.py --country ${{ matrix.country }} --years $YEAR --since-days 30
+            python fetch.py --country ${{ matrix.country }} --years $YEAR --since-days 30   # 2nd pass fills 503 gaps
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: raw-${{ matrix.country }}

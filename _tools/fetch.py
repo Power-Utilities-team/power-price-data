@@ -85,13 +85,52 @@ def _need(path, force):
         return True
     return not (os.path.exists(path) and os.path.getsize(path) > 0)
 
-def _attempt(label, fn, path, force):
-    if not _need(path, force):
+def _merge_into(path, fresh):
+    """Merge a freshly-fetched trailing window into the stored series.
+
+    Rows are keyed on the UTC timestamp and the FRESH copy wins on overlap, which is what
+    makes revisions propagate: ENTSO-E restates published values, so a re-fetched day must
+    replace the stored one rather than be discarded as a duplicate. Anything outside the
+    window is untouched, so the stored history is preserved without re-downloading it.
+    """
+    if fresh is None or len(fresh) == 0:
+        return None
+    if not (os.path.exists(path) and os.path.getsize(path) > 0):
+        return fresh                       # nothing stored yet — this IS the whole series
+    old = pd.read_parquet(path)
+    if isinstance(fresh, pd.Series):
+        fresh = fresh.to_frame(name="value")
+    if isinstance(fresh.columns, pd.MultiIndex):
+        fresh = fresh.copy()
+        fresh.columns = ["|".join(str(x) for x in c) for c in fresh.columns]
+    else:
+        fresh = fresh.copy()
+        fresh.columns = [str(c) for c in fresh.columns]
+    # a column set that changed shape means the schema moved; keep the fresh one whole
+    if list(old.columns) != list(fresh.columns):
+        log(f"  note  {os.path.basename(path)}: column set changed — replacing wholesale")
+        return fresh
+    keep = old[~old.index.isin(fresh.index)]
+    return pd.concat([keep, fresh]).sort_index()
+
+
+def _attempt(label, fn, path, force, merge=False):
+    if not merge and not _need(path, force):
         log(f"  skip  {label} (cached)")
         return
     try:
         obj = fn()
-        if _save(_to_utc(obj) if obj is not None and len(obj) else obj, path):
+        obj = _to_utc(obj) if obj is not None and len(obj) else obj
+        if merge:
+            before = 0
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                before = len(pd.read_parquet(path))
+            obj = _merge_into(path, obj)
+            if _save(obj, path):
+                log(f"  ok    {label}  ({before} -> {len(obj)} rows)")
+            else:
+                log(f"  EMPTY {label}")
+        elif _save(obj, path):
             log(f"  ok    {label}  ({len(obj)} rows)")
         else:
             log(f"  EMPTY {label}")
@@ -101,10 +140,28 @@ def _attempt(label, fn, path, force):
         log(f"  FAIL  {label}: {type(ex).__name__}: {str(ex)[:90]}")
     time.sleep(SLEEP)
 
-def fetch_country_year(country, year, force=False):
+def fetch_country_year(country, year, force=False, since_days=None):
+    """Fetch one country-year. With since_days=N, fetch only the trailing N days and
+    MERGE into what is stored, instead of re-pulling the whole year.
+
+    Why a trailing WINDOW rather than "everything since the last timestamp": ENTSO-E
+    revises data it has already published, so a strict watermark would never revisit a
+    restated day. Re-fetching a window catches revisions and any hour a 503 left empty,
+    which is what the full re-pull was really insuring against. Measured 2026-07-31: zero
+    gaps inside the covered span across 2024, 2025 and 2026, so the in-run second pass
+    already handles transient failures and the window handles the rest.
+    """
     meta = cfg.COUNTRIES[country]
     code = meta["code"]
     s, e = year_bounds(year)
+    merge = False
+    if since_days:
+        w = e - pd.Timedelta(days=int(since_days))
+        if w > s:
+            s, merge = w, True
+            log(f"   incremental: last {since_days} days only, merging into stored data")
+        else:
+            log(f"   incremental window covers the whole year — full fetch")
     if s >= e:
         log(f"{country} {year}: future/empty window, skip")
         return
@@ -114,45 +171,51 @@ def fetch_country_year(country, year, force=False):
     for zone in meta["price_zones"]:
         _attempt(f"price {zone}",
                  lambda z=zone: client.query_day_ahead_prices(z, start=s, end=e),
-                 raw_path(country, f"price_{zone}", year), force)
+                 raw_path(country, f"price_{zone}", year), force, merge)
 
     # ---- load (national) ----
     _attempt("load",
              lambda: client.query_load(code, start=s, end=e),
-             raw_path(country, "load", year), force)
+             raw_path(country, "load", year), force, merge)
 
     # ---- per-zone load for IT PUN weighting ----
     if len(meta["price_zones"]) > 1:
         for zone in meta["price_zones"]:
             _attempt(f"load {zone}",
                      lambda z=zone: client.query_load(z, start=s, end=e),
-                     raw_path(country, f"load_{zone}", year), force)
+                     raw_path(country, f"load_{zone}", year), force, merge)
 
     # ---- generation per type (national) ----
     _attempt("generation",
              lambda: client.query_generation(code, start=s, end=e, psr_type=None),
-             raw_path(country, "generation", year), force)
+             raw_path(country, "generation", year), force, merge)
 
     # ---- cross-border physical flows (all borders) ----
     _attempt("flow_import",
              lambda: client.query_physical_crossborder_allborders(code, start=s, end=e, export=False),
-             raw_path(country, "flow_import", year), force)
+             raw_path(country, "flow_import", year), force, merge)
     _attempt("flow_export",
              lambda: client.query_physical_crossborder_allborders(code, start=s, end=e, export=True),
-             raw_path(country, "flow_export", year), force)
+             raw_path(country, "flow_export", year), force, merge)
 
     # ---- installed capacity (annual) ----
     cs = pd.Timestamp(f"{year}-01-01", tz="UTC")
     ce = pd.Timestamp(f"{year}-12-31", tz="UTC")
+    # NOT merged: capacity is an annual snapshot keyed by technology, not a time series.
+    # Merging a 30-day window into it would keep only the technologies present in that
+    # window and silently drop the rest.
     _attempt("capacity",
              lambda: client.query_installed_generation_capacity(code, start=cs, end=ce),
-             raw_path(country, "capacity", year), force)
+             raw_path(country, "capacity", year), force or merge)
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--country", default=None, help="DE/FR/ES/PT/IT (default all)")
     ap.add_argument("--years", default=None, help="comma list, e.g. 2024 or 2019,2020")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--since-days", type=int, default=None,
+                    help="fetch only the trailing N days and merge into stored data "
+                         "(falls back to a full year fetch if nothing is stored)")
     a = ap.parse_args()
 
     countries = [a.country] if a.country else cfg.COUNTRY_ORDER
@@ -162,7 +225,8 @@ def main():
     for country in countries:
         for year in years:
             try:
-                fetch_country_year(country, year, force=a.force)
+                fetch_country_year(country, year, force=a.force,
+                                   since_days=a.since_days)
             except Exception:
                 log(f"UNCAUGHT {country} {year}\n{traceback.format_exc()}")
     log(f"DONE in {(time.time()-t0)/60:.1f} min")
