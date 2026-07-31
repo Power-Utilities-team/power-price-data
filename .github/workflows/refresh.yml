@@ -144,6 +144,14 @@ jobs:
              outputs/HourlyPowerData_frozen.xlsx outputs/HourlyPowerData_snapshot.pptx \
              deliverables/
           ls -la deliverables/
+
+      # Hand the built files to the Windows job below, which validates them with
+      # Microsoft's own SDK before anything is committed.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built-deliverables
+          path: deliverables/
+          retention-days: 1
       - name: Commit published data
         run: |
           git config user.name  "power-price-bot"
@@ -171,3 +179,32 @@ jobs:
             git commit -m "data refresh $(date -u +'%Y-%m-%d')"
             git push origin HEAD:main
           fi
+
+  # ---- 3) validate the built files with Microsoft's OWN schema validator -------
+  # windows-latest is free and unlimited on a public repo and ships .NET, so this costs
+  # nothing. It matters because our own checks are hand-written: they encode the faults
+  # we have already hit and nothing else. Twice on 2026-07-31 a workbook passed every
+  # check we had and still made Excel offer to Recover (a missing [Content_Types]
+  # override; a strCache declaring points it did not hold). Both are schema violations,
+  # and this is the same definition Excel uses to decide.
+  #
+  # It CANNOT render anything — Microsoft does not licence Excel on hosted runners — so
+  # this answers "is the package valid", never "does the chart look right".
+  validate:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: built-deliverables
+          path: deliverables
+      - name: Install dotnet-script
+        run: dotnet tool install -g dotnet-script
+      - name: Validate every deliverable against the Open XML schema
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem deliverables -Include *.xlsx,*.pptx -Recurse |
+                   ForEach-Object { $_.FullName }
+          Write-Host "validating $($files.Count) file(s)"
+          dotnet script _tools/validate_ooxml.csx -- @files
