@@ -5,7 +5,7 @@ workbook (set to *refresh-on-open*) is always current — a non-technical user
 just opens the file. Nobody has to run anything.
 
 ## How it works
-- `.github/workflows/refresh.yml` runs on a schedule (monthly, **3rd @ 07:23 UTC**)
+- `.github/workflows/refresh.yml` runs on a schedule (monthly, **2nd @ 07:23 UTC**)
   and on demand. It fetches ENTSO-E, rebuilds the summaries, and publishes CSVs
   to `published/` (served at stable raw URLs).
 - The workbook's Power Query connections point at those URLs and refresh on open.
@@ -40,6 +40,14 @@ is just the wrong data.
 `full_refetch=true`), or the shrink is deliberate — a clipping fix, a chart
 restructure — in which case commit that change yourself and push, since the gate only
 runs in CI. `_tools/coverage_eyeball.py` draws the coverage so you can see which.
+
+The same script also asserts that the month which has just closed actually **arrived** in
+the monthly exhibits. That is a different failure from a shrink and the shrink check
+cannot see it: if the month never appears, last month's feed ended in June and this
+month's also ends in June, so nothing got smaller. It happens when coverage has not yet
+passed the month's final hour at run time — the run then succeeds and silently omits the
+month for a further month. This is why the schedule sits on the 2nd rather than the 1st;
+see the reasoning block above the `cron:` line.
 
 ## Run it manually (anyone with repo access)
 GitHub → **Actions** tab → *Refresh ENTSO-E power-price data* → **Run workflow**.

@@ -217,6 +217,80 @@ def check(ref: str):
     return errs, notes
 
 
+def month_start(y: int, m: int) -> str:
+    return f"{y:04d}-{m:02d}-01"
+
+
+def prev_month(y: int, m: int) -> tuple[int, int]:
+    return (y - 1, 12) if m == 1 else (y, m - 1)
+
+
+def check_month_arrived():
+    """The month that has just ended must be PRESENT in the monthly exhibits.
+
+    The shrink check above cannot see this. A month that never arrives is not a shrink —
+    last month's feed ended in June and this month's also ends in June, so nothing got
+    smaller and the gate passes. Absence and shrinkage are different failures.
+
+    It matters because of how the month gate works: a month counts complete only once
+    coverage passes its final hour, so a run soon after the month boundary that meets a
+    late ENTSO-E publication produces a SUCCESSFUL run which silently omits the month
+    from every monthly exhibit — for a further month, until the next scheduled run. Green
+    run, wrong data, which is this project's recurring failure and the reason the
+    schedule sits on the 2nd rather than the 1st.
+
+    Detected structurally rather than from a hardcoded list: a monthly feed is one whose
+    first column is `date` and whose every value is the first of a month. That
+    deliberately excludes capture_monthly, which is keyed `month` and is NOT gated on
+    completeness — it carries the running partial month and would fail this assertion
+    every time.
+
+    A 24-hour grace after the month boundary keeps an ad-hoc dispatch in the first hours
+    of a month from failing on a month that genuinely has not closed yet.
+    """
+    import datetime as dt
+
+    errs, notes = [], []
+    status_path = os.path.join(PUBLISHED, "charts", "status.csv")
+    if not os.path.exists(status_path):
+        return errs, ["no status.csv — month-arrival check skipped"]
+    rows = list(csv.reader(open(status_path, newline="")))
+    if len(rows) < 2:
+        return errs, ["status.csv has no data row — month-arrival check skipped"]
+    hdr = [h.strip() for h in rows[0]]
+    if "generated_utc" not in hdr:
+        return errs, ["status.csv has no generated_utc — month-arrival check skipped"]
+    gen = dt.datetime.fromisoformat(rows[1][hdr.index("generated_utc")].strip())
+
+    start_of_month = gen.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if (gen - start_of_month) < dt.timedelta(hours=24):
+        return errs, [f"only {gen - start_of_month} into {gen:%B %Y} — month-arrival "
+                      f"check skipped (the month just turned)"]
+
+    want_y, want_m = prev_month(gen.year, gen.month)
+    want = month_start(want_y, want_m)
+
+    for rel in published_csvs():
+        with open(os.path.join(ROOT, rel), newline="") as fh:
+            r = list(csv.reader(fh))
+        if len(r) < 2 or not r[0] or r[0][0].strip().lower() != "date":
+            continue
+        dates = [x[0].strip() for x in r[1:] if x and x[0].strip()]
+        if not dates or not all(re.match(r"\d{4}-\d{2}-01$", d) for d in dates):
+            continue                      # not a monthly-axis feed
+        populated = [x[0].strip() for x in r[1:]
+                     if x and x[0].strip() and any(c.strip() for c in x[1:])]
+        if not populated:
+            errs.append(f"{rel}: monthly feed is entirely empty")
+            continue
+        if populated[-1] < want:
+            errs.append(f"{rel}: ends {populated[-1]} but {want_y}-{want_m:02d} has "
+                        f"closed — the month did not arrive")
+    if not errs:
+        notes.append(f"month-arrival: {want_y}-{want_m:02d} present in every monthly feed")
+    return errs, notes
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--baseline", default="HEAD",
@@ -228,11 +302,14 @@ def main():
         sys.exit(1)
 
     errs, notes = check(args.baseline)
+    m_errs, m_notes = check_month_arrived()
+    errs += m_errs
+    notes += m_notes
     for n in notes:
         print("  ·", n)
     if errs:
-        print(f"COVERAGE: FAIL — published data shrank against {args.baseline} "
-              f"({len(errs)} findings)")
+        print(f"COVERAGE: FAIL — published data shrank against {args.baseline}, or a "
+              f"closed month is missing ({len(errs)} findings)")
         for e in errs[:25]:
             print("  ✗", e)
         if len(errs) > 25:

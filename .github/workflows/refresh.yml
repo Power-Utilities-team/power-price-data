@@ -5,13 +5,27 @@ name: Refresh ENTSO-E power-price data
 # data. Also runnable on demand from the Actions tab ("Run workflow").
 on:
   schedule:
-    # 07:23 UTC on the 3rd. Three deliberate choices, all measured (2026-07-30):
+    # 07:23 UTC on the 2nd. Three deliberate choices, all measured:
     #
-    #  * the 3rd, not the 2nd — publication lag is only ~1h34m and there is no weekend
-    #    gap in the data (weekend/weekday row ratio 0.998; European power markets clear
-    #    every day), so the 2nd was already safe. The extra day is free margin for a
-    #    late or retried ENTSO-E publication, and costs nothing: no chart's axis is
-    #    finer than monthly, so arriving a day later changes no exhibit.
+    #  * the 2nd, not the 1st or the 3rd (Fred's call, 2026-08-01). What sets the floor
+    #    is not the publication lag but the MONTH GATE: a month counts complete only
+    #    once coverage passes its final hour, so July needs coverage_end >= 1 Aug 00:00.
+    #    Coverage trails the run by ~1h34m (measured 2026-07-30; corroborated by the
+    #    2026-07-31 17:29 run, whose coverage ended 16:00). That gives, for a late
+    #    ENTSO-E publication:
+    #
+    #        1st  07:23 ->  7h23m of allowance   (~5h49m over the normal lag)
+    #        2nd  07:23 -> 31h23m
+    #        3rd  07:23 -> 55h23m
+    #
+    #    The 1st was rejected on the FAILURE MODE, not the odds. Exceeding the
+    #    allowance does not fail the run: it succeeds, publishes, and silently omits the
+    #    month from every monthly exhibit until the next scheduled run a month later.
+    #    The shrink guard cannot see that — a month that never arrives is not a shrink —
+    #    which is why check_coverage.check_month_arrived now asserts it directly. The
+    #    2nd keeps a day in hand and still lands the month a day earlier than the 3rd.
+    #    There is no weekend gap to worry about either way (weekend/weekday row ratio
+    #    0.998; European power markets clear every day).
     #
     #  * :23, not :00 — GitHub queues scheduled workflows on shared runners and delays
     #    them under load, and load spikes hardest on the hour. An odd minute avoids the
@@ -21,7 +35,7 @@ on:
     #    more frequent run would sharpen, but NO chart gains a new data point, because
     #    every axis is annual, quarterly or monthly. Firing just after month close is
     #    exactly when the monthly feeds gain their point.
-    - cron: "23 7 3 * *"
+    - cron: "23 7 2 * *"
     #
     # ⚠ GitHub disables scheduled workflows after 60 days with no repository activity.
     # The monthly commit normally resets that clock, but two consecutive failed runs

@@ -4,7 +4,31 @@
 > superseded by later ones further down. The authority on what is still open is
 > `pending-updates.md` § OPEN COMMITMENTS. Add an open item there, not here.
 
-_Last updated: 2026-07-31_
+_Last updated: 2026-08-01_
+
+## Update 2026-08-01 — schedule moved to the 2nd, and a missing month is now caught
+
+**The cron is now `23 7 2 * *` — 07:23 UTC on the 2nd.** Fred's call, after asking why it was on the
+3rd and whether the 1st carried any risk. What sets the floor is not ENTSO-E's publication lag but
+the MONTH GATE: a month counts complete only once coverage passes its final hour, and coverage
+trails the run by ~1h34m. Allowance for a late publication is 7h23m on the 1st, 31h23m on the 2nd,
+55h23m on the 3rd.
+
+The 1st was rejected on the failure MODE rather than the odds. Exceeding the allowance does not fail
+the run — it succeeds, publishes, and silently omits the month from every monthly exhibit until the
+next scheduled run a month later.
+
+**`check_coverage.check_month_arrived` closes that gap.** The shrink guard structurally cannot see
+it: if a month never arrives, last month's feed ended in June and this month's also ends in June, so
+nothing got smaller and the gate passes. Absence and shrinkage are different failures. The new check
+asserts that the month which has just closed is present in every monthly-axis feed, detecting those
+feeds structurally (first column `date`, every value a month-first) so `capture_monthly` — keyed
+`month` and deliberately ungated — is excluded. A 24-hour grace after the month boundary keeps an
+ad-hoc dispatch in the first hours of a month from tripping it.
+
+Verified three ways: passes on the current data (June is the closed month and is present); fails all
+three monthly feeds when the build clock is moved to 2 August with July absent; skips with a note
+when the build clock is 7h23m into a new month.
 
 ## Update 2026-07-31 (later) — nothing reaches `main` unchecked
 
@@ -51,9 +75,7 @@ missing points rather than leaving a gap, so six months of France and Italy disa
 slightly calmer chart, not a broken one. Looking catches RENDERING faults; it does not catch missing
 data a renderer interpolates over. The two checks are complementary, not substitutes.
 
-**Still open:** `pending-updates.md` row 5. The cron is `23 7 3 * *`, so the first unattended firing
-is **2026-08-03 07:23 UTC** — row 5 previously said 2 August, which was wrong from the day it was
-written.
+**Still open:** `pending-updates.md` row 5 — see the 2026-08-01 update above for the current date.
 
 ## Update 2026-07-21 — new chart data published to GitHub (unblocks the Windows setup)
 The four new CSVs and their producer had never been pushed — the Phase-6 charts' From-Web URLs
