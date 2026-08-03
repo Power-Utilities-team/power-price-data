@@ -40,6 +40,10 @@ URL_TABS = [
     ("A_MonthPrice", "figA_monthly_price"), ("B_Penetration", "figB_penetration"),
     ("C_CaptureErosion", "figC_capture_erosion"), ("D_NetloadDuck", "figD_netload_duck"),
     ("Fig5_Window", "fig5_capture_window"), ("Fig9_Window", "fig9_capacity_window"),
+    # Line_Window feeds FIFTEEN charts — the seven line charts, the two category-axis
+    # charts and the three single-year ones — so it belongs in the recovery map even
+    # though no tab is named after a figure.
+    ("Line_Window", "line_windows"),
     ("Status", "status"),
 ]
 
