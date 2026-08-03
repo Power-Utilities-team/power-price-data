@@ -68,7 +68,14 @@ def check(path):
     for n, x in charts(z):
         base = os.path.basename(n)
         for s in series_of(x):
-            m = re.search(r"<c:tx>.*?<c:v>\s*(\d{4})", s, re.S)
+            # Tempered so the match cannot leave <c:tx> (2026-08-03). With a plain `.*?`
+            # this ran past the series NAME and picked up the first cached CATEGORY
+            # value, so on a chart whose series are countries over a year axis every
+            # country was read as the year 2019. The check then asserted that five
+            # country colours were all "the colour of 2019" and contradicted itself
+            # against the real year charts — a false invariant that would have blocked
+            # the genuine fix in fix_year_colours.py, which had the identical defect.
+            m = re.search(r"<c:tx>(?:(?!</c:tx>).)*?<c:v>\s*(\d{4})", s, re.S)
             if not m:
                 continue
             sp = re.search(r"<c:spPr>.*?</c:spPr>", s, re.S)

@@ -133,17 +133,31 @@ def main():
     # and without the hidden attribute — the only difference — and watching the years
     # come back.
     #
-    # A tiny ROW HEIGHT gets the same visual result while leaving the cells visible, so
-    # every reference still resolves.
+    # RESOLVED 2026-08-03 — the rows are now properly HIDDEN after all.
+    #
+    # The 4pt-height workaround did what it promised, but Fred saw it for what it was:
+    # two visibly squashed rows at the top of the first sheet anyone opens. The reason
+    # hiding broke the legends is specific and fixable — a chart ignores hidden cells
+    # only because `plotVisOnly` tells it to, and that flag is ours to set. Every chart
+    # is switched to plotVisOnly=0 below, after which hidden cells plot normally and the
+    # rolling year labels on Status!$G$2..$M$2 keep resolving.
+    #
+    # Safe because nothing else in this workbook is hidden: the only hidden rows are
+    # these two, so "plot hidden data" cannot pull anything unintended into a chart.
+    for name in [n for n in order if re.match(r"xl/charts/chart\d+\.xml$", n)]:
+        cx = parts[name].decode()
+        if '<c:plotVisOnly val="1"/>' in cx:
+            parts[name] = cx.replace('<c:plotVisOnly val="1"/>',
+                                     '<c:plotVisOnly val="0"/>').encode()
+
     srid = re.search(r'<sheet name="Status"[^>]*r:id="rId(\d+)"', wb).group(1)
     srel = dict(re.findall(r'Id="rId(\d+)"[^>]*Target="([^"]+)"',
                            parts["xl/_rels/workbook.xml.rels"].decode()))
     spart = "xl/" + srel[srid].lstrip("/")
     sx = parts[spart].decode()
-    sx = sx.replace(' hidden="1"', "")            # undo any earlier hiding
-    for r in (1, 2):
-        sx = re.sub(rf'<row r="{r}"((?:(?!ht=)[^>])*?)>',
-                    rf'<row r="{r}"\1 ht="4" customHeight="1">', sx, count=1)
+    sx = sx.replace(' hidden="1"', "")            # start from a known state
+    sx = re.sub(r'(<row r="[12]")((?:(?!ht=)[^>])*?)( ht="\d+" customHeight="1")?>',
+                r'\1\2 hidden="1">', sx, count=2)
     parts[spart] = sx.encode()
 
     tmp = WB + ".tmp"

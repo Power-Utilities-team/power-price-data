@@ -113,42 +113,67 @@ LAYOUT = [
      "green"),
 
     # --- the status row, transposed into label/value pairs ---------------------
-    (14, "A", "STATUS", "head"),
-    (15, "A", "Last refreshed", "label"),      (15, "B", "=$A$2", "val"),
-    (16, "A", "Data through", "label"),        (16, "B", "=$B$2", "val"),
-    (17, "A", "Last complete year", "label"),  (17, "B", "=$C$2", "val"),
-    (18, "A", "Frozen history ends", "label"), (18, "B", "=$D$2", "val"),
-    (19, "A", "Charts built for year", "label"), (19, "B", "=$E$2", "val"),
-    (20, "A", "Chart year window", "label"),   (20, "B", '=$G$2&" to "&$M$2', "val"),
-    (21, "A", "Refresh tolerance", "label"),   (21, "B", '=$F$2&" days"', "val"),
+    #
+    # Split into TWO blocks (2026-08-03, Fred's ask). One line reading "Last refreshed"
+    # was doing two different jobs and answering neither: a reader could not tell whether
+    # it meant "when this spreadsheet last pulled" or "when the figures were last
+    # published", and those are days apart. They are now under separate headings, in the
+    # order the question actually gets asked — is my copy live, then how old are the
+    # numbers, then when do they next move.
+    (14, "A", "THIS FILE", "head"),
+    (15, "A", "Pulled live data", "label"),
+    (15, "B", f'=IF({NOT_REFRESHED},"NO - showing built-in preview data",'
+              f'"YES - pulled when you opened this file")', "val"),
+    (16, "A", "How it updates", "label"),
+    (16, "B", "Automatically, on open. Nothing to press.", "val"),
+
+    (18, "A", "THE DATA", "head"),
+    (19, "A", "Published", "label"),
+    (19, "B", f'=IF({NOT_REFRESHED},"unknown",LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&'
+              f'" days ago)")', "val"),
+    (20, "A", "Prices run to", "label"),       (20, "B", "=$B$2", "val"),
+    # The publish dates are the workflow cron (2nd, 10th, 18th, 26th). DATE() normalises
+    # a 13th month into January, so the year-end needs no special case.
+    (21, "A", "Next published", "label"),
+    (21, "B", '=TEXT(IF(DAY(TODAY())<2,DATE(YEAR(TODAY()),MONTH(TODAY()),2),'
+              'IF(DAY(TODAY())<10,DATE(YEAR(TODAY()),MONTH(TODAY()),10),'
+              'IF(DAY(TODAY())<18,DATE(YEAR(TODAY()),MONTH(TODAY()),18),'
+              'IF(DAY(TODAY())<26,DATE(YEAR(TODAY()),MONTH(TODAY()),26),'
+              'DATE(YEAR(TODAY()),MONTH(TODAY())+1,2))))),"d mmm yyyy")', "val"),
+    (22, "A", "Warn if none for", "label"),    (22, "B", '=$F$2&" days"', "val"),
+
+    (24, "A", "REFERENCE", "head"),
+    (25, "A", "Last complete year", "label"),  (25, "B", "=$C$2", "val"),
+    (26, "A", "Chart year window", "label"),   (26, "B", '=$G$2&" to "&$M$2', "val"),
+    (27, "A", "Frozen history ends", "label"), (27, "B", "=$D$2", "val"),
 
     # --- what the reader actually has to do ------------------------------------
     # One short line per row. Long paragraphs either wrap into very tall rows or get
     # cut off at the column edge; short lines overflow cleanly across the empty cells
     # to the right and stay readable at any column width.
-    (23, "A", "WHAT YOU NEED TO DO", "head"),
+    (29, "A", "WHAT YOU NEED TO DO", "head"),
 
-    (24, "A", "NOTHING — not monthly, not yearly, not ever.", "sub"),
-    (25, "A", "The data refreshes itself every time you open this file.", "plain"),
-    (26, "A", "A job re-publishes it on the 2nd, 10th, 18th and 26th.", "plain"),
-    (27, "A", "You never need to download a replacement for this workbook.", "plain"),
+    (30, "A", "NOTHING — not monthly, not yearly, not ever.", "sub"),
+    (31, "A", "The data refreshes itself every time you open this file.", "plain"),
+    (32, "A", "A job re-publishes it on the 2nd, 10th, 18th and 26th.", "plain"),
+    (33, "A", "You never need to download a replacement for this workbook.", "plain"),
 
-    (29, "A", "WHEN A NEW CALENDAR YEAR STARTS — still nothing.", "sub"),
-    (30, "A", "Every chart here rolls forward on its own. In January the newly", "plain"),
-    (31, "A", "completed year appears by itself, and the oldest drops off, so each", "plain"),
-    (32, "A", "exhibit always shows the same span of recent years.", "plain"),
-    (33, "A", "This is the one thing that used to need a person, and no longer does.", "plain"),
+    (35, "A", "WHEN A NEW CALENDAR YEAR STARTS — still nothing.", "sub"),
+    (36, "A", "Every chart here rolls forward on its own. In January the newly", "plain"),
+    (37, "A", "completed year appears by itself, and the oldest drops off, so each", "plain"),
+    (38, "A", "exhibit always shows the same span of recent years.", "plain"),
+    (39, "A", "This is the one thing that used to need a person, and no longer does.", "plain"),
 
-    (35, "A", "Check that the data is current, or look at the source figures:", "plain"),
-    (36, "A", STATUS_URL, "link"),
+    (41, "A", "Check that the data is current, or look at the source figures:", "plain"),
+    (42, "A", STATUS_URL, "link"),
 
     # --- reference: the plumbing, already done ---------------------------------
-    (41, "A", "IF SOMETHING BREAKS — reference only, nothing to set up", "head"),
-    (42, "A", "Every connection below is ALREADY configured here and refreshes on open.", "plain"),
-    (43, "A", "This map exists only so one can be rebuilt by hand if it is ever lost.", "plain"),
-    (44, "A", "Do not type into the data tabs — they are load targets, and anything", "plain"),
-    (45, "A", "typed there is overwritten on the next refresh.", "plain"),
-    (47, "A", "Tab", "label"),  (47, "B", "Loads from", "label"),
+    (46, "A", "IF SOMETHING BREAKS — reference only, nothing to set up", "head"),
+    (47, "A", "Every connection below is ALREADY configured here and refreshes on open.", "plain"),
+    (48, "A", "This map exists only so one can be rebuilt by hand if it is ever lost.", "plain"),
+    (49, "A", "Do not type into the data tabs — they are load targets, and anything", "plain"),
+    (50, "A", "typed there is overwritten on the next refresh.", "plain"),
+    (52, "A", "Tab", "label"),  (52, "B", "Loads from", "label"),
 ]
 
 

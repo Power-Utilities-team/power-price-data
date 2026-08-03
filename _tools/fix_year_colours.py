@@ -45,12 +45,21 @@ YEAR_COLOUR = dict(zip(_YEARS, RAMP))
 def series_year(ser: str, window: list[int], idx: int) -> int | None:
     """Which year does this series represent?"""
     # literal name, e.g. "2024" or "2026 YTD"
-    m = re.search(r"<c:tx>.*?<c:v>\s*(\d{4})", ser, re.S)
+    #
+    # The `(?:(?!</c:tx>).)*?` guard is load-bearing and was added 2026-08-03 to fix a
+    # real defect. A plain `.*?` here does not stop at </c:tx>: on a chart whose series
+    # are COUNTRIES and whose category axis is years, it ran past the name and matched
+    # the first cached CATEGORY value instead. Fig 1 and Fig 3 both look like that, so
+    # all five of their country series resolved to 2019 and were painted the identical
+    # oldest-year grey — five countries, one colour, in the line and in the legend.
+    # They should never have been touched at all: tempered, the match fails, the charts
+    # are skipped, and they keep the distinct country colours they were built with.
+    m = re.search(r"<c:tx>(?:(?!</c:tx>).)*?<c:v>\s*(\d{4})", ser, re.S)
     if m:
         return int(m.group(1))
     # rolling-window charts take their name from a Status cell, so the year comes from
     # the window this build published — same list the labels are drawn from.
-    if re.search(r"<c:tx>.*?<c:f>Status!", ser, re.S) and idx < len(window):
+    if re.search(r"<c:tx>(?:(?!</c:tx>).)*?<c:f>Status!", ser, re.S) and idx < len(window):
         return window[idx]
     return None
 
