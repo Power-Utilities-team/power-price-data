@@ -33,8 +33,17 @@ const BRANCH = "main";
 const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
 const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
 
-// Matches the workflow's cron: "23 7 3 * *" — 07:23 UTC on the 3rd.
-const CRON = { day: 3, hour: 7, minute: 23 };
+// Matches the workflow's TWO cron lines: "23 7 * * 1" (every Monday) and "23 7 2 * *"
+// (the 2nd of each month, which is the one that lands the just-closed month). Both fire
+// at 07:23 UTC, so only the date varies and nextRun() takes whichever comes sooner.
+//
+// ⚠ This was wrong from 2026-08-01 to 2026-08-03 and nobody noticed, which is the whole
+// argument for deriving it rather than restating it. The schedule moved from the 3rd to
+// the 2nd and this constant stayed on the 3rd, so the page confidently advertised a run
+// that did not exist. If you change the workflow cron, change it HERE too — this file
+// cannot see the workflow, and a wrong answer here is worse than no answer, because the
+// reader has no way to tell it is wrong.
+const CRON = { weekday: 1, monthday: 2, hour: 7, minute: 23 };
 const COOLDOWN_MIN = 30;
 
 const NAVY = "#2E3E80";
@@ -46,10 +55,23 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function nextRun(now = new Date()) {
-  const mk = (y, m) => Date.UTC(y, m, CRON.day, CRON.hour, CRON.minute, 0);
-  let t = mk(now.getUTCFullYear(), now.getUTCMonth());
-  if (t <= now.getTime()) t = mk(now.getUTCFullYear(), now.getUTCMonth() + 1);
-  return new Date(t);
+  const t = now.getTime();
+
+  // Next occurrence of the monthly line: the 2nd, this month or next.
+  const mk = (y, m) => Date.UTC(y, m, CRON.monthday, CRON.hour, CRON.minute, 0);
+  let monthly = mk(now.getUTCFullYear(), now.getUTCMonth());
+  if (monthly <= t) monthly = mk(now.getUTCFullYear(), now.getUTCMonth() + 1);
+
+  // Next occurrence of the weekly line: the coming Monday, or today if it is Monday and
+  // 07:23 has not passed yet. Stepping in whole UTC days keeps this correct across the
+  // month and year boundaries a naive date-add would trip on.
+  let weekly = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+                        CRON.hour, CRON.minute, 0);
+  while (weekly <= t || new Date(weekly).getUTCDay() !== CRON.weekday) {
+    weekly += 86400000;
+  }
+
+  return new Date(Math.min(weekly, monthly));
 }
 
 function human(ms) {
@@ -103,7 +125,7 @@ function page({ status, run, msg, err, hasToken }) {
     if (!isNaN(gen)) ageDays = (now - gen) / 86400000;
   }
 
-  const limit = Number(status?.expected_refresh_days || 45);
+  const limit = Number(status?.expected_refresh_days || 14);
   const chartsYear = Number(status?.charts_built_for_year || 0);
   const rolloverDue = chartsYear && now.getUTCFullYear() - 1 > chartsYear;
   const stale = ageDays != null && ageDays > limit;
@@ -119,7 +141,7 @@ function page({ status, run, msg, err, hasToken }) {
   } else if (stale) {
     tone = "bad";
     headline = `Data is ${Math.floor(ageDays)} days old`;
-    detail = `The monthly refresh has not run for longer than the ${limit}-day tolerance.`;
+    detail = `The scheduled refresh has not run for longer than the ${limit}-day tolerance.`;
   } else if (rolloverDue) {
     tone = "warn";
     headline = `Charts still built for ${chartsYear}`;
@@ -214,7 +236,7 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
 <div class="card">
   <h2>Next scheduled update</h2>
   <p><strong>${esc(nrTxt)}</strong> — in ${esc(human(nr - now))}</p>
-  <p class="muted">Runs automatically on the 3rd of each month. You do not need to do anything.</p>
+  <p class="muted">Runs automatically every week. You do not need to do anything.</p>
 </div>
 
 <div class="card">
@@ -241,7 +263,7 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
 <div class="card">
   <h2>Refresh now</h2>
   <p class="muted">Fetches the latest ENTSO-E data and rebuilds everything. Takes about 20 minutes.
-  You rarely need this — the monthly run covers it, and no chart gains a new data point in between.</p>
+  You rarely need this — the weekly run covers it, and no chart gains a new data point in between.</p>
   ${hasToken
       ? `<form method="POST" action="/trigger" onsubmit="this.q.disabled=true;this.q.textContent='Starting…'">
            <button id="q" name="q" type="submit">Start a refresh</button>

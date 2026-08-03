@@ -31,16 +31,29 @@ on:
     #    them under load, and load spikes hardest on the hour. An odd minute avoids the
     #    worst of the queue.
     #
-    #  * still monthly — audited 2026-07-30: 7 of 19 charts carry a "YTD" series that a
-    #    more frequent run would sharpen, but NO chart gains a new data point, because
-    #    every axis is annual, quarterly or monthly. Firing just after month close is
-    #    exactly when the monthly feeds gain their point.
-    - cron: "23 7 2 * *"
+    #  * WEEKLY as well as monthly (Fred's call, 2026-08-03), replacing the monthly-only
+    #    schedule. The monthly line is still the one that catches the just-closed month
+    #    on the 2nd, for all the reasons above; the weekly line exists to keep the repo
+    #    active and to shorten the recovery time when something goes wrong.
     #
-    # ⚠ GitHub disables scheduled workflows after 60 days with no repository activity.
-    # The monthly commit normally resets that clock, but two consecutive failed runs
-    # would reach 60 days and the schedule would switch itself off silently. If the
-    # Status tab ever shows STALE, check the Actions tab for a disabled schedule.
+    #    The audit that justified monthly-only (2026-07-30) still stands on its own
+    #    terms: no chart gains a data point mid-month, so weekly buys no new data. What
+    #    it buys is FAILURE RECOVERY, which that audit did not weigh. Under monthly-only
+    #    a red run left the published data untouched for a further 30 days; weekly heals
+    #    the same failure in 7. That matters far more during a long unattended period
+    #    than chart granularity does.
+    - cron: "23 7 * * 1"      # every Monday 07:23 UTC — freshness + keeps the repo active
+    - cron: "23 7 2 * *"      # and the 2nd, which is what actually lands the closed month
+    #
+    # ⚠ GitHub disables scheduled workflows after 60 days with no repository activity,
+    # and this is the reason for the weekly line above. The arithmetic on monthly-only
+    # was worse than the old comment here claimed: it said two consecutive failures were
+    # needed, but ONE was enough — a failed run on the 2nd left no commit until the 2nd
+    # of the following month, which is 61 days, so the schedule would have been disabled
+    # the day before the run that would have healed it. Worse, commits pushed by the
+    # Actions bot with GITHUB_TOKEN are widely reported not to reset the clock at all.
+    # A weekly cadence puts the question beyond reach either way.
+    # If the Status tab ever shows STALE, check the Actions tab for a disabled schedule.
   workflow_dispatch:
     inputs:
       full_refetch:
@@ -79,11 +92,19 @@ jobs:
       # which is exactly the old behaviour. So the fast path can never leave worse data
       # than the slow one — only take longer when cold.
       #
-      # This also gives self-healing for free, and it is worth stating so nobody "fixes"
-      # it later: GitHub evicts a cache after ~7 days unused, so the MONTHLY run almost
-      # always finds it cold and re-pulls the whole year, while on-demand presses close
-      # together find it warm and finish in a couple of minutes. Frequent = fast,
-      # infrequent = thorough, with no configuration and nothing to remember.
+      # GitHub evicts a cache after ~7 days unused, so cadence decides how thorough each
+      # run is, with no configuration and nothing to remember: infrequent = cold = a full
+      # re-pull, frequent = warm = a couple of minutes.
+      #
+      # ⚠ CHANGED by the move to weekly (2026-08-03), and worth understanding before
+      # anyone "tidies" it. Under the old monthly-only schedule every run found the cache
+      # cold and re-pulled the whole year, so each run was maximally self-correcting by
+      # accident. A weekly run sits right ON the ~7-day eviction boundary, so runs will
+      # now often find it warm and be genuinely incremental. That is still correct — the
+      # 30-day trailing window comfortably covers a 7-day gap, and data older than 30 days
+      # does not move — but the free full-year re-pull is no longer guaranteed. If you
+      # ever want the old belt-and-braces behaviour, run the workflow by hand with
+      # `full_refetch` ticked; nothing about the schedule needs changing.
       - name: Restore cached raw data
         id: rawcache
         uses: actions/cache@v4

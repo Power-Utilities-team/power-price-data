@@ -124,7 +124,7 @@ LAYOUT = [
 
     (24, "A", "EVERY MONTH — nothing at all.", "sub"),
     (25, "A", "The data refreshes itself when you open this file.", "plain"),
-    (26, "A", "A job re-publishes the figures on the 3rd of each month.", "plain"),
+    (26, "A", "A job re-publishes the figures every week, automatically.", "plain"),
     (27, "A", "You do not need to download anything, or press Refresh.", "plain"),
 
     (29, "A", "WHEN A NEW CALENDAR YEAR STARTS — replace this file, once.", "sub"),

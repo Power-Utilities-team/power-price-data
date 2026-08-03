@@ -2,7 +2,7 @@
 
 > This is the **live-linked path (Path A)** setup. For the whole picture — the two update
 > paths, the `generate.py` one-command rebuild, and how the two stay consistent — see
-> **`GENERATE.md`**. The non-technical monthly refresh is in **`Deliverables/updating-the-deck`**.
+> **`GENERATE.md`**. The non-technical refresh route is in **`Deliverables/updating-the-deck`**.
 
 Do this **once**, on the Windows PC, in a fresh workbook. After that, the data
 refreshes itself (the GitHub Action) and the workbook refreshes on open — so a

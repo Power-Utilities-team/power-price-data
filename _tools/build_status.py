@@ -24,8 +24,11 @@ from completeness import cutoffs
 OUT = os.path.join(cfg.OUTPUT_DIR, "csv", "charts")
 PUB = os.path.join(cfg.ROOT, "published", "charts")
 
-# CI runs on the 2nd of each month; allow a generous margin before crying wolf.
-EXPECTED_REFRESH_DAYS = 45
+# CI runs every Monday, plus the 2nd of each month. Two missed weekly runs is the
+# signal worth raising: one skipped run is noise, two means the schedule itself has
+# stopped. Was 45 under the old monthly-only cadence, which would now hide a dead
+# schedule for six weeks.
+EXPECTED_REFRESH_DAYS = 14
 
 
 def main():

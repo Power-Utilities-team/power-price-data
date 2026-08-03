@@ -11,7 +11,7 @@ construction** (one shared spec + a check that fails the build on drift).
 | Data source | Power Query pulls the published CSVs on open | fresh ENTSO-E pull (or CSVs on disk) |
 | Files | `HourlyPowerData.xlsx` + `HourlyPowerData.pptx` | `HourlyPowerData_frozen.xlsx` + `HourlyPowerData_snapshot.pptx` |
 | Self-contained? | no — deck links to the workbook | yes — charts embedded as images / hardcoded cells |
-| Best for | routine monthly refresh (see `EXCEL_SETUP.md`) | ad-hoc "give me the latest now" |
+| Best for | the routine scheduled refresh (see `EXCEL_SETUP.md`) | ad-hoc "give me the latest now" |
 
 Both paths render the **same exhibits, captions and layout** — see the consistency guarantee below.
 

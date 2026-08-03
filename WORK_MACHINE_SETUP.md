@@ -30,9 +30,12 @@ rebuilt to match — that is the one change that needs someone to rebuild the fi
 
 ## What happens without you
 
-- **Monthly** (2nd of each month, 06:00 UTC) GitHub Actions pulls fresh ENTSO-E data,
-  republishes the chart CSVs, and **rebuilds all four deliverables**, committing them to
-  `deliverables/` in the repo. Your workbook picks the data up on open.
+- **Every Monday, and again on the 2nd of each month** (07:23 UTC) GitHub Actions pulls fresh
+  ENTSO-E data, republishes the chart CSVs, and **rebuilds all four deliverables**, committing
+  them to `deliverables/` in the repo. Your workbook picks the data up on open.
+  The run on the 2nd is the one that lands the just-closed month in the monthly exhibits; the
+  weekly runs keep the data fresh and mean a failed run is retried within seven days rather
+  than thirty. Nothing here needs a person.
 - **At the turn of the year** the same run folds the completed year into the frozen history and
   rebuilds the charts so they carry the new year — on the repo's copy. Mechanically: the January
   run notices the frozen history still ends two years back, fetches the just-completed year as
@@ -98,7 +101,7 @@ Almost nobody needs to "update" anything. The three situations, in the order the
 | Situation | What to do | Who can |
 |---|---|---|
 | **Normal use** — you want current numbers | **Just open the workbook.** It pulls the latest published data on open. | Anyone |
-| **You want data fresher than the last monthly run** | Open the status page and press **Start a refresh** (~20 min), then re-open the workbook. | Anyone with the link |
+| **You want data fresher than the last scheduled run** | Open the status page and press **Start a refresh** (~20 min), then re-open the workbook. | Anyone with the link |
 | **The chart itself is wrong** — a missing year, an unwanted technology | Download the newest workbook + deck from the status page and replace both on the share. | Anyone |
 
 **The status page is the one link to share:**
@@ -143,7 +146,7 @@ The workbook **opens on a `Status` sheet**. It compares the published refresh re
 today's date on your machine and says one of:
 
 - ✅ *"OK - data is current. Last refreshed …, data through …"* — nothing to do.
-- ⚠️ *"STALE DATA - the monthly refresh has not run for N days"* — the GitHub job has stopped
+- ⚠️ *"STALE DATA - the refresh has not run for N days"* — the GitHub job has stopped
   running. Someone needs to look at the Actions tab.
 - ⚠️ *"ANNUAL ROLLOVER OVERDUE - charts were built for YYYY"* — download the latest files from
   `deliverables/`.

@@ -1,9 +1,36 @@
+# EXACT pins, deliberately — set 2026-08-03 so this pipeline keeps producing the same
+# numbers with nobody watching it.
+#
+# Every version below is the set GitHub Actions actually resolved and ran green on
+# 2026-08-02 (run 30741717143), read out of that run's own pip log. It is a VERIFIED
+# combination, not a guess at a good one.
+#
+# Why exact, rather than floors or capped ranges. Under the old `pandas>=2.0` style the
+# resolver silently walked from pandas 2 to 3.0.5, pyarrow 15 to 25 and duckdb 1.0 to
+# 1.5.5 between this file being written and 2026-08-02. Each was an unreviewed major
+# landing in an unattended build, and they happened to come up green. That is luck, not
+# robustness — and the luck was only visible by reading a CI log afterwards.
+#
+# The decisive argument is the SHAPE of the failure, not its odds. A pinned version that
+# eventually has no wheel fails at `pip install` — loudly, in red, publishing nothing. A
+# floating version that changes a groupby or resample default fails silently, publishes,
+# and the coverage guard waves it through because the data is the right SHAPE and merely
+# the wrong NUMBERS. For a system nobody is watching, loud beats quiet every time.
+#
+# This pipeline needs no new library features, ever. It turns one stable API into the
+# same CSVs. There is nothing an upgrade can buy it.
+#
+# To take upgrades deliberately: bump one line, run the workflow by hand from the Actions
+# tab, confirm green, commit. Never bulk-upgrade and walk away.
+
 entsoe-py==0.8.0
-pandas>=2.0
-pyarrow>=15
-duckdb>=1.0
+
+pandas==3.0.5
+pyarrow==25.0.0
+duckdb==1.5.5
+
 # deliverable rebuild (CI runs generate.py, so these are no longer Mac-only)
-matplotlib>=3.8
-openpyxl>=3.1
-python-pptx>=0.6.23
-lxml>=5.0
+matplotlib==3.11.1
+openpyxl==3.1.5
+python-pptx==1.0.2
+lxml==6.1.1
