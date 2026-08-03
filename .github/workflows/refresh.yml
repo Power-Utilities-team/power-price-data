@@ -365,3 +365,84 @@ jobs:
             git commit -m "data refresh $(date -u +'%Y-%m-%d')"
             git push origin HEAD:main
           fi
+
+  # ---- 5) tell a human when any of the above failed ---------------------------
+  # Until 2026-08-03 nothing announced a failure. GitHub emails the repository owner,
+  # but that is a setting nobody can verify from outside the account, it goes to one
+  # address, and it is easy to filter into nothing. The 45-day staleness banner in the
+  # workbook was the real backstop, so a failed run could go unnoticed for six weeks.
+  #
+  # This job opens a GitHub ISSUE instead, which is deliberately not an email:
+  #   * it is durable and public — it sits in the Issues tab until someone closes it,
+  #     so it cannot be missed by being read and forgotten;
+  #   * it @-mentions the owner, which notifies regardless of the repo's watch setting;
+  #   * it carries a direct link to the failed run's log, which is the first thing
+  #     anyone diagnosing this needs;
+  #   * it needs no secret, no mail service and no external account, so there is nothing
+  #     here that can expire while nobody is looking. That last point is the whole
+  #     argument: a notification channel that quietly stops working is worse than none,
+  #     because it converts silence from "unknown" into "fine".
+  #
+  # It reuses one open issue rather than filing a new one per failure, so a repeatedly
+  # failing schedule leaves a single thread with a comment per run, not forty issues.
+  notify:
+    needs: [fetch, build, validate, publish]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          TITLE="Data refresh is failing"
+          BODY=$(cat <<EOF
+          @${{ github.repository_owner }} — the ENTSO-E refresh failed.
+
+          * **Run:** $RUN_URL
+          * **Triggered by:** \`$EVENT\`
+          * **When:** $(date -u +'%Y-%m-%d %H:%M UTC')
+
+          **What this means.** No new data was published. The workbook keeps showing the
+          last good figures, so nothing is wrong with what people are already looking at —
+          it is just not moving. Nothing was corrupted: the publish job is the only writer
+          to the repository and it only runs once every check has passed.
+
+          **What to do.** Open the run log above and read the first red step. The usual
+          causes, in the order they actually occur:
+
+          1. ENTSO-E was down or rate-limiting — retry the workflow, it is usually nothing else.
+          2. The coverage guard refused to publish because a feed lost data. That is the guard
+             doing its job; the log names the file and the columns.
+          3. A pinned dependency has no wheel any more — the failure is at \`pip install\`.
+
+          **If nobody is available to look at this,** it is not urgent. The next scheduled run
+          retries by itself within seven days, and the run on the 2nd of each month re-pulls the
+          whole year from scratch, which repairs most stored-data problems without anyone acting.
+
+          This issue is reused for every failure — check the comments for how long it has been
+          going. Close it once a run goes green.
+          EOF
+          )
+          # Create the label BEFORE filtering on it. `gh issue list --label` errors on a
+          # label that does not exist, and under `set -e` that would kill the very job
+          # whose only purpose is to raise the alarm — a notifier that fails silently is
+          # the worst possible outcome here.
+          gh label create refresh-failure --color B60205 \
+             --description "The scheduled data refresh failed" 2>/dev/null || true
+          # Never let the lookup itself be fatal either: if it fails for any reason we
+          # would rather file a duplicate issue than none at all.
+          EXISTING=$(gh issue list --state open --label refresh-failure \
+                       --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            echo "commenting on existing issue #$EXISTING"
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "opening a new issue"
+            gh issue create --title "$TITLE" --label refresh-failure --body "$BODY"
+          fi
