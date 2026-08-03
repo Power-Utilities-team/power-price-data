@@ -133,31 +133,30 @@ def main():
     # and without the hidden attribute — the only difference — and watching the years
     # come back.
     #
-    # RESOLVED 2026-08-03 — the rows are now properly HIDDEN after all.
+    # SETTLED 2026-08-03 — rows 1 and 2 are ORDINARY rows. Fred's call, and it ends a
+    # sequence of increasingly clever answers to a question nobody asked.
     #
-    # The 4pt-height workaround did what it promised, but Fred saw it for what it was:
-    # two visibly squashed rows at the top of the first sheet anyone opens. The reason
-    # hiding broke the legends is specific and fixable — a chart ignores hidden cells
-    # only because `plotVisOnly` tells it to, and that flag is ours to set. Every chart
-    # is switched to plotVisOnly=0 below, after which hidden cells plot normally and the
-    # rolling year labels on Status!$G$2..$M$2 keep resolving.
+    # The history is worth keeping, because each step looked like an improvement:
+    #   * hiding them broke the rolling year legends (a chart ignores hidden cells), so
+    #   * they were squeezed to 4pt instead, which merely looked broken, so
+    #   * they were hidden properly with plotVisOnly=0 to keep the legends working —
+    #     which was the wrong fix to the wrong complaint. "Too squashed" meant too
+    #     SHORT, not too visible.
     #
-    # Safe because nothing else in this workbook is hidden: the only hidden rows are
-    # these two, so "plot hidden data" cannot pull anything unintended into a chart.
-    for name in [n for n in order if re.match(r"xl/charts/chart\d+\.xml$", n)]:
-        cx = parts[name].decode()
-        if '<c:plotVisOnly val="1"/>' in cx:
-            parts[name] = cx.replace('<c:plotVisOnly val="1"/>',
-                                     '<c:plotVisOnly val="0"/>').encode()
-
+    # So: no hidden attribute, no custom height, nothing. They render at the sheet's
+    # default height like every other row. The load target being visible is not a
+    # problem — it is a labelled header row over a labelled value row, and the
+    # transposed view below remains the readable presentation of the same cells.
+    # plotVisOnly is left at its Excel default, since nothing here is hidden any more.
     srid = re.search(r'<sheet name="Status"[^>]*r:id="rId(\d+)"', wb).group(1)
     srel = dict(re.findall(r'Id="rId(\d+)"[^>]*Target="([^"]+)"',
                            parts["xl/_rels/workbook.xml.rels"].decode()))
     spart = "xl/" + srel[srid].lstrip("/")
     sx = parts[spart].decode()
-    sx = sx.replace(' hidden="1"', "")            # start from a known state
-    sx = re.sub(r'(<row r="[12]")((?:(?!ht=)[^>])*?)( ht="\d+" customHeight="1")?>',
-                r'\1\2 hidden="1">', sx, count=2)
+    for r in (1, 2):
+        sx = re.sub(rf'<row r="{r}"[^>]*>',
+                    lambda m: re.sub(r'\s+(hidden|ht|customHeight)="[^"]*"', "", m.group(0)),
+                    sx, count=1)
     parts[spart] = sx.encode()
 
     tmp = WB + ".tmp"
