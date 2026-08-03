@@ -96,15 +96,17 @@ jobs:
       # run is, with no configuration and nothing to remember: infrequent = cold = a full
       # re-pull, frequent = warm = a couple of minutes.
       #
-      # ⚠ CHANGED by the move to weekly (2026-08-03), and worth understanding before
-      # anyone "tidies" it. Under the old monthly-only schedule every run found the cache
-      # cold and re-pulled the whole year, so each run was maximally self-correcting by
-      # accident. A weekly run sits right ON the ~7-day eviction boundary, so runs will
-      # now often find it warm and be genuinely incremental. That is still correct — the
-      # 30-day trailing window comfortably covers a 7-day gap, and data older than 30 days
-      # does not move — but the free full-year re-pull is no longer guaranteed. If you
-      # ever want the old belt-and-braces behaviour, run the workflow by hand with
-      # `full_refetch` ticked; nothing about the schedule needs changing.
+      # ⚠ CHANGED by the move to weekly (2026-08-03). Under the old monthly-only schedule
+      # every run found the cache cold and re-pulled the whole year, so each run was
+      # maximally self-correcting BY ACCIDENT. Weekly runs sit inside the ~7-day eviction
+      # window and will often find it warm, so they are genuinely incremental.
+      #
+      # That is still correct on its own terms — the 30-day trailing window comfortably
+      # covers a 7-day gap, and data older than 30 days does not move. But it would have
+      # silently dropped the self-repair, so the fetch step below now forces a full
+      # whole-year re-pull on the 2nd of each month. The behaviour is unchanged from the
+      # monthly-only era; it is just deliberate now rather than a side-effect of cache
+      # timing. Weekly = fast and incremental, monthly = slow and authoritative.
       - name: Restore cached raw data
         id: rawcache
         uses: actions/cache@v4
@@ -139,8 +141,19 @@ jobs:
           # and 2026, so the in-run second pass already handles transient failures.
           # `full_refetch` forces the old whole-year pull when belt-and-braces is wanted,
           # and the annual rollover above always re-pulls the prior year in full.
-          if [ "${{ inputs.full_refetch }}" = "true" ]; then
-            echo "FULL re-fetch of ${{ matrix.country }} $YEAR (requested)"
+          #
+          # ONCE A MONTH, ALWAYS RE-PULL THE WHOLE YEAR (added 2026-08-03).
+          # Under the old monthly-only schedule this happened by accident: 30 days
+          # between runs is longer than GitHub's ~7-day cache eviction, so the cache was
+          # always cold and every run rebuilt the year from ENTSO-E. That was a free
+          # self-repair — any stored raw file that had gone bad was simply replaced.
+          # Weekly runs sit inside the eviction window and would keep the cache warm, so
+          # that repair would have quietly disappeared. Making the run on the 2nd always
+          # re-fetch in full restores it deliberately, instead of relying on a cache
+          # timing coincidence nobody would think to preserve.
+          DOM=$(date -u +%d)
+          if [ "${{ inputs.full_refetch }}" = "true" ] || [ "$DOM" = "02" ]; then
+            echo "FULL re-fetch of ${{ matrix.country }} $YEAR (requested, or monthly rebuild on day $DOM)"
             python fetch.py --country ${{ matrix.country }} --years $YEAR --force
             python fetch.py --country ${{ matrix.country }} --years $YEAR
           else
