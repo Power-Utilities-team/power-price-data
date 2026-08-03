@@ -30,12 +30,14 @@ rebuilt to match — that is the one change that needs someone to rebuild the fi
 
 ## What happens without you
 
-- **Every Monday, and again on the 2nd of each month** (07:23 UTC) GitHub Actions pulls fresh
+- **On the 2nd, 10th, 18th and 26th of every month** (07:23 UTC) GitHub Actions pulls fresh
   ENTSO-E data, republishes the chart CSVs, and **rebuilds all four deliverables**, committing
   them to `deliverables/` in the repo. Your workbook picks the data up on open.
-  The run on the 2nd is the one that lands the just-closed month in the monthly exhibits; the
-  weekly runs keep the data fresh and mean a failed run is retried within seven days rather
-  than thirty. Nothing here needs a person.
+  Four runs a month, on the same dates in every month, never more than 8 days apart. The run on
+  the 2nd is the one that lands the just-closed month in the monthly exhibits; the rest keep the
+  data fresh and mean a failed run is retried within 8 days rather than thirty. Every run
+  re-pulls the whole year from ENTSO-E, so a stored file that has gone bad repairs itself
+  without anyone acting. Nothing here needs a person.
 - **At the turn of the year** the same run folds the completed year into the frozen history and
   rebuilds the charts so they carry the new year — on the repo's copy. Mechanically: the January
   run notices the frozen history still ends two years back, fetches the just-completed year as
@@ -158,11 +160,17 @@ screen when you open the workbook.** It reads e.g. *"Last refreshed 2026-07-21, 
 2026-07-21 09:00"*: the first date is when the GitHub job last ran, the second is the last hour
 of actual price data. Nothing else needs checking, and you do not need the repo to find out.
 
-Two things the banner is deliberately not: it does not fire the instant a run is missed (the
-tolerance is 45 days, which has to exceed the ~30-day cadence plus slack, so one missed run is
-survived and two are caught), and it cannot tell you a run *failed* — a failed run simply does
-not update the record, so the day count keeps climbing until it trips. GitHub emails the repo
-owner when a scheduled run fails, which is the faster signal.
+Two things the banner is deliberately not. It does not fire the instant a run is missed: the
+tolerance is 10 days, set just above the 8-day maximum gap between runs, because GitHub queues
+scheduled jobs on shared runners and starts them late (the one scheduled run we can measure was
+2h02m behind). A tolerance equal to the cadence would cry wolf before every ordinary run. As set,
+it stays silent when nothing is wrong and trips about two days after a genuinely missed run.
+
+And it cannot tell you a run *failed* — a failed run simply does not update the record, so the day
+count climbs until it trips. That is what the failure issue is for: any failed run opens (or
+comments on) an issue in the repository's Issues tab that @-mentions the owner, with a link
+straight to the run log. That is the faster and more specific signal; the banner is the backstop
+for the case where no run happened at all.
 
 ## Two things not to do
 - **Never click "Recover"** if Excel offers to repair the workbook. Repair strips Power Query,

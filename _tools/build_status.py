@@ -24,11 +24,25 @@ from completeness import cutoffs
 OUT = os.path.join(cfg.OUTPUT_DIR, "csv", "charts")
 PUB = os.path.join(cfg.ROOT, "published", "charts")
 
-# CI runs every Monday, plus the 2nd of each month. Two missed weekly runs is the
-# signal worth raising: one skipped run is noise, two means the schedule itself has
-# stopped. Was 45 under the old monthly-only cadence, which would now hide a dead
-# schedule for six weeks.
-EXPECTED_REFRESH_DAYS = 14
+# How many days may pass before the workbook and the status page cry stale.
+#
+# 10, chosen 2026-08-03 to flag a SINGLE missed run — Fred's ask was to catch "anytime a
+# run that should have gone through didn't". Runs are on the 2nd, 10th, 18th and 26th, so
+# the largest ordinary gap is 8 days (18th to 26th, and 2nd to 10th), falling to 7 at the
+# month wrap and less in February.
+#
+# It deliberately is NOT set to the gap itself. The alarm measures time since the last
+# SUCCESSFUL run, and GitHub does not start a scheduled job on time — it queues on shared
+# runners, and the one scheduled run available to measure sat 2h02m behind its cron. A
+# threshold equal to the cadence would therefore trip a few hours before every ordinary
+# run and cry wolf every time, which trains the reader to ignore the one alarm that
+# matters. Two days of slack over the 8-day maximum keeps it silent when nothing is
+# wrong, and still fires about two days after a genuinely missed run — well before the
+# following run would mask it.
+#
+# If you change the cron dates, change this too. History: 45 under the old monthly-only
+# schedule, briefly 14 and then 9 during a short-lived weekly cadence, now 10.
+EXPECTED_REFRESH_DAYS = 10
 
 
 def main():
