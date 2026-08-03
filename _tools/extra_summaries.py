@@ -194,6 +194,26 @@ CATEGORY_WINDOWS = [
 ]
 CATEGORY_COUNTRIES = ["Germany", "Spain", "Portugal", "France", "Italy"]
 
+# The three charts that plot a SINGLE year (the latest complete one) rather than a span
+# of years, so they need one rolling column each rather than a w1..w7 window.
+# (source csv stem, column prefix on line_windows, [(suffix, source column template)]).
+# {y} is filled with the latest complete year at build time.
+SINGLE_YEAR_BLOCKS = [
+    # chart 7 — daily min/max scatter, Germany. x = max, y = min.
+    ("fig6_daily_minmax", "mm", [("DE_min", "DE_{y}_min"), ("DE_max", "DE_{y}_max")]),
+    # chart 8 — intraday generation mix, PORTUGAL (not Germany; easy to assume wrong).
+    ("fig7_gen_mix", "gm", [
+        ("Gas", "PT_{y}_Gas"), ("Biomass", "PT_{y}_Biomass"),
+        ("HydroROR", "PT_{y}_Hydro run-of-river"),
+        ("HydroRes", "PT_{y}_Hydro reservoir"),
+        ("HydroPump", "PT_{y}_Hydro pumped (production)"),
+        ("Onshore", "PT_{y}_Onshore wind"), ("Solar", "PT_{y}_Solar"),
+        ("Other", "PT_{y}_Other"), ("Price", "PT_{y}_price")]),
+    # chart 15 — price by month duck curve, Germany, one series per calendar month.
+    ("g2_price_by_month", "md",
+     [(f"M{m:02d}", f"DE_{{y}}_M{m:02d}") for m in range(1, 13)]),
+]
+
 
 def line_windows():
     import config as _c
@@ -239,6 +259,38 @@ def line_windows():
                 vals = src[col].tolist() if col in src.columns else []
                 vals = vals + [float("nan")] * (nrows - len(vals))
                 out[f"{tag}_{c}_w{i}"] = vals[:nrows]
+
+    # --- the three SINGLE-YEAR charts (added 2026-08-03) ----------------------
+    # Charts 7, 8 and 15 each show ONE year — the latest complete one — and each was
+    # pinned to whichever year it was built in, so from January 2027 they would have gone
+    # on showing 2025 while every chart around them advanced. They were the last three of
+    # the nineteen that a refresh could not carry forward, and the reason the workbook
+    # still told the reader to download a replacement every January.
+    #
+    # The fix is the one already proven for the twelve rolling charts: the column
+    # POSITION never changes, so the chart reference stays valid for ever, while its
+    # MEANING advances one year each January because `lcy` does. Nothing is pinned.
+    #
+    # These live on the existing line_windows table rather than a tab of their own.
+    # Its 366 rows already cover the longest of them (day-of-year), and a new tab would
+    # mean a new query and a new set of content-type and relationship joins to get right
+    # — the exact surgery that produced three broken packages on 2026-07-31.
+    for src_stem, prefix, cols in SINGLE_YEAR_BLOCKS:
+        f = os.path.join(OUT, f"{src_stem}.csv")
+        if not os.path.exists(f):
+            raise SystemExit(f"line_windows: {src_stem}.csv missing — build order changed?")
+        src = pd.read_csv(f)
+        for out_name, col_tpl in cols:
+            col = col_tpl.format(y=lcy)
+            if col not in src.columns:
+                raise SystemExit(
+                    f"line_windows: {src_stem}.csv has no column {col!r}. The single-year "
+                    f"blocks are pinned to the latest complete year ({lcy}); if the column "
+                    f"naming changed, update SINGLE_YEAR_BLOCKS.")
+            vals = src[col].tolist()
+            vals = vals + [float("nan")] * (nrows - len(vals))
+            out[f"{prefix}_{out_name}"] = vals[:nrows]
+
     _save(out, "line_windows")
 
 

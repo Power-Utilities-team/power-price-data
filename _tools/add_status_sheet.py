@@ -69,7 +69,12 @@ DAYS = 'TODAY()-DATEVALUE(LEFT($A$2,10))'
 # "stale", which is correct — row 3 already reports that state, and more loudly.
 STALE = f'IFERROR(AND(ISNUMBER($F$2),({DAYS})>$F$2),FALSE)'
 ROLLOVER_DUE = 'IFERROR(AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2),FALSE)'
-ANY_ALARM = f'OR({NOT_REFRESHED},{STALE},{ROLLOVER_DUE})'
+# ROLLOVER_DUE is deliberately NOT in here any more (2026-08-03). Every one of the
+# nineteen charts now advances on an ordinary refresh, so there is no annual action to
+# raise — see roll_single_year_charts.py for the last three. It stays defined above
+# because the Status row still publishes charts_built_for_year, which is worth keeping
+# visible as a diagnostic even though it no longer drives an alarm.
+ANY_ALARM = f'OR({NOT_REFRESHED},{STALE})'
 
 STATUS_URL = "https://power-price-data.fredhill.workers.dev"
 
@@ -96,9 +101,6 @@ LAYOUT = [
              f'GitHub.","")', "red"),
     (8, "A", f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
              f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")', "red"),
-    (9, "A", f'=IF({ROLLOVER_DUE},"!! NEW YEAR - charts were built for "&$E$2&", but "&'
-             f'(YEAR(TODAY())-1)&" is now complete. Some charts cannot show it on refresh. '
-             f'Replace this file AND the .pptx with the newest pair - see below.","")', "red"),
     (10, "A", f'=IF({ANY_ALARM},"ACTION: see \'What you need to do\' below.","")', "red"),
     (11, "A", f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
               f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
@@ -122,22 +124,19 @@ LAYOUT = [
     # to the right and stay readable at any column width.
     (23, "A", "WHAT YOU NEED TO DO", "head"),
 
-    (24, "A", "EVERY MONTH — nothing at all.", "sub"),
-    (25, "A", "The data refreshes itself when you open this file.", "plain"),
-    (26, "A", "A job re-publishes them on the 2nd, 10th, 18th and 26th.", "plain"),
-    (27, "A", "You do not need to download anything, or press Refresh.", "plain"),
+    (24, "A", "NOTHING — not monthly, not yearly, not ever.", "sub"),
+    (25, "A", "The data refreshes itself every time you open this file.", "plain"),
+    (26, "A", "A job re-publishes it on the 2nd, 10th, 18th and 26th.", "plain"),
+    (27, "A", "You never need to download a replacement for this workbook.", "plain"),
 
-    (29, "A", "WHEN A NEW CALENDAR YEAR STARTS — replace this file, once.", "sub"),
-    (30, "A", "In mid-January, open this tab and look at the lines above.", "plain"),
-    (31, "A", "If the red NEW YEAR line is showing: download the newest .xlsx AND .pptx,", "plain"),
-    (32, "A", "and replace both on the shared drive, keeping them together.", "plain"),
-    (33, "A", "If it is not showing, there is nothing to do.", "plain"),
-    (34, "A", "Why a refresh is not enough: it writes numbers into cells, but cannot add", "plain"),
-    (35, "A", "a new line to a chart legend. A new year is a new series, and that only", "plain"),
-    (36, "A", "exists in a rebuilt file.", "plain"),
+    (29, "A", "WHEN A NEW CALENDAR YEAR STARTS — still nothing.", "sub"),
+    (30, "A", "Every chart here rolls forward on its own. In January the newly", "plain"),
+    (31, "A", "completed year appears by itself, and the oldest drops off, so each", "plain"),
+    (32, "A", "exhibit always shows the same span of recent years.", "plain"),
+    (33, "A", "This is the one thing that used to need a person, and no longer does.", "plain"),
 
-    (38, "A", "Download the newest pair, and see when the next update is due:", "plain"),
-    (39, "A", STATUS_URL, "link"),
+    (35, "A", "Check that the data is current, or look at the source figures:", "plain"),
+    (36, "A", STATUS_URL, "link"),
 
     # --- reference: the plumbing, already done ---------------------------------
     (41, "A", "IF SOMETHING BREAKS — reference only, nothing to set up", "head"),
