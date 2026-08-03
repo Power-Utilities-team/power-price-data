@@ -237,10 +237,15 @@ def sheet_xml(styleids: dict, urlmap) -> str:
 
     body = ""
     for r in sorted(cells):
-        # rows 1-2 are the Power Query load target: keep them, hide them
-        hidden = ' hidden="1"' if r <= 2 else ""
-        ht = ' ht="30" customHeight="1"' if r in (4,) else ""
-        body += f'<row r="{r}"{hidden}{ht}>{"".join(cells[r])}</row>'
+        # Rows 1-2 are the Power Query load target and are ORDINARY VISIBLE ROWS
+        # (Fred, 2026-08-03). They were hidden here from the start, which is what every
+        # later attempt to "fix" their height was fighting against. The height is stated
+        # explicitly rather than left to the sheet default so that nothing downstream can
+        # quietly leave them at some other value — three separate builds shipped them at
+        # 4pt or hidden before this was traced back to its source.
+        ht = ' ht="15" customHeight="1"' if r <= 2 else (
+             ' ht="30" customHeight="1"' if r == 4 else "")
+        body += f'<row r="{r}"{ht}>{"".join(cells[r])}</row>'
 
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'

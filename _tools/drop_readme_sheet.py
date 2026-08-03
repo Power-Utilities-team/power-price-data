@@ -154,9 +154,19 @@ def main():
     spart = "xl/" + srel[srid].lstrip("/")
     sx = parts[spart].decode()
     for r in (1, 2):
-        sx = re.sub(rf'<row r="{r}"[^>]*>',
-                    lambda m: re.sub(r'\s+(hidden|ht|customHeight)="[^"]*"', "", m.group(0)),
-                    sx, count=1)
+        sx = re.sub(
+            rf'<row r="{r}"[^>]*>',
+            lambda m: re.sub(r'\s+(hidden|ht|customHeight)="[^"]*"', "", m.group(0))
+                        .replace(">", ' ht="15" customHeight="1">', 1),
+            sx, count=1)
+
+    # DO NOT "correct" this sheet's <dimension>. It reads A1:M2 — the LOAD TARGET's
+    # range, not the sheet's used range — and that looks like a bug. It is load-bearing:
+    # check_consistency reads it to know how many rows the Status table was pre-filled
+    # with, and compares that against status.csv to catch a table that would change shape
+    # on refresh and re-anchor a chart. Setting it to the true extent (A1:M74) makes that
+    # check report 74 rows against the CSV's 2 and fail, which is exactly what happened
+    # when it was tried on 2026-08-03. Excel recomputes the used range on open anyway.
     parts[spart] = sx.encode()
 
     tmp = WB + ".tmp"
