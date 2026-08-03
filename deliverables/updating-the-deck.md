@@ -6,11 +6,11 @@
 
 **The idea in one line:** the Excel file fetches the latest numbers from the internet by itself, and the PowerPoint simply mirrors the Excel file. You never edit data — you only press *refresh*.
 
-The underlying data is refreshed automatically on the **2nd of each month**. So whenever you open the workbook, it pulls the most recent monthly data on its own — you don't touch anything online.
+The underlying data is refreshed automatically on the **2nd, 10th, 18th and 26th of every month**. So whenever you open the workbook, it pulls the most recent published data on its own — you don't touch anything online.
 
 ---
 
-## The monthly update — 4 steps (~2 minutes)
+## Updating the deck — 4 steps (~2 minutes)
 
 **1. Keep both files together.**
 `HourlyPowerData.xlsx` and `HourlyPowerData.pptx` must sit in the **same team folder** (the agreed shared drive location). The PowerPoint finds the Excel by that exact location — so don't move or rename either file.
@@ -34,7 +34,7 @@ Done — the deck is current.
 
 ## Three things to know
 
-- **Where "the latest data" comes from.** An automated job refreshes the source data on the 2nd of each month. Opening Excel gives you the data as of that most recent refresh. You never go online yourself.
+- **Where "the latest data" comes from.** An automated job refreshes the source data on the 2nd, 10th, 18th and 26th of every month. Opening Excel gives you the data as of that most recent refresh. You never go online yourself.
 
 - **Two slides are meant to stay fixed.** The two "Spain duck curve" comparison slides (quarterly, and July — each showing 2019 vs 2025) are deliberate historical snapshots. They do **not** change on refresh, and that's intentional.
 
