@@ -187,6 +187,9 @@ LINE_WINDOWS = [
 # Portugal / France / Italy Fig-2 charts can roll like Germany's and Spain's.
 LINE_WINDOWS_APPEND = [
     ("fig2_intraday_indexed", ["PT", "FR", "IT"], "i"),
+    # cumulative near-negative hours for the remaining three countries, added
+    # 2026-08-06 (evening) for the per-country Fig 3 charts
+    ("fig3_cum_near_neg",     ["PT", "FR", "IT"], "c"),
 ]
 
 # Fig 1 and Fig 3 are the other shape: YEARS are the x-axis CATEGORIES and the series are
