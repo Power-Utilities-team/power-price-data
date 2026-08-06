@@ -163,15 +163,34 @@ def capture_monthly(m):
     return _save(pd.DataFrame(rows), "capture_monthly")
 
 def capture_annual(m):
+    # A technology's FIRST year in the data can start mid-year: ENTSO-E begins
+    # publishing a series it previously omitted, and the annual figure then compares
+    # a part-year of sales against the full-year base. Spain's pumped production
+    # starts 11 Dec 2022 and shows -47% vs base for 2022, against +22..+42% in every
+    # complete year — December sales measured against a full crisis-year average.
+    # Same artefact class as the closed German nuclear fleet's part-year (which
+    # CAPTURE_TAIL_DROP excludes). A series whose first-ever generation lands after
+    # 1 February therefore contributes NO capture figures for that first year; the
+    # row stays (generation was real) with the two capture metrics blank.
+    ts = pd.to_datetime(m["ts_utc"], utc=True)
+    series_start = {}
+    for col in [c for c in m.columns if c.startswith("gen_") and c != "gen_total"]:
+        pos = m[col] > 0
+        if pos.any():
+            series_start.update(ts[pos].groupby(m.loc[pos, "country"]).min()
+                                .rename(lambda c_: (c_, col[4:])).to_dict())
     rows = []
     for (c, y), g in m.groupby(["country", "year"]):
         cap, base = _capture(g)
         for t, v in cap.items():
             gcol = g[f"gen_{t}"]
+            first = series_start.get((c, t))
+            partial_first = (first is not None and first.year == y
+                             and (first.month, first.day) > (2, 1))
             rows.append({"country": c, "year": y, "tech": t,
-                         "capture_price": round(v, 3) if pd.notna(v) else np.nan,
+                         "capture_price": round(v, 3) if pd.notna(v) and not partial_first else np.nan,
                          "base_price": round(base, 3),
-                         "capture_vs_base_pct": round((v / base - 1) * 100, 2) if (pd.notna(v) and base) else np.nan,
+                         "capture_vs_base_pct": round((v / base - 1) * 100, 2) if (pd.notna(v) and base and not partial_first) else np.nan,
                          "generation_twh": round(float(gcol.sum() / 1e6), 3)})
     return _save(pd.DataFrame(rows), "capture_annual")
 

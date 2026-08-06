@@ -73,6 +73,10 @@ def main():
     # {country}_w{i} data columns from the same cfg.window_years() list.
     for i, y in enumerate(cfg.window_years(c["last_complete_year"]), start=1):
         row[f"w{i}"] = y
+    # Slot 8 — the current year-to-date, matching slot 8 of line_windows. Published
+    # so the workbook can show it and chart labels can read it from a cell
+    # (Fred asked for a visible W8 on the Status tab, 2026-08-06).
+    row[f"w{cfg.WINDOW_YEARS + 1}"] = c["last_complete_year"] + 1
     df = pd.DataFrame([row])
     for d in (OUT, PUB):
         os.makedirs(d, exist_ok=True)

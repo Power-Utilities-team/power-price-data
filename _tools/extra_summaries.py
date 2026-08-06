@@ -182,6 +182,13 @@ LINE_WINDOWS = [
     ("figD_netload_duck",     ["DE"],       "n"),
 ]
 
+# Blocks appended AFTER everything else (see the append-only note in line_windows()):
+# the intraday index for the remaining three countries, added 2026-08-06 so the
+# Portugal / France / Italy Fig-2 charts can roll like Germany's and Spain's.
+LINE_WINDOWS_APPEND = [
+    ("fig2_intraday_indexed", ["PT", "FR", "IT"], "i"),
+]
+
 # Fig 1 and Fig 3 are the other shape: YEARS are the x-axis CATEGORIES and the series are
 # countries. They look like they should grow by themselves — a new year is just another
 # category — but the range is fixed at rows 2..8, so the 2026 row already holds data the
@@ -290,6 +297,24 @@ def line_windows():
             vals = src[col].tolist()
             vals = vals + [float("nan")] * (nrows - len(vals))
             out[f"{prefix}_{out_name}"] = vals[:nrows]
+
+    # --- appended blocks (added 2026-08-06) -----------------------------------
+    # Later additions go HERE, at the end, never into LINE_WINDOWS above: the live
+    # workbook's chart references and its Power Query column count are pinned to the
+    # existing column POSITIONS, so inserting into the middle would silently shift
+    # every column to the right of the insertion and repoint every chart at the
+    # wrong data. Append-only keeps the published layout stable.
+    for stem, countries, tag in LINE_WINDOWS_APPEND:
+        f = os.path.join(OUT, f"{stem}.csv")
+        if not os.path.exists(f):
+            raise SystemExit(f"line_windows: {stem}.csv missing — build order changed?")
+        src = pd.read_csv(f)
+        for c in countries:
+            for i, y in enumerate(years, start=1):
+                col = f"{c}_{y}"
+                vals = src[col].tolist() if col in src.columns else []
+                vals = vals + [float("nan")] * (nrows - len(vals))
+                out[f"{tag}_{c}_w{i}"] = vals[:nrows]
 
     _save(out, "line_windows")
 
