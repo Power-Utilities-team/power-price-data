@@ -10,7 +10,7 @@ non-technical person just opens the file.
 
 Data lives at these URLs (chart-ready, one flat table per chart):
 ```
-BASE = https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/
+BASE = https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/main/published/charts/
 ```
 | File | Chart it feeds |
 |------|----------------|

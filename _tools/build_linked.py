@@ -34,7 +34,7 @@ NAVY = "1F3864"; TEAL = "2E7D8A"
 YEAR_RAMP = ["1F3864", "27496D", "2E5C7A", "357084", "3C8391",
              "5FA1AD", "8FBEC6", "B9D3D8"]
 COUNTRY_COLORS = ["1F3864", "8A1E41", "CC9F53", "2E7D8A", "3D664A"]
-BASE = "https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/"
+BASE = "https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/main/published/charts/"
 SETUP = []  # (sheet, csv, load_target) rows for READ_ME
 
 def load(name): return pd.read_csv(os.path.join(CH, f"{name}.csv"))

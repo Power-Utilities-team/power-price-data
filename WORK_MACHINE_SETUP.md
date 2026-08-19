@@ -126,7 +126,7 @@ one finished in the last 30 minutes, so two people pressing it cannot start dupl
 You do **not** need the Mac, Claude Code, admin rights, or any local install. `workflow_dispatch`
 is enabled, so the workflow has a **Run workflow** button in the browser:
 
-> github.com/fredhill123/power-price-data → **Actions** → *Refresh ENTSO-E power-price data* →
+> github.com/Power-Utilities-team/power-price-data → **Actions** → *Refresh ENTSO-E power-price data* →
 > **Run workflow** → **Run workflow**
 
 It takes ~20 minutes, then commits fresh CSVs and rebuilt deliverables. A browser and a GitHub

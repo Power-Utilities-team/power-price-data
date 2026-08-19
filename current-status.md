@@ -4,7 +4,35 @@
 > superseded by later ones further down. The authority on what is still open is
 > `pending-updates.md` § OPEN COMMITMENTS. Add an open item there, not here.
 
-_Last updated: 2026-08-01_
+_Last updated: 2026-08-10_
+
+## Update 2026-08-10 — folding in the 2 to 8 August work
+
+Written by the 2026-08-09 friction audit's fold, which found this file eight days behind
+substantive changes. The entry below it, dated 1 August, is SUPERSEDED on the schedule.
+
+- **The schedule is `23 7 2,10,18,26 * *`** — four fixed dates a month, verified in
+  `.github/workflows/refresh.yml`. It replaced both the `23 7 2 * *` monthly line the entry
+  below describes and the weekly line that briefly followed it. Fixed dates were chosen over
+  a weekday cron because the dates are themselves a complete answer to when it runs.
+- **Every run re-pulls the whole year with `--force`.** The incremental path and the GitHub
+  raw cache are deleted. The cache's apparent reliability rested on a coincidence: roughly
+  7-day eviction meant a monthly schedule always found it cold, so it rebuilt the year
+  without anyone designing that, and running more often would have kept it warm and quietly
+  ended the self-repair.
+- **The first unattended run fired on 2026-08-02** and succeeded, all eight jobs green. Every
+  run before it had been a manual `workflow_dispatch`.
+- **A failed run now opens a GitHub issue** that @-mentions the owner, rather than relying on
+  owner email. ⚠ Still unproven against real GitHub permissions: no run has failed since.
+- **Dependencies are pinned exactly.** The 2026-08-02 CI log showed the resolver had already
+  walked to pandas 3.0.5, pyarrow 25.0.0 and duckdb 1.5.5, three unreviewed majors that came
+  up green by luck.
+- **The status page and workbook no longer advertise the wrong day**, and the page's Refresh
+  token runs to 15 July 2027.
+- `CLAUDE.md` was added at the project root 2026-08-05, and a stray two-row
+  `_meta/sources.jsonl` was archived 2026-08-08. Provenance remains the pipeline itself.
+
+The full reasoning for each sits in `pending-updates.md`, which is where these were worked.
 
 ## Update 2026-08-01 — schedule moved to the 2nd, and a missing month is now caught
 
@@ -158,7 +186,7 @@ chart-ready CSVs to public raw URLs. Windows Excel loads them via **From Web** w
 **refresh-on-open** → a non-technical user just OPENS the file and it's current. PPT links auto-update.
 
 **Built & live:**
-- Public repo **github.com/fredhill123/power-price-data** (owner fredhill123). Pushed pipeline +
+- Public repo **github.com/Power-Utilities-team/power-price-data** (owner Power-Utilities-team). Pushed pipeline +
   workflow. `ENTSOE_API_KEY` set as encrypted Actions Secret (key NOT in code — resolves from env or
   git-ignored `_tools/.entsoe_key`).
 - `.github/workflows/refresh.yml` (cron 2nd@06:00 UTC + workflow_dispatch, double-fetch pass).
@@ -242,8 +270,8 @@ PQ parts (connections+12 tables+12 queryTables+customXml) byte-identical; origin
 unchanged; soffice render confirms all new charts display; deck opens, 15 linked charts w/
 externalData, no duplicate content-types. Originals archived to `archive/phase4_2026-07-17/`.
 **Fred's 2 queries to wire (From Web → Load To → that tab's $A$1, tick refresh-on-open):**
-- G1_SolarPeak ← https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/g1_solar_peakhour.csv
-- G2_MonthDuck ← https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/g2_price_by_month.csv
+- G1_SolarPeak ← https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/main/published/charts/g1_solar_peakhour.csv
+- G2_MonthDuck ← https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/main/published/charts/g2_price_by_month.csv
 **Design calls:** G1 = the `_qavg` (quarterly-smoothed) lines; G2 monthly = Germany 2025.
 **Iberia→Spain (RESOLVED 2026-07-17, Fred):** checked the source deck — capture was **Portugal**
 (sl.33/35, matches chart12); the volatility/intraday/neg-hour "Iberia" exhibits used the Iberian

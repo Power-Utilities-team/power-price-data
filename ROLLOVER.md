@@ -20,8 +20,8 @@ more than the commands.
 European hourly power-price analysis for five markets (Germany, Spain, Portugal, France,
 Italy), 2019 → present, from the ENTSO-E Transparency Platform.
 
-- **Repo:** `github.com/fredhill123/power-price-data`
-- **Local project:** `~/Claude Projects/Power Price Data` (macOS; this is the only machine
+- **Repo:** `github.com/Power-Utilities-team/power-price-data`
+- **Local project:** `~/Claude Projects (Work)/Power Price Data` (macOS; this is the only machine
   holding the full raw archive — `data/raw/` is deliberately NOT in the repo)
 - **Python env:** `_tools/.venv` (activate with `source _tools/.venv/bin/activate`, run
   everything from inside `_tools/`)
@@ -159,7 +159,7 @@ the year; without it CI keeps rebuilding from the old frozen history.
 
 **Gate:** confirm the published CSVs resolve:
 ```bash
-curl -sI https://raw.githubusercontent.com/fredhill123/power-price-data/main/published/charts/fig5_capture_pct.csv | head -1
+curl -sI https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/main/published/charts/fig5_capture_pct.csv | head -1
 ```
 Expect `HTTP/2 200`.
 

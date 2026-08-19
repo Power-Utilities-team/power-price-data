@@ -25,13 +25,42 @@
  * nothing else. It is never sent to the browser.
  */
 
-const OWNER = "fredhill123";
+const OWNER = "Power-Utilities-team";
 const REPO = "power-price-data";
 const WORKFLOW = "refresh.yml";
 const BRANCH = "main";
 
 const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
-const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
+// REPO_URL is gone (2026-08-17, Fred: "remove any links that would show my github profile"). The
+// page used to carry four download links, three browse links and a run-log link, every one of them
+// a github.com URL containing the account name, from which the profile is one click away. Nothing
+// on the page now names GitHub at all: downloads are proxied by this Worker, over its own hostname,
+// and the browse and repository links are simply gone.
+//
+// What this does NOT hide, and cannot from here: the live workbook fetches its own data from
+// raw.githubusercontent.com, so those URLs are visible in its connection settings to anyone who
+// opens it and looks. That is the workbook's design, not this page's.
+
+// The ONLY files this Worker will serve, by exact name. An allowlist rather than a path check,
+// because a path check on a proxy is how a proxy becomes a way to read the rest of a repository.
+// Three of them, Fred's pick 2026-08-17: the snapshot deck and the CSV browse card were dropped as
+// clutter, keeping the two anyone actually opens plus the deck that goes with them.
+const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const DOWNLOADS = {
+  "HourlyPowerData.xlsx": {
+    label: "Excel workbook (live)", type: XLSX,
+    note: "Refreshes itself when you open it.",
+  },
+  "HourlyPowerData.pptx": {
+    label: "PowerPoint (linked)", type: PPTX,
+    note: "Charts link to the workbook — keep the two together.",
+  },
+  "HourlyPowerData_frozen.xlsx": {
+    label: "Excel (self-contained)", type: XLSX,
+    note: "No connections; opens anywhere.",
+  },
+};
 
 // Matches the workflow's cron: "23 7 2,10,18,26 * *" — 07:23 UTC on the 2nd, 10th, 18th
 // and 26th of every month.
@@ -78,18 +107,55 @@ function human(ms) {
   return h > 0 ? `${h}h ${m}m` : `${m} minute${m === 1 ? "" : "s"}`;
 }
 
-async function getStatus() {
+// Two ways to the same file, authenticated first (fixed 2026-08-17, Fred saw the page saying
+// "Could not read the status record").
+//
+// The cause was NOT the repo or the file: both were fine, and the fetch below returned the row
+// correctly on a retry seconds later. It was HTTP 429 from raw.githubusercontent.com. A Worker's
+// outbound requests leave from Cloudflare's shared egress addresses, and GitHub rate-limits
+// unauthenticated raw traffic per address, so this page was being throttled by strangers' usage
+// rather than by anything Fred does. A short cacheTtl made it worse by refetching every minute.
+//
+// The API route carries GH_TOKEN, which this Worker already holds for the workflow dispatch, and
+// an authenticated limit is tied to the token rather than the address. Raw stays as the fallback
+// for the case where the secret is absent.
+async function getStatus(env) {
+  const parse = (text) => {
+    const [head, row] = text.trim().split("\n");
+    if (!row) return null;
+    const keys = head.split(",");
+    const vals = row.split(",");
+    return Object.fromEntries(keys.map((k, i) => [k.trim(), (vals[i] || "").trim()]));
+  };
+
+  if (env && env.GH_TOKEN) {
+    try {
+      const r = await fetch(
+        `https://api.github.com/repos/${OWNER}/${REPO}/contents/published/charts/status.csv?ref=${BRANCH}`,
+        {
+          cf: { cacheTtl: 300 },
+          headers: {
+            "User-Agent": "power-price-status-page",
+            Accept: "application/vnd.github.raw",
+            Authorization: `Bearer ${env.GH_TOKEN}`,
+          },
+        },
+      );
+      if (r.ok) {
+        const got = parse(await r.text());
+        if (got) return got;
+      }
+    } catch (e) {
+      // fall through to raw
+    }
+  }
+
   const r = await fetch(`${RAW}/published/charts/status.csv`, {
-    cf: { cacheTtl: 60 },
+    cf: { cacheTtl: 300 },
     headers: { "User-Agent": "power-price-status-page" },
   });
   if (!r.ok) return null;
-  const text = await r.text();
-  const [head, row] = text.trim().split("\n");
-  if (!row) return null;
-  const keys = head.split(",");
-  const vals = row.split(",");
-  return Object.fromEntries(keys.map((k, i) => [k.trim(), (vals[i] || "").trim()]));
+  return parse(await r.text());
 }
 
 async function latestRun(env) {
@@ -111,7 +177,7 @@ async function latestRun(env) {
 
 /* --------------------------------------------------------------------- page */
 
-function page({ status, run, msg, err, hasToken }) {
+function page({ status, run, msg, err, hasToken, tokenWorks }) {
   const now = new Date();
 
   let gen = null;
@@ -151,17 +217,48 @@ function page({ status, run, msg, err, hasToken }) {
   const nr = nextRun(now);
   const nrTxt = nr.toUTCString().replace(":00 GMT", " UTC").replace(/^\w{3}, /, "");
 
+  // No "view log" link any more: run.html_url is a github.com Actions URL and so carries the
+  // account name. The conclusion is the part a reader can act on, and that stays.
   const runLine = run
-    ? `Last run <strong>${esc(run.status === "completed" ? run.conclusion : run.status)}</strong>` +
-      ` &middot; <a href="${esc(run.html_url)}" target="_blank" rel="noopener">view log</a>`
+    ? `Last run <strong>${esc(run.status === "completed" ? run.conclusion : run.status)}</strong>`
     : "";
 
-  const files = [
-    ["HourlyPowerData.xlsx", "Excel workbook (live)", "Refreshes itself from GitHub when you open it."],
-    ["HourlyPowerData.pptx", "PowerPoint (linked)", "Charts link to the workbook — keep the two together."],
-    ["HourlyPowerData_frozen.xlsx", "Excel (self-contained)", "No connections; opens anywhere."],
-    ["HourlyPowerData_snapshot.pptx", "PowerPoint (self-contained)", "All images, nothing to update."],
-  ];
+  const files = Object.entries(DOWNLOADS).map(([f, d]) => [f, d.label, d.note]);
+
+  // Recovery instructions, shown only when something is actually wrong (Fred, 2026-08-17).
+  //
+  // He asked for a way to supply a replacement ENTSO-E key THROUGH this page. That was declined and
+  // this is the agreed alternative. Two reasons the form would have been worse than the fault:
+  // this page is public and unauthenticated, so anyone could point the pipeline at their own
+  // ENTSO-E account or simply break it; and writing an Actions secret needs a far broader token
+  // than the Actions:write one here, so the page would end up holding a credential that can rewrite
+  // repository secrets. A page that TELLS you what to do needs no credential and no trust.
+  //
+  // The trigger is deliberately conservative: a failed run, or data past its tolerance. Either can
+  // have other causes, so the wording says "most likely" rather than diagnosing. It names no
+  // GitHub URL, per the same day's ask.
+  const runFailed = run && run.status === "completed" && run.conclusion !== "success";
+  const needsHelp = runFailed || stale;
+  const recover = needsHelp ? `
+<div class="card" style="border-left:4px solid #b3261e">
+  <h2>If the refresh keeps failing</h2>
+  <p>The most likely cause is the <strong>data-source key</strong>. The pipeline reads prices from
+  the ENTSO-E Transparency Platform with a key that belongs to whoever registered for one, and a key
+  stops working if that account is closed or the key is withdrawn. Nothing else here needs replacing,
+  and no file anyone has downloaded is affected.</p>
+  <p class="muted">Whoever looks after this needs repository access. They do not need the person who
+  set it up.</p>
+  <ol>
+    <li>Register at the ENTSO-E Transparency Platform and request an API key. Use a
+        <strong>team mailbox</strong> rather than a personal address, so the next handover needs
+        nothing.</li>
+    <li>In the repository, open <strong>Settings → Secrets and variables → Actions</strong> and set
+        <code>ENTSOE_API_KEY</code> to the new key.</li>
+    <li>Come back here and press <strong>Start a refresh</strong>. A run takes about 20 minutes.</li>
+  </ol>
+  <p class="muted">The repository's own <code>GITHUB.md</code> carries the same steps in full, plus
+  what to do if the refresh button itself has stopped working.</p>
+</div>` : "";
 
   return `<!doctype html>
 <html lang="en"><head>
@@ -228,7 +325,7 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
       : ""}
   ${runLine ? `<p class="muted">${runLine}</p>` : ""}
 </div>
-
+${recover}
 <div class="card">
   <h2>Next scheduled update</h2>
   <p><strong>${esc(nrTxt)}</strong> — in ${esc(human(nr - now))}</p>
@@ -239,7 +336,7 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
   <h2>Download the latest files</h2>
   ${files.map(([f, label, d]) => `
     <div class="file">
-      <span><a href="${REPO_URL}/raw/${BRANCH}/deliverables/${f}">${esc(label)}</a>
+      <span><a href="/file/${encodeURIComponent(f)}">${esc(label)}</a>
         <div class="d">${esc(d)}</div></span>
     </div>`).join("")}
   <div class="note"><strong>When do I need to download?</strong> Only when the <em>chart itself</em>
@@ -249,22 +346,21 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
 </div>
 
 <div class="card">
-  <h2>Look through the data</h2>
-  <p class="muted">Every chart is fed by a published CSV — open one to see exactly what it plots.</p>
-  <p><a href="${REPO_URL}/tree/${BRANCH}/published/charts" target="_blank" rel="noopener">Chart data (CSV)</a>
-   &middot; <a href="${REPO_URL}/tree/${BRANCH}/published" target="_blank" rel="noopener">Full published data</a>
-   &middot; <a href="${REPO_URL}" target="_blank" rel="noopener">Repository</a></p>
-</div>
-
-<div class="card">
   <h2>Refresh now</h2>
   <p class="muted">Fetches the latest ENTSO-E data and rebuilds everything. Takes about 20 minutes.
   You rarely need this — the scheduled runs cover it, and no chart gains a new data point in between.</p>
-  ${hasToken
-      ? `<form method="POST" action="/trigger" onsubmit="this.q.disabled=true;this.q.textContent='Starting…'">
+  ${!hasToken
+      ? `<p class="muted"><em>Not yet enabled — the access token has not been configured.</em></p>`
+      : !tokenWorks
+      ? `<p class="muted"><em>Temporarily unavailable — the access token cannot currently read this
+           repository, so a refresh would fail. The scheduled runs are unaffected. Whoever looks
+           after this needs to issue a new fine-grained token (Actions: write, this repository) and
+           set it as the Worker's <code>GH_TOKEN</code>. The most common cause is the repository
+           having moved to a different owner, which leaves an old token scoped to the previous
+           one.</em></p>`
+      : `<form method="POST" action="/trigger" onsubmit="this.q.disabled=true;this.q.textContent='Starting…'">
            <button id="q" name="q" type="submit">Start a refresh</button>
-         </form>`
-      : `<p class="muted"><em>Not yet enabled — the access token has not been configured.</em></p>`}
+         </form>`}
 </div>
 
 <p class="muted" style="margin-top:2rem">
@@ -276,15 +372,74 @@ ${err ? `<div class="msg err">${esc(err)}</div>` : ""}
 
 /* ------------------------------------------------------------------ routing */
 
+// Serve one of the allowlisted deliverables from this Worker's own hostname, so the reader never
+// sees a GitHub URL. Authenticated API first: the contents endpoint with the raw media type handles
+// files well past 1MB, and an authenticated limit is tied to the token rather than to Cloudflare's
+// shared egress addresses, which is what produced the 429s that broke the status line. Raw is the
+// fallback for a missing secret.
+async function serveFile(env, name) {
+  const meta = DOWNLOADS[name];
+  if (!meta) return new Response("Not found", { status: 404 });
+
+  const headers = {
+    "content-type": meta.type,
+    // A colleague clicking the link should get a file, not a browser trying to render a zip.
+    "content-disposition": `attachment; filename="${name}"`,
+    "cache-control": "no-store",
+    "x-robots-tag": "noindex, nofollow",
+  };
+
+  if (env.GH_TOKEN) {
+    const r = await fetch(
+      `https://api.github.com/repos/${OWNER}/${REPO}/contents/deliverables/${encodeURIComponent(name)}?ref=${BRANCH}`,
+      { headers: { "User-Agent": "power-price-status-page", Accept: "application/vnd.github.raw",
+                   Authorization: `Bearer ${env.GH_TOKEN}` } },
+    );
+    if (r.ok) return new Response(r.body, { headers });
+  }
+
+  const r = await fetch(`${RAW}/deliverables/${encodeURIComponent(name)}`,
+                        { headers: { "User-Agent": "power-price-status-page" } });
+  if (!r.ok) {
+    return new Response("That file could not be fetched just now. Try again in a minute.",
+                        { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+  return new Response(r.body, { headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/file/")) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      // decodeURIComponent on the segment, and the allowlist does the rest. No path is ever built
+      // from what arrives here beyond an exact key match, so "../" and friends have nowhere to go.
+      let name;
+      try {
+        name = decodeURIComponent(url.pathname.slice("/file/".length));
+      } catch (e) {
+        return new Response("Not found", { status: 404 });
+      }
+      return serveFile(env, name);
+    }
 
     if (request.method === "POST" && url.pathname === "/trigger") {
       if (!env.GH_TOKEN) {
         return render(env, { err: "Refresh is not enabled: no access token configured." });
       }
       // Cross-origin POSTs are rejected: only this page may trigger a run.
+      //
+      // KNOWN AND ACCEPTED, Fred's call 2026-08-17 ("leave it"), so do not "fix" this unasked.
+      // The check passes when the header is ABSENT, which a browser always sends and a scripted
+      // caller need not, so anyone who knows this URL can fire the workflow. What that costs is
+      // Actions minutes on Power-Utilities-team/power-price-data and a refresh nobody asked for, bounded by
+      // the cooldown and the already-running check below. What it does not cost is data: this
+      // endpoint returns the same public page either way and the Worker holds nothing private.
+      // The offered fix was a strict Origin plus a same-site form token; raise it again only if the
+      // cost changes, not as tidying.
       const origin = request.headers.get("Origin");
       if (origin && new URL(origin).host !== url.host) {
         return new Response("Forbidden", { status: 403 });
@@ -330,9 +485,15 @@ export default {
 };
 
 async function render(env, extra) {
-  const [status, run] = await Promise.all([getStatus(), latestRun(env)]);
+  const [status, run] = await Promise.all([getStatus(env), latestRun(env)]);
+  // A token can be PRESENT and not work. That is exactly what happened on 2026-08-17 when the repo
+  // moved to an organisation: the fine-grained PAT was scoped to the old owner, so it stopped
+  // covering the repo, and the Refresh button still rendered as though it would work. The page could
+  // read its status the whole time, because that falls back to unauthenticated raw, so nothing
+  // looked wrong. Distinguish the two states rather than leaving a button that fails on click.
   return new Response(
-    page({ status, run, hasToken: Boolean(env.GH_TOKEN), ...extra }),
+    page({ status, run, hasToken: Boolean(env.GH_TOKEN),
+           tokenWorks: Boolean(env.GH_TOKEN) && run !== null, ...extra }),
     { headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" } },
   );
 }

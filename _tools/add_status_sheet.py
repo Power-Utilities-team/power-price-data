@@ -25,7 +25,7 @@ import config as cfg
 
 WB = os.path.join(cfg.ROOT, "outputs", "HourlyPowerData.xlsx")
 SHEET_NAME = "Status"
-RAW_BASE = ("https://raw.githubusercontent.com/fredhill123/power-price-data/"
+RAW_BASE = ("https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/"
             "main/published/charts")
 
 # tab -> published CSV stem, for the recovery-reference table at the bottom of the sheet.

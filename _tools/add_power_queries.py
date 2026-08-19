@@ -32,7 +32,7 @@ import config as cfg
 ROOT = cfg.ROOT
 WB = os.path.join(ROOT, "outputs", "HourlyPowerData.xlsx")
 PUB = os.path.join(ROOT, "published", "charts")
-BASE_URL = ("https://raw.githubusercontent.com/fredhill123/power-price-data/"
+BASE_URL = ("https://raw.githubusercontent.com/Power-Utilities-team/power-price-data/"
             "main/published/charts/")
 
 M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"

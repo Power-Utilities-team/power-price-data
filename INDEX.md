@@ -12,7 +12,9 @@ fixed-cell Excel → linked PowerPoint charts (Rothschild/Redburn style)._
 - `EXCEL_SETUP.md` — one-time Power Query setup for the live-linked workbook (Path A).
 - `Deliverables/updating-the-deck.{md,html,pdf}` — non-technical monthly-refresh one-pager for the team.
 - `LINKING_GUIDE.md` — how to link the workbook to auto-updating PPT charts.
-- `_meta/sources.jsonl` — source ledger (ENTSO-E; IT PUN proxy caveat).
+- Source provenance: the pipeline itself (ENTSO-E API; IT PUN proxy caveat in CHARTS.md). (A stray 2-row `_meta/sources.jsonl` DID exist despite the 2026-08-05 correction saying otherwise — archived 2026-08-08 to `archive/orphan-sources-jsonl-2026-08-08.jsonl`; provenance remains the pipeline itself.)
+- Also at root: `CHARTS.md`, `ROLLOVER.md`, `GITHUB.md` (ops + handover + GH_TOKEN rotation), `CLAUDE.md` (added 2026-08-05).
+- `assets/`, `published/` — stable raw-URL surface for the workbook; `.git`/`.github` — this project IS the GitHub pipeline repo (sanctioned).
 
 ## Map
 | Path | What |
