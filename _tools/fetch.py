@@ -38,6 +38,27 @@ client = EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
 SLEEP = 0.7          # politeness pause between calls (well under 400/min limit)
 LOG = []
 
+# WHAT EACH SERIES ACTUALLY DID, so a failure can be reported where it happened.
+# On 2026-08-18 the DE generation pull returned HTTP 504 twice, this script exited 0
+# anyway, and the run died 25 minutes later in roll_line_windows.py with "chart19: 7
+# series, expected 8" — a message about chart geometry, for a fault that was an upstream
+# gateway timeout. Eight days of no publication followed, because every run re-pulls the
+# whole year and there is no raw cache to fall back on, so each subsequent run met the
+# same wall. A fetch that did not fetch has to say so, in its own step.
+OUTCOMES = {}        # raw_path -> (label, "ok"|"skip"|"none"|"empty"|"fail")
+
+# Series the rest of the pipeline cannot do without. `generation` is on the list because
+# net load (demand - wind - solar) is derived from it, and a missing year there removes a
+# chart series, which is a hard error downstream rather than a gap.
+REQUIRED = ("load", "generation")
+
+# ENTSO-E's gateway returns 502/503/504 under load. entsoe-py's own retry_count covers
+# CONNECTION errors only: a 5xx comes back through raise_for_status() as an HTTPError and
+# was never retried, so one bad minute cost a whole series for a whole year.
+TRANSIENT_STATUS = (500, 502, 503, 504, 408, 429)
+RETRIES = 4
+RETRY_WAIT = 20      # seconds, doubling
+
 def log(msg):
     line = f"[{pd.Timestamp.now(tz='UTC').strftime('%H:%M:%S')}] {msg}"
     print(line, flush=True)
@@ -158,9 +179,33 @@ def _attempt(label, fn, path, force, merge=False, full_start=None):
         _start = None
     if not merge and not _need(path, force):
         log(f"  skip  {label} (cached)")
+        OUTCOMES[path] = (label, "skip")
         return
+    def _transient(ex):
+        st = getattr(getattr(ex, "response", None), "status_code", None)
+        if st in TRANSIENT_STATUS:
+            return True
+        return type(ex).__name__ in ("ConnectionError", "Timeout", "ReadTimeout",
+                                     "ConnectTimeout", "ChunkedEncodingError")
+
+    def _call():
+        wait = RETRY_WAIT
+        for attempt in range(1, RETRIES + 1):
+            try:
+                return fn(_start)
+            except NoMatchingDataError:
+                raise
+            except Exception as ex:
+                if attempt == RETRIES or not _transient(ex):
+                    raise
+                log(f"  retry {label}: {type(ex).__name__} "
+                    f"{getattr(getattr(ex,'response',None),'status_code','')} "
+                    f"— attempt {attempt} of {RETRIES}, waiting {wait}s")
+                time.sleep(wait)
+                wait *= 2
+
     try:
-        obj = fn(_start)
+        obj = _call()
         obj = _to_utc(obj) if obj is not None and len(obj) else obj
         if merge:
             before = 0
@@ -169,16 +214,24 @@ def _attempt(label, fn, path, force, merge=False, full_start=None):
             obj = _merge_into(path, obj)
             if _save(obj, path):
                 log(f"  ok    {label}  ({before} -> {len(obj)} rows)")
+                OUTCOMES[path] = (label, "ok")
             else:
                 log(f"  EMPTY {label}")
+                OUTCOMES[path] = (label, "empty")
         elif _save(obj, path):
             log(f"  ok    {label}  ({len(obj)} rows)")
+            OUTCOMES[path] = (label, "ok")
         else:
             log(f"  EMPTY {label}")
+            OUTCOMES[path] = (label, "empty")
     except NoMatchingDataError:
+        # NOT a failure: the publisher has nothing for this period. Distinguished from a
+        # fetch that broke, so the exit check below does not fail a legitimately empty one.
         log(f"  none  {label} (no data published)")
+        OUTCOMES[path] = (label, "none")
     except Exception as ex:
         log(f"  FAIL  {label}: {type(ex).__name__}: {str(ex)[:90]}")
+        OUTCOMES[path] = (label, "fail")
     time.sleep(SLEEP)
 
 def fetch_country_year(country, year, force=False, since_days=None):
@@ -290,6 +343,41 @@ def main():
     log(f"DONE in {(time.time()-t0)/60:.1f} min")
     with open(os.path.join(cfg.META_DIR, "fetch_log.txt"), "a") as f:
         f.write("\n".join(LOG) + "\n")
+
+    # A FETCH THAT DID NOT FETCH FAILS HERE, not 25 minutes downstream. See the OUTCOMES
+    # note at the top: on 2026-08-18 this exited 0 with DE generation missing, and the run
+    # died later in a chart-geometry check that said nothing about ENTSO-E.
+    bad = unmet_requirements()
+    if bad:
+        for path, label in bad:
+            log(f"  MISSING {label}: nothing stored at {os.path.basename(path)}")
+        raise SystemExit(
+            f"fetch: {len(bad)} required series could not be retrieved and nothing is "
+            f"stored for them. Every run re-pulls the whole year with no raw cache, so "
+            f"there is no earlier copy to fall back on and the build downstream would "
+            f"fail on a missing chart series instead of on this. Re-run the workflow; "
+            f"ENTSO-E 5xx timeouts are transient and are now retried "
+            f"{RETRIES} times with backoff.")
+
+
+def unmet_requirements():
+    """Required series whose fetch broke AND which have nothing stored.
+
+    Both halves matter. "fail" alone is not enough, because a series can fail on a retry
+    and still have a good file from earlier in the same run; and a missing file alone is
+    not enough either, because `none` means the publisher genuinely has nothing for the
+    period, which is data rather than a fault.
+    """
+    out = []
+    for path, (label, state) in OUTCOMES.items():
+        if state != "fail":
+            continue
+        if not any(label.startswith(r) for r in REQUIRED) and not label.startswith("price"):
+            continue
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            continue
+        out.append((path, label))
+    return out
 
 if __name__ == "__main__":
     main()

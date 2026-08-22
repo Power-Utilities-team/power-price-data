@@ -109,9 +109,20 @@ def main():
         xml = parts[p].decode()
         sers = re.findall(r"<c:ser>.*?</c:ser>", xml, re.S)
         if len(sers) != SLOTS:
-            raise SystemExit(f"chart{num}: {len(sers)} series, expected {SLOTS} — the "
-                             f"window and the chart must match exactly, or a series "
-                             f"would plot the wrong year under the right label")
+            # THE MESSAGE NAMES THE LIKELY CAUSE, because the geometry is the symptom and
+            # not the fault. 2026-08-18: this fired with 7 series on chart19 and cost a
+            # long trace back through five scripts to reach the real answer, which was an
+            # ENTSO-E 504 on the DE generation pull. add_phase4_charts.py builds one
+            # series per year column that has ANY data, so a year that failed to fetch
+            # silently removes a series here. ALMOST ALWAYS AN UPSTREAM FETCH GAP.
+            raise SystemExit(
+                f"chart{num}: {len(sers)} series, expected {SLOTS} — the window and the "
+                f"chart must match exactly, or a series would plot the wrong year under "
+                f"the right label.\n"
+                f"  LIKELY CAUSE: a year with no data. add_phase4_charts.py emits a "
+                f"series only for a year column that has values, so a failed fetch "
+                f"upstream removes one here. Check the fetch step's log for FAIL lines "
+                f"before looking at the chart XML.")
 
         # keep each chart's own row span: a duration curve has 101 points, an intraday
         # profile 24, and the shared tab is as long as the longest
