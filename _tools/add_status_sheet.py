@@ -94,6 +94,23 @@ ROLLOVER_DUE = 'IFERROR(AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2),FALSE)'
 # the string, so this is silent on anything that predates the column.
 STALE_SERIES = '($O$2="stale-series")'
 ANY_ALARM = f'OR({NOT_REFRESHED},{STALE},{STALE_SERIES})'
+# The two alarm FAMILIES need different instructions and used to share one pointer.
+# NOT_REFRESHED is local to the reader's copy — row 7 already tells them to re-open and
+# enable content. The other two are the pipeline, and nothing on this sheet said what to do
+# about those.
+PIPELINE_ALARM = f'OR({STALE},{STALE_SERIES})'
+
+# THE NEXT SCHEDULED ATTEMPT, computed on the reader's own clock (Fred, 2026-08-23, thinking
+# about being away: "what will they say and what will their options be"). Someone looking at
+# a red banner cannot tell whether to wait or to act, and the difference is usually just a
+# date. Slots are the 2nd, 10th, 18th and 26th; DATE() rolls the month over on its own, so
+# 26 December correctly gives 2 January.
+_Y, _M = "YEAR(TODAY())", "MONTH(TODAY())"
+NEXT_RUN = (f'IF(DAY(TODAY())<2,DATE({_Y},{_M},2),'
+            f'IF(DAY(TODAY())<10,DATE({_Y},{_M},10),'
+            f'IF(DAY(TODAY())<18,DATE({_Y},{_M},18),'
+            f'IF(DAY(TODAY())<26,DATE({_Y},{_M},26),'
+            f'DATE({_Y},{_M}+1,2)))))')
 
 STATUS_URL = "https://power-price-data.fredhill.workers.dev"
 
@@ -120,15 +137,37 @@ LAYOUT = [
              f'GitHub.","")', "red"),
     (8, "A", f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
              f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")', "red"),
+    # WHICH EXHIBITS, BY NAME (Fred, 2026-08-23: "can the status sheet show what graphs are
+    # affected and out of date?"). Naming the series is little use to a reader who does not
+    # know that capture is generation-weighted; naming the tabs is. It rides this same row
+    # rather than taking its own, because every row from 14 down is already spoken for.
+    #
+    # "Read with care" rather than "wrong": a series three days behind usually moves nothing
+    # visible on an annual exhibit, and overstating it is how a reader learns to ignore the
+    # line entirely.
     (9, "A", f'=IF({STALE_SERIES},"!! ONE SERIES CAME FROM STORED DATA - "&$P$2&'
              f'". Every other figure here is current, and a repair run replaces it within '
-             f'hours.","")', "red"),
-    (10, "A", f'=IF({ANY_ALARM},"ACTION: see \'What you need to do\' below.","")', "red"),
+             f'hours."&IF($Q$2<>""," Read these tabs with care until it does: "&$Q$2&".",""),'
+             f'"")', "red"),
+    # SELF-CONTAINED (2026-08-23). This used to read "ACTION: see What you need to do
+    # below" — and that section opens with "NOTHING - not monthly, not yearly, not ever",
+    # which is correct for the healthy case and the exact wrong thing to read in the one
+    # situation where this line appears. A colleague covering for Fred followed a pointer to
+    # a heading telling them to stand down. The instruction now lives in the line itself, so
+    # nobody has to scroll or believe the wrong section.
+    (10, "A", f'=IF({PIPELINE_ALARM},"ACTION: nothing is wrong with this file, and the '
+              f'figures above are the last ones published. Open "&$A$42&" and press Start a '
+              f'refresh. That needs no repository access and no special software. The next '
+              f'automatic attempt is "&TEXT({NEXT_RUN},"d mmm")&".","")', "red"),
     (11, "A", f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
               f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
               f'Data through "&$B$2&".")', "plain"),
     (12, "A", f'=IF({ANY_ALARM},"","OK - data is current and the charts are up to date.")',
      "green"),
+    # Shown in EVERY state, healthy included: it is the answer to "should I wait or act",
+    # and a reader should not have to reach a red banner to learn the cadence.
+    (13, "A", f'="The next automatic refresh is due "&TEXT({NEXT_RUN},"dddd d mmmm")&'
+              f'" (the 2nd, 10th, 18th and 26th of each month)."', "plain"),
 
     # --- the status row, transposed into label/value pairs ---------------------
     #

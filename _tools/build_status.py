@@ -12,6 +12,7 @@ Columns (one data row):
   expected_refresh_days how many days may pass before a refresh is considered overdue
   health_state          "ok", or "stale-series" when this publish leaned on stored data
   health_note           which series, and how far behind, in words
+  health_tabs           the exhibits that series feeds, so a reader knows what to distrust
 
 WHY health_state EXISTS (Fred, 2026-08-23: "make sure that a refresh within the excel,
 following a partially failed or fully failed GitHub run, works fine"). A FULLY failed run
@@ -62,9 +63,49 @@ EXPECTED_REFRESH_DAYS = 10
 # fetched live.
 GAPS_GLOB = os.path.join(cfg.META_DIR, "fetch-gaps*.json")
 
+# WHICH EXHIBITS EACH RAW SERIES FEEDS (Fred, 2026-08-23: "can the status sheet show what
+# graphs are affected and out of date?").
+#
+# Hand-written and deliberately so. The figures read pre-computed summary tables rather than
+# the raw series, so a dependency graph would have to be traced through summaries.py and
+# would be wrong the first time someone added a table. This is checked instead: a test
+# asserts every tab named here exists in add_status_sheet.URL_TABS, so the list can go stale
+# in the direction of being incomplete but can never name an exhibit that is not there.
+#
+# Derived by reading the builders, not by guessing:
+#   * capture is GENERATION-WEIGHTED price (summaries._capture walks the gen_ columns), so a
+#     generation gap reaches every capture exhibit, not just the generation mix.
+#   * net load is demand minus wind and solar, so it is the one exhibit `load` alone touches.
+#   * everything price-shaped comes off the price series and nothing else.
+SERIES_TABS = {
+    "price": ["Fig1_PriceSD", "Fig2_Intraday", "Fig2_Intraday_avg", "Fig3_NegHours",
+              "Fig3_CumNeg", "Fig4_Duration", "Fig6_MinMax", "A_MonthPrice", "G2_MonthDuck",
+              "Fig5_Capture", "Fig5_Capture_abs", "CaptureMonthly", "C_CaptureErosion",
+              "Fig7_GenMix", "D_NetloadDuck"],
+    "generation": ["Fig7_GenMix", "Fig5_Capture", "Fig5_Capture_abs", "CaptureMonthly",
+                   "B_Penetration", "C_CaptureErosion", "D_NetloadDuck", "G1_SolarPeak"],
+    "load": ["D_NetloadDuck"],
+    "capacity": ["Fig9_Capacity"],
+}
+
+
+def tabs_for(series_names):
+    """Exhibit tabs fed by any of these series, in the sheet's own left-to-right order."""
+    order = [t for _, t in enumerate(sum(SERIES_TABS.values(), []))]
+    hit = set()
+    for s in series_names:
+        for key, tabs in SERIES_TABS.items():
+            if s.startswith(key):
+                hit.update(tabs)
+    seen, out = set(), []
+    for tab in order:
+        if tab in hit and tab not in seen:
+            seen.add(tab); out.append(tab)
+    return out
+
 
 def health():
-    """(state, note) for this publish, from whatever gap records the fetch left behind.
+    """(state, note, tabs) for this publish, from whatever gap records the fetch left behind.
 
     Only `stale` matters here. A `fatal` gap means the run does not reach this point at
     all: fetch.py exits non-zero and nothing publishes. So the only condition a PUBLISHED
@@ -77,7 +118,7 @@ def health():
         except Exception:
             continue
     if not stale:
-        return "ok", ""
+        return "ok", "", []
     seen, parts = set(), []
     for g in stale:
         key = g.get("series", "?")
@@ -86,7 +127,7 @@ def health():
         seen.add(key)
         parts.append(f"{key} from stored data to {g.get('covers_to','?')} "
                      f"({g.get('days_old','?')}d old)")
-    return "stale-series", "; ".join(parts)
+    return "stale-series", "; ".join(parts), tabs_for(seen)
 
 
 def main():
@@ -111,7 +152,8 @@ def main():
     # APPENDED, never inserted. The Status sheet addresses the loaded row by column letter
     # ($A$2 through $F$2, and now $O$2), so a new column in the middle would silently
     # re-point every one of those formulas at the wrong field.
-    row["health_state"], row["health_note"] = health()
+    row["health_state"], row["health_note"], _tabs = health()
+    row["health_tabs"] = ", ".join(_tabs)
 
     # Rolling-window labels (w1..wN), read directly by the annual bar charts' series
     # names. These are the ONLY reason the legend can roll on a refresh: a chart series
@@ -127,8 +169,8 @@ def main():
     row[f"w{cfg.WINDOW_YEARS + 1}"] = c["last_complete_year"] + 1
     # Move the health pair to the end, after the rolling-window labels, so w1..wN keep the
     # positions the chart series names already point at.
-    hs, hn = row.pop("health_state"), row.pop("health_note")
-    row["health_state"], row["health_note"] = hs, hn
+    hs, hn, ht = (row.pop("health_state"), row.pop("health_note"), row.pop("health_tabs"))
+    row["health_state"], row["health_note"], row["health_tabs"] = hs, hn, ht
     df = pd.DataFrame([row])
     for d in (OUT, PUB):
         os.makedirs(d, exist_ok=True)
