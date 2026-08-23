@@ -66,10 +66,22 @@ RETRY_WAIT = 20      # seconds, doubling
 # WHY THIS DOES NOT UNDO THE 2026-08-03 DECISION. That decision removed the raw cache so
 # every run re-pulls the whole year and any stored file that has gone bad is replaced. That
 # still holds: a series that fetches SUCCESSFULLY overwrites, exactly as before. Only a
-# series that FAILED leans on storage, and the bound caps how long it may. Eight days is one
-# whole slot gap, so a file can survive at most a single missed cycle before the run fails
-# rather than quietly publishing month-old numbers as current.
-FALLBACK_DAYS = 8
+# series that FAILED leans on storage, and the bound caps how long it may.
+#
+# THE COVERAGE GUARD IS THE TIGHTER BOUND, AND IT DECIDES (measured 2026-08-23).
+# This was 8, on the reasoning that one whole slot gap is the natural limit. That number was
+# never reachable. check_coverage.py refuses to publish a column that lost more than BOTH 3
+# cells AND 2% of what it had, and on a daily-resolution column in late August 2% is about
+# 4.7 cells — so a 5-day-old fallback is REFUSED at publish and an 8-day one never had a
+# chance. Documenting 8 as the bound would have sent someone hunting through the fetch logs
+# for a failure that was actually a publish-time coverage refusal.
+#
+# Three is chosen because it is provably inside the guard at every time of year, which no
+# larger number is: a 3-day-behind daily column loses exactly 3 cells, and the guard needs
+# a drop STRICTLY GREATER than 3 before the percentage is even consulted. That floor is what
+# saves January, when 2% of a year barely started is a single cell. On the long hourly feeds
+# 3 days is ~72 rows of 6,200, which is under the 2% as well.
+FALLBACK_DAYS = 3
 
 # Read by the repair workflow and published to the status page. Its PRESENCE is the
 # signal; there is no "all clear" file to go stale.

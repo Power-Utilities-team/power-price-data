@@ -208,6 +208,24 @@ def main():
     check("without --only a stored series is still skipped", seen["generation"] == 0,
           f"{seen['generation']} call(s)")
 
+    # ---- THE TWO RULES MUST AGREE ----------------------------------------------------------
+    # FALLBACK_DAYS says how stale a stand-in series may be. check_coverage.py independently
+    # refuses to PUBLISH a column that lost more than both 3 cells and 2%. If the first is
+    # looser than the second, a fallback the fetch calls survivable dies at publish instead,
+    # and the reader is sent hunting through fetch logs for a coverage refusal. Measured
+    # 2026-08-23 with FALLBACK_DAYS at 8: 5 days already failed.
+    import check_coverage as cc
+    d = fetch.FALLBACK_DAYS
+    # Daily-resolution columns, at every size a year can be. The guard needs a drop STRICTLY
+    # greater than 3 before it even looks at the percentage, which is what makes a 3-day
+    # fallback safe in January as well as in December.
+    daily_ok = all(not cc.shrank(n - d, n) for n in (20, 50, 100, 235, 366))
+    check("a full-bound fallback publishes on every daily column size", daily_ok,
+          f"FALLBACK_DAYS={d}, tolerance {cc.TOLERANCE_ABS} cells / {cc.TOLERANCE_PCT}%")
+    # The one long hourly feed (g1_solar_peakhour, ~6,200 rows).
+    check("and on the long hourly feed", not cc.shrank(6209 - d * 24, 6209),
+          f"{d * 24} rows of 6209")
+
     print("\n" + ("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: {FAILS}"))
     return 1 if FAILS else 0
 

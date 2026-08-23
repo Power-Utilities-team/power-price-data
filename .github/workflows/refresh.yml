@@ -236,6 +236,16 @@ jobs:
           mkdir -p data/raw
           find _dl -name '*.parquet' -exec cp {} data/raw/ \;
           echo "raw files: $(ls data/raw | wc -l)"
+          # The gap records travel with the raw data, one per country, so build_status.py
+          # can put "one series came from stored data" into status.csv and the workbook can
+          # say it. Named per country: they all arrive as fetch-gaps.json in their own
+          # artifact folder and would otherwise overwrite each other.
+          mkdir -p _meta
+          for f in $(find _dl -name 'fetch-gaps.json'); do
+            c=$(basename "$(dirname "$f")")          # gaps-DE -> gaps-DE
+            cp "$f" "_meta/fetch-${c}.json"
+          done
+          echo "gap records: $(ls _meta/fetch-gaps*.json 2>/dev/null | wc -l)"
       - name: Build + summarise + export
         working-directory: _tools
         run: |

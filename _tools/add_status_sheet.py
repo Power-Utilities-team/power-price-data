@@ -78,7 +78,22 @@ ROLLOVER_DUE = 'IFERROR(AND(ISNUMBER($E$2),YEAR(TODAY())-1>$E$2),FALSE)'
 # raise — see roll_single_year_charts.py for the last three. It stays defined above
 # because the Status row still publishes charts_built_for_year, which is worth keeping
 # visible as a diagnostic even though it no longer drives an alarm.
-ANY_ALARM = f'OR({NOT_REFRESHED},{STALE})'
+# A PUBLISH THAT LEANED ON STORED DATA (2026-08-23, Fred: "make sure that a refresh within
+# the excel, following a partially failed or fully failed GitHub run, works fine").
+#
+# The two alarms above only measure AGE, which covers a fully failed run: nothing publishes,
+# generated_utc stops moving, STALE fires. A PARTIAL failure is the case they cannot see.
+# Since the bounded fallback landed, a run whose fetch failed for one series can publish
+# using the stored copy — so generated_utc moves, the banner goes green, and one feed is
+# quietly up to three days behind. status.csv now carries that in column O, and this is what
+# puts it on the sheet.
+#
+# It joins ANY_ALARM deliberately. Leaving it out would let row 12 go on saying "OK - data is
+# current" over a feed that is not, which is the precise lie the fallback's bound exists to
+# prevent. An empty $O$2 (an older status.csv, or the shipped prefill) is simply not equal to
+# the string, so this is silent on anything that predates the column.
+STALE_SERIES = '($O$2="stale-series")'
+ANY_ALARM = f'OR({NOT_REFRESHED},{STALE},{STALE_SERIES})'
 
 STATUS_URL = "https://power-price-data.fredhill.workers.dev"
 
@@ -105,6 +120,9 @@ LAYOUT = [
              f'GitHub.","")', "red"),
     (8, "A", f'=IF({STALE},"!! STALE DATA - the refresh has not run for "&'
              f'TEXT({DAYS},"0")&" days. Figures may be out of date.","")', "red"),
+    (9, "A", f'=IF({STALE_SERIES},"!! ONE SERIES CAME FROM STORED DATA - "&$P$2&'
+             f'". Every other figure here is current, and a repair run replaces it within '
+             f'hours.","")', "red"),
     (10, "A", f'=IF({ANY_ALARM},"ACTION: see \'What you need to do\' below.","")', "red"),
     (11, "A", f'=IF({NOT_REFRESHED},"Last refreshed: UNKNOWN - not refreshed yet this session.",'
               f'"Last refreshed "&LEFT($A$2,10)&" ("&TEXT({DAYS},"0")&" days ago). '
