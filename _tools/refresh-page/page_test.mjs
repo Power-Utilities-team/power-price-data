@@ -208,6 +208,21 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
   check(bad.includes("generation: nothing stored"),
         "and now names the cause the failing run recorded");
 
+  // fresh data AND a failed run: the case a drill caught on 2026-08-23. The first version
+  // only spoke inside the `stale` branch, so a run that failed this morning left the page
+  // saying "Data is current" and nothing else, and the reader would not learn until the
+  // age tolerance expired ten days later.
+  STATUS = null;
+  HEALTH = { state: "failed", reason: "generation: nothing stored",
+             series: ["generation"], fatal: [], stale: [] };
+  const sameDay = flat(await (await worker.fetch(get("/"), env)).text());
+  check(sameDay.includes("The last refresh failed"),
+        "a failure is reported the day it happens, not when the data ages out");
+  check(sameDay.includes("generation: nothing stored"),
+        "and it names the series even while the figures are current");
+  check(sameDay.includes("still current"),
+        "while making clear the numbers on the page are not the problem");
+
   STATUS = null;
   HEALTH = { state: "ok-on-stored-data",
              reason: "generation: fetch failed, published from stored data (2d old)",

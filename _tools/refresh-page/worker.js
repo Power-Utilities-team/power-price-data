@@ -222,16 +222,28 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks }) {
     tone = "bad";
     headline = "Could not read the status record";
     detail = "GitHub may be unreachable. The data itself is unaffected.";
+  } else if (health?.state === "failed") {
+    // A FAILURE IS NEWS ON THE DAY IT HAPPENS, not ten days later (found by a drill,
+    // 2026-08-23). The first version of this only named the cause inside the `stale`
+    // branch, so a run that failed this morning left the page reading "Data is current"
+    // and silent — the reader would not learn anything until the age tolerance expired,
+    // which is the whole delay this was written to remove. Age and health are independent:
+    // the data can be fine AND the pipeline broken, and that is the interesting hour.
+    tone = stale ? "bad" : "warn";
+    headline = stale
+      ? `Data is ${Math.floor(ageDays)} days old`
+      : "The last refresh failed";
+    detail = health.reason
+      ? `Cause recorded by the last run: ${esc(health.reason)}.`
+      : "The last run did not complete; see the repository's Actions log.";
+    detail += stale
+      ? ` Nothing has published for longer than the ${limit}-day tolerance.`
+      : " The figures on this page are still current. A repair run retries the missing"
+        + " series within hours, and the next scheduled run re-pulls the whole year.";
   } else if (stale) {
     tone = "bad";
     headline = `Data is ${Math.floor(ageDays)} days old`;
     detail = `The scheduled refresh has not run for longer than the ${limit}-day tolerance.`;
-    // NAME THE CAUSE WHEN WE KNOW IT. "Data is 13 days old" was true in August and told a
-    // reader nothing they could act on; "the German generation series: ENTSO-E returned 504"
-    // is the same fact with the reason attached.
-    if (health?.state === "failed" && health.reason) {
-      detail += ` Cause recorded by the last run: ${esc(health.reason)}.`;
-    }
   } else if (health?.state === "ok-on-stored-data" && health.reason) {
     // A run CAN succeed having leaned on the fallback store for one series. Everything on
     // the page is otherwise fresh, so this is a note rather than an alarm — but a number
