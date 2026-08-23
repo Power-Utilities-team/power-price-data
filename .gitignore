@@ -42,3 +42,9 @@ _tools/powerquery/
 
 # wrangler build/state for the status-page worker
 _tools/refresh-page/.wrangler/
+
+# PRE-SURGERY WORKBOOK COPIES STAY LOCAL (2026-08-23). A commit on 19 Aug swept these two
+# files, about 38 MB and 2.6 MB, towards a PUBLIC repo, and git keeps a blob for good. They
+# are the archive-before-a-risky-move copies the vault convention wants on disk, not in
+# history. Ignored so a later `git add -A` cannot do it by accident.
+archive/workbook-pre-surgery-2026-08-06/

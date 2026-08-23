@@ -23,7 +23,7 @@ Usage:
   python fetch.py --force               # re-fetch even if cached
 """
 from __future__ import annotations
-import argparse, glob, os, sys, time, traceback
+import argparse, glob, json, os, re, sys, time, traceback
 import warnings; warnings.filterwarnings("ignore")
 import pandas as pd
 from entsoe import EntsoePandasClient
@@ -58,6 +58,28 @@ REQUIRED = ("load", "generation")
 TRANSIENT_STATUS = (500, 502, 503, 504, 408, 429)
 RETRIES = 4
 RETRY_WAIT = 20      # seconds, doubling
+
+# HOW STALE A FALLBACK MAY BE (Fred's call, 2026-08-23). When a required series cannot be
+# fetched, the run may use what is already stored rather than publishing nothing — but only
+# for a bounded time, and only saying so.
+#
+# WHY THIS DOES NOT UNDO THE 2026-08-03 DECISION. That decision removed the raw cache so
+# every run re-pulls the whole year and any stored file that has gone bad is replaced. That
+# still holds: a series that fetches SUCCESSFULLY overwrites, exactly as before. Only a
+# series that FAILED leans on storage, and the bound caps how long it may. Eight days is one
+# whole slot gap, so a file can survive at most a single missed cycle before the run fails
+# rather than quietly publishing month-old numbers as current.
+FALLBACK_DAYS = 8
+
+# Read by the repair workflow and published to the status page. Its PRESENCE is the
+# signal; there is no "all clear" file to go stale.
+GAPS_FILE = "fetch-gaps.json"
+
+# Set by --only. A REPAIR run re-fetches exactly the series that failed and nothing else,
+# which is the difference between a two-minute repair and a thirty-minute re-pull. It has to
+# override the cache check as well as select: after a bounded fallback the failed series HAS
+# a stored file, so a plain incremental pass would skip the very thing it was sent to fix.
+ONLY_SERIES = None
 
 def log(msg):
     line = f"[{pd.Timestamp.now(tz='UTC').strftime('%H:%M:%S')}] {msg}"
@@ -177,6 +199,10 @@ def _attempt(label, fn, path, force, merge=False, full_start=None):
         _start = full_start
     else:
         _start = None
+    if ONLY_SERIES is not None and not any(label.startswith(s) for s in ONLY_SERIES):
+        return                                  # not part of this repair; leave it alone
+    if ONLY_SERIES is not None:
+        force = True                            # named series are re-fetched, cache or not
     if not merge and not _need(path, force):
         log(f"  skip  {label} (cached)")
         OUTCOMES[path] = (label, "skip")
@@ -324,10 +350,19 @@ def main():
     ap.add_argument("--country", default=None, help="DE/FR/ES/PT/IT (default all)")
     ap.add_argument("--years", default=None, help="comma list, e.g. 2024 or 2019,2020")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--only", default=None,
+                    help="comma list of series labels to re-fetch and nothing else, e.g. "
+                         "'generation,load'. Ignores what is stored for those, skips the "
+                         "rest. Used by the repair run after a partial failure.")
     ap.add_argument("--since-days", type=int, default=None,
                     help="fetch only the trailing N days and merge into stored data "
                          "(falls back to a full year fetch if nothing is stored)")
     a = ap.parse_args()
+
+    global ONLY_SERIES
+    if a.only:
+        ONLY_SERIES = [s.strip() for s in a.only.split(",") if s.strip()]
+        log(f"REPAIR: re-fetching only {', '.join(ONLY_SERIES)}")
 
     countries = [a.country] if a.country else cfg.COUNTRY_ORDER
     years = [int(y) for y in a.years.split(",")] if a.years else cfg.YEARS
@@ -347,37 +382,108 @@ def main():
     # A FETCH THAT DID NOT FETCH FAILS HERE, not 25 minutes downstream. See the OUTCOMES
     # note at the top: on 2026-08-18 this exited 0 with DE generation missing, and the run
     # died later in a chart-geometry check that said nothing about ENTSO-E.
-    bad = unmet_requirements()
-    if bad:
-        for path, label in bad:
-            log(f"  MISSING {label}: nothing stored at {os.path.basename(path)}")
+    hard, stale = classify_gaps()
+
+    # THE GAPS RECORD. One file, written whenever anything required did not come back
+    # fresh, whether the run survives it or not. It is the single input to both things that
+    # happen next: the targeted repair run reads `series` to know what to re-fetch, and the
+    # public status page reads it to say WHICH series is behind and why, instead of only
+    # going stale on age and leaving the reason in a log nobody opens.
+    if hard or stale:
+        rec = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+               "countries": sorted({c for c in countries}),
+               "years": sorted(years),
+               "fatal": hard, "stale": stale,
+               "series": sorted({g["series"] for g in hard + stale})}
+        try:
+            os.makedirs(cfg.META_DIR, exist_ok=True)
+            with open(os.path.join(cfg.META_DIR, GAPS_FILE), "w") as fh:
+                json.dump(rec, fh, indent=1)
+            log(f"  wrote {GAPS_FILE}: {len(hard)} fatal, {len(stale)} running on stored data")
+        except Exception as ex:
+            log(f"  could not write {GAPS_FILE}: {ex}")
+
+    for g in stale:
+        log(f"  STALE {g['series']}: fetch failed, continuing on stored data to "
+            f"{g['covers_to']} ({g['days_old']}d old, bound is {FALLBACK_DAYS}d)")
+
+    if hard:
+        for g in hard:
+            log(f"  MISSING {g['series']}: {g['why']}")
         raise SystemExit(
-            f"fetch: {len(bad)} required series could not be retrieved and nothing is "
-            f"stored for them. Every run re-pulls the whole year with no raw cache, so "
-            f"there is no earlier copy to fall back on and the build downstream would "
-            f"fail on a missing chart series instead of on this. Re-run the workflow; "
-            f"ENTSO-E 5xx timeouts are transient and are now retried "
-            f"{RETRIES} times with backoff.")
+            f"fetch: {len(hard)} required series could not be retrieved and no stored copy "
+            f"is fresh enough to stand in ({FALLBACK_DAYS}-day bound). The build downstream "
+            f"would fail on a missing chart series instead of on this, which is how eight "
+            f"days went unpublished in August. ENTSO-E 5xx timeouts are transient and are "
+            f"retried {RETRIES} times with backoff; a repair run re-fetches only these "
+            f"series later the same day.")
+
+
+def _required(label):
+    return any(label.startswith(r) for r in REQUIRED) or label.startswith("price")
+
+
+def _stored_coverage_end(path):
+    """How far the STORED copy of a series actually runs, as a UTC timestamp.
+
+    File mtime would be the easy answer and the wrong one: a cache restore rewrites it, so
+    a file whose data stops in June can look like it was written this morning. The data's
+    own last timestamp cannot lie about that.
+    """
+    try:
+        df = pd.read_parquet(path)
+        if not len(df.index):
+            return None
+        return pd.Timestamp(df.index.max()).tz_convert("UTC")
+    except Exception:
+        return None
+
+
+def classify_gaps():
+    """Required series that failed, split into what the run can survive and what it cannot.
+
+    Three outcomes, and the middle one is the whole point of the bound:
+
+      hard   nothing stored, or stored data older than FALLBACK_DAYS. The run must fail:
+             publishing here means either a chart short a series or numbers presented as
+             current that are not.
+      stale  stored data inside the bound. The run continues on it and DECLARES it, which
+             is the difference between a fallback and a silent lie.
+      (kept) a completed past year. Its stored file is complete by definition, so its age
+             says nothing about health and the bound does not apply.
+    """
+    hard, stale = [], []
+    now = pd.Timestamp.now(tz="UTC")
+    for path, (label, state) in OUTCOMES.items():
+        if state != "fail" or not _required(label):
+            continue
+        if not (os.path.exists(path) and os.path.getsize(path) > 0):
+            hard.append({"series": label, "file": os.path.basename(path),
+                         "why": "nothing stored"})
+            continue
+        m = re.search(r"_(\d{4})\.parquet$", path)
+        year = int(m.group(1)) if m else None
+        if year is not None and year < now.year:
+            continue
+        end = _stored_coverage_end(path)
+        if end is None:
+            hard.append({"series": label, "file": os.path.basename(path),
+                         "why": "stored file unreadable"})
+            continue
+        age = (now - end).days
+        if age > FALLBACK_DAYS:
+            hard.append({"series": label, "file": os.path.basename(path),
+                         "why": f"stored data ends {end.date()}, {age} days old, "
+                                f"past the {FALLBACK_DAYS}-day bound"})
+        else:
+            stale.append({"series": label, "file": os.path.basename(path),
+                          "covers_to": end.isoformat(timespec="minutes"), "days_old": age})
+    return hard, stale
 
 
 def unmet_requirements():
-    """Required series whose fetch broke AND which have nothing stored.
-
-    Both halves matter. "fail" alone is not enough, because a series can fail on a retry
-    and still have a good file from earlier in the same run; and a missing file alone is
-    not enough either, because `none` means the publisher genuinely has nothing for the
-    period, which is data rather than a fault.
-    """
-    out = []
-    for path, (label, state) in OUTCOMES.items():
-        if state != "fail":
-            continue
-        if not any(label.startswith(r) for r in REQUIRED) and not label.startswith("price"):
-            continue
-        if os.path.exists(path) and os.path.getsize(path) > 0:
-            continue
-        out.append((path, label))
-    return out
+    """The hard half of classify_gaps(): what no stored copy can cover for."""
+    return classify_gaps()[0]
 
 if __name__ == "__main__":
     main()

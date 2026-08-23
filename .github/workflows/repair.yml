@@ -1,0 +1,68 @@
+name: Repair a partial ENTSO-E refresh
+
+# WHY THIS EXISTS. On 18 August 2026 ENTSO-E returned HTTP 504 for the German generation
+# pull, twice, roughly 23 minutes apart. Nothing published for the next eight days, because
+# the next scheduled slot was eight days away and it met the same wall. Retrying inside the
+# run helps with an outage measured in seconds; this is the answer to one measured in hours.
+#
+# IT DOES NOT DUPLICATE THE PIPELINE. It reads the health record the failing run published,
+# and if a required series is still missing it re-triggers `refresh.yml` with `repair=true`.
+# That run re-fetches ONLY the named series — everything that already worked is in the
+# fallback store — then builds and publishes through exactly the same jobs as any other run.
+# Two minutes of fetching instead of thirty, and one definition of what "build" means.
+
+on:
+  schedule:
+    # Two attempts on each refresh day, about four and eight hours after the 07:23 run.
+    # Off the hour and off the half hour, like the main schedule: those minutes are when
+    # every scheduler on the planet fires at once and GitHub's queue shows it.
+    - cron: "7 11 2,10,18,26 * *"
+    - cron: "7 15 2,10,18,26 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write        # to dispatch refresh.yml
+  contents: read
+
+concurrency:
+  group: repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Is anything actually missing?
+        id: gate
+        run: |
+          set -euo pipefail
+          F=published/charts/health.json
+          if [ ! -f "$F" ]; then
+            echo "no health record — nothing has reported a gap"
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          h = json.load(open("published/charts/health.json"))
+          # Only a FATAL gap earns a repair. "ok-on-stored-data" means the run published
+          # from the fallback store, which is a note for the reader, not a job to redo:
+          # the next scheduled full re-pull replaces it anyway.
+          go = h.get("state") == "failed" and bool(h.get("series"))
+          print(f"go={'true' if go else 'false'}")
+          print(f"why={h.get('reason','')[:200]}")
+          print(f"series={','.join(h.get('series') or [])}")
+          PY
+      - name: Re-fetch only the missing series, then publish as normal
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "repairing: ${{ steps.gate.outputs.series }}"
+          echo "reason recorded by the failing run: ${{ steps.gate.outputs.why }}"
+          gh workflow run refresh.yml --ref "${GITHUB_REF_NAME}" -f repair=true
+      - name: Nothing to do
+        if: steps.gate.outputs.go != 'true'
+        run: echo "the last run did not report a missing series — no repair needed"

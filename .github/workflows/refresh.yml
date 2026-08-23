@@ -67,6 +67,10 @@ on:
         description: "No longer does anything — every run re-pulls the whole year. Kept so the button keeps its familiar shape."
         type: boolean
         default: false
+      repair:
+        description: "Re-fetch ONLY the series the last run could not get, then build and publish as normal. Set by repair.yml; ticking it by hand does nothing unless a gaps record exists."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -93,21 +97,41 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -r requirements.txt
-      # NO RAW CACHE, deliberately (removed 2026-08-03 when every run became a full
-      # re-pull). It used to persist the year's raw parquet between runs so the fetch
-      # could be incremental, and it is worth recording why it went rather than leaving
-      # someone to reinvent it as an optimisation.
+      # A FALLBACK STORE, NOT AN OPTIMISATION (restored 2026-08-23, Fred's call). Read the
+      # history before touching this, because the cache was deliberately REMOVED on
+      # 2026-08-03 and the reason still stands.
       #
-      # Its behaviour depended on a coincidence. GitHub evicts a cache after ~7 days
-      # unused, so under a monthly schedule it was always cold and every run rebuilt the
-      # year from ENTSO-E — a free self-repair that replaced any stored file that had
-      # gone bad. Nobody designed that; it fell out of the gap between runs being longer
-      # than the cache lifetime. Run more often and the cache stays warm and the repair
-      # silently stops, with nothing to indicate it had ever been there.
+      # WHAT WENT WRONG WITH THE OLD ONE. It made the fetch incremental, and its safety
+      # depended on a coincidence: GitHub evicts a cache after about seven days unused, so
+      # under a monthly schedule it was always cold and every run rebuilt the year from
+      # ENTSO-E. That was a free self-repair, replacing any stored file that had gone bad,
+      # and nobody designed it — it fell out of runs being further apart than the cache
+      # lifetime. Four runs a month keeps it warm and the repair silently stops.
       #
-      # Every run now pulls the full year unconditionally, so there is nothing to cache
-      # and no timing coincidence to preserve. Costs ~30 minutes a run instead of ~5,
-      # which is free on a public repo and well inside the 100-minute timeout.
+      # WHY IT IS BACK, AND WHY THE REPAIR SURVIVES. On 18 August ENTSO-E returned 504 for
+      # the German generation pull. With nothing stored there was nothing to fall back on,
+      # the year came out empty, a chart lost a series, the build aborted, and the pipeline
+      # published nothing for eight days. The cache is now a SAFETY NET rather than a
+      # shortcut, and the difference is in fetch.py, not here:
+      #
+      #   * every run still pulls the full year with --force, so a series that fetches
+      #     SUCCESSFULLY overwrites what is stored — the self-repair is untouched;
+      #   * only a series whose fetch FAILED may lean on the stored copy;
+      #   * and only while that copy is inside FALLBACK_DAYS (8, one whole slot gap).
+      #     Past that the run fails rather than publishing old numbers as current.
+      #
+      # So a warm cache can no longer stop the repair: it is consulted only where the
+      # network already refused to answer.
+      - name: Restore the fallback store for ${{ matrix.country }}
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          # A run-unique key never hits, so the post step always saves a fresh copy, and
+          # restore-keys picks up the newest previous one. A fixed key would freeze the
+          # store at whatever the first run wrote.
+          key: raw-${{ matrix.country }}-${{ github.run_id }}
+          restore-keys: |
+            raw-${{ matrix.country }}-
       - name: Fetch ${{ matrix.country }} (current year, plus the prior year at rollover)
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
@@ -145,14 +169,53 @@ jobs:
           #
           # `full_refetch` is now a no-op — kept only so the Run workflow button keeps
           # the same shape for anyone who has been told to tick it.
+          if [ "${{ inputs.repair || 'false' }}" = "true" ]; then
+            # REPAIR RUN: re-fetch only what the last run could not get, and nothing else.
+            # Two minutes instead of thirty, because everything that worked is already in
+            # the fallback store. The series list comes from the gaps record that run wrote.
+            # From the COMMITTED health record, not this run's workspace: a repair gets a
+            # fresh checkout, so the only thing it can read is what the failing run pushed.
+            ONLY=$(python - <<'PY'
+          import json, os
+          p = os.path.join("..", "published", "charts", "health.json")
+          try:
+              print(",".join(json.load(open(p)).get("series") or []))
+          except Exception:
+              print("")
+          PY
+          )
+            if [ -z "$ONLY" ]; then
+              echo "repair requested but no gaps record names a series — nothing to repair"
+              exit 0
+            fi
+            echo "REPAIR of ${{ matrix.country }} $YEAR: $ONLY"
+            python fetch.py --country ${{ matrix.country }} --years $YEAR --only "$ONLY"
+            exit $?
+          fi
           echo "FULL re-fetch of ${{ matrix.country }} $YEAR"
-          python fetch.py --country ${{ matrix.country }} --years $YEAR --force
+          # THE FIRST PASS MUST NOT GATE THE SECOND. Since 2026-08-23 fetch.py exits
+          # non-zero when a required series comes back with nothing usable, and under
+          # `set -e` that would kill the step before the second pass ran — losing the very
+          # retry that exists to fill a transient 503. So the first pass is advisory and
+          # the second is the gate.
+          python fetch.py --country ${{ matrix.country }} --years $YEAR --force || \
+            echo "first pass had gaps; the second pass is the one that decides"
           python fetch.py --country ${{ matrix.country }} --years $YEAR   # 2nd pass fills 503 gaps
       - uses: actions/upload-artifact@v4
         with:
           name: raw-${{ matrix.country }}
           path: data/raw/
           retention-days: 1
+      # `always()`, because the interesting case is the one where the step above FAILED.
+      # This record is the only structured account of what did not come back, and both the
+      # repair run and the public status page read it.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gaps-${{ matrix.country }}
+          path: _meta/fetch-gaps.json
+          if-no-files-found: ignore
+          retention-days: 7
 
   # ---- 2) assemble, summarise, publish --------------------------------------
   build:
@@ -307,6 +370,38 @@ jobs:
       #
       # The baseline is origin/main rather than the checkout, because that is the state
       # this run is about to commit on top of — the same ref the reset below moves to.
+      # A GREEN RUN CLEARS IT, and says so if it published on stored data. Without this the
+      # page would keep showing August's 504 forever. `stale` is the honest half: a run can
+      # succeed having leaned on the fallback store for one series, and that is not the same
+      # as everything being fresh.
+      - name: Download the gaps records
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: gaps-*
+          path: _gaps
+      - name: Refresh the health record
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, json, os, datetime
+          stale = []
+          for p in glob.glob("_gaps/**/fetch-gaps.json", recursive=True):
+              try:
+                  stale += json.load(open(p)).get("stale") or []
+              except Exception:
+                  pass
+          out = {"state": "ok" if not stale else "ok-on-stored-data",
+                 "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                 "reason": "" if not stale else
+                           "; ".join(f"{g['series']}: fetch failed, published from stored data "
+                                     f"to {g['covers_to']} ({g['days_old']}d old)" for g in stale),
+                 "series": sorted({g["series"] for g in stale}),
+                 "fatal": [], "stale": stale}
+          os.makedirs("published/charts", exist_ok=True)
+          json.dump(out, open("published/charts/health.json", "w"), indent=1)
+          print(json.dumps(out, indent=1))
+          PY
       - name: Assert published coverage has not shrunk
         run: |
           git fetch origin main
@@ -378,8 +473,64 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      contents: write          # for the health record below
     steps:
       - uses: actions/checkout@v4
+      # THE HEALTH RECORD (2026-08-23). The public status page went stale on AGE alone, so
+      # after the August outage it correctly said the data was old and could not say which
+      # series was missing or why — the reason sat in a run log nobody opens. This publishes
+      # that reason, and it is the same file the repair run reads to know what to re-fetch.
+      # Written here rather than in `publish`, because on a failure `publish` never runs.
+      - name: Download the gaps records
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: gaps-*
+          path: _gaps
+      - name: Publish why the run failed
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, json, os, datetime
+          recs = []
+          for p in glob.glob("_gaps/**/fetch-gaps.json", recursive=True):
+              try:
+                  recs.append(json.load(open(p)))
+              except Exception:
+                  pass
+          fatal, stale, series = [], [], set()
+          for r in recs:
+              fatal += r.get("fatal") or []
+              stale += r.get("stale") or []
+              series |= set(r.get("series") or [])
+          out = {
+              "state": "failed",
+              "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+              "run": os.environ.get("RUN_URL", ""),
+              # A run can fail for reasons that never reach fetch.py at all (a pinned wheel
+              # disappearing, the schema validator refusing a deliverable). Saying so beats
+              # an empty list, which would read as "nothing was wrong".
+              "reason": ("; ".join(f"{g['series']}: {g['why']}" for g in fatal)
+                         if fatal else "the run failed after the fetch step — see the run log"),
+              "series": sorted(series),
+              "fatal": fatal,
+              "stale": stale,
+          }
+          os.makedirs("published/charts", exist_ok=True)
+          json.dump(out, open("published/charts/health.json", "w"), indent=1)
+          print(json.dumps(out, indent=1))
+          PY
+          git config user.name  "power-price-bot"
+          git config user.email "power-price-bot@users.noreply.github.com"
+          git add published/charts/health.json
+          git diff --cached --quiet && { echo "health record unchanged"; exit 0; }
+          git commit -m "health: record why the refresh failed"
+          # The publish job may have pushed between our checkout and now; rebase rather
+          # than force, because this file is never the thing worth winning a race over.
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin HEAD:"${GITHUB_REF_NAME}"
       - name: Open or update the failure issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

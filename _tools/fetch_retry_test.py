@@ -59,8 +59,15 @@ def http_error(code):
     return e
 
 
-def series():
-    return pd.Series([1.0, 2.0], index=pd.date_range("2026-01-01", periods=2, tz="UTC"))
+def series(days_old=0):
+    """A stored series whose data ENDS `days_old` days ago.
+
+    Relative, never a literal: the fallback bound is measured against the data's own last
+    timestamp, so a fixed date would drift past the bound and fail the suite for a calendar
+    reason rather than a code one.
+    """
+    end = pd.Timestamp.now(tz="UTC").floor("h") - pd.Timedelta(days=days_old)
+    return pd.Series([1.0, 2.0], index=pd.date_range(end=end, periods=2, freq="h", tz="UTC"))
 
 
 def main():
@@ -73,7 +80,7 @@ def main():
         calls["n"] += 1
         if calls["n"] < 3:
             raise http_error(504)
-        return series()
+        return series(0)
 
     good = os.path.join(tmp, "DE_generation_2026.parquet")
     fetch.OUTCOMES.clear()
@@ -127,11 +134,79 @@ def main():
     fetch._attempt("price DE_LU", dead, os.path.join(tmp, "DE_price_DE_LU_2026.parquet"), force=True)
     check("a dead price series DOES fail the step", len(fetch.unmet_requirements()) == 1)
 
-    # a failure on a series that already has a good file is not a gap
+    # ---- the bounded fallback ------------------------------------------------------------
+    # A failed fetch over data that is still FRESH is survivable, and must be declared
+    # rather than swallowed. `good` was written above with data ending now.
     fetch.OUTCOMES.clear()
     fetch.OUTCOMES[good] = ("generation", "fail")
-    check("a failure with good data already stored is not a gap",
-          fetch.unmet_requirements() == [])
+    hard, stale = fetch.classify_gaps()
+    check("a failure over fresh stored data is not fatal", hard == [], str(hard))
+    check("it is recorded as stale instead", len(stale) == 1 and stale[0]["days_old"] == 0,
+          str(stale))
+    check("and the record says how far the stored copy runs",
+          bool(stale and stale[0].get("covers_to")), str(stale))
+
+    # Past the bound it is fatal again: stale is a bridge over one missed cycle, not a way
+    # to keep publishing month-old numbers as current.
+    year = pd.Timestamp.now(tz="UTC").year
+    aged = os.path.join(tmp, f"DE_generation_{year}.parquet")
+    series(fetch.FALLBACK_DAYS + 3).to_frame("v").to_parquet(aged)
+    fetch.OUTCOMES.clear()
+    fetch.OUTCOMES[aged] = ("generation", "fail")
+    hard, stale = fetch.classify_gaps()
+    check("stored data past the bound is fatal again", len(hard) == 1, str(hard))
+    check("and the reason names the age", bool(hard and "days old" in hard[0]["why"]),
+          str(hard))
+
+    # A COMPLETED year is complete: its file cannot be "stale" in any useful sense, so the
+    # bound must not apply or every run would fail on 2019.
+    done = os.path.join(tmp, f"DE_generation_{year - 2}.parquet")
+    series(400).to_frame("v").to_parquet(done)
+    fetch.OUTCOMES.clear()
+    fetch.OUTCOMES[done] = ("generation", "fail")
+    hard, stale = fetch.classify_gaps()
+    check("a completed past year is never judged stale", hard == [] and stale == [],
+          f"hard={hard} stale={stale}")
+
+    # An unreadable file is not a fallback.
+    broken = os.path.join(tmp, f"DE_generation_{year}.parquet.bad")
+    broken = os.path.join(tmp, f"DE_load_{year}.parquet")
+    open(broken, "w").write("not a parquet file")
+    fetch.OUTCOMES.clear()
+    fetch.OUTCOMES[broken] = ("load", "fail")
+    hard, _ = fetch.classify_gaps()
+    check("an unreadable stored file is fatal, not a fallback", len(hard) == 1, str(hard))
+
+    # ---- --only, the repair selector ------------------------------------------------------
+    # After a bounded fallback the failed series HAS a file, so a plain incremental pass
+    # would skip the one thing the repair exists to re-fetch. --only must override that.
+    fetch.OUTCOMES.clear()
+    seen = {"generation": 0, "load": 0}
+
+    def counted(name):
+        def fn(_start=None):
+            seen[name] += 1
+            return series(0)
+        return fn
+
+    fetch.ONLY_SERIES = ["generation"]
+    try:
+        fetch._attempt("generation", counted("generation"), good, force=False)
+        fetch._attempt("load", counted("load"), good, force=False)
+    finally:
+        fetch.ONLY_SERIES = None
+    check("--only re-fetches the named series even though a file is stored",
+          seen["generation"] == 1, f"{seen['generation']} call(s)")
+    check("--only leaves every other series alone", seen["load"] == 0,
+          f"{seen['load']} call(s)")
+
+    # and with no --only, a stored file is still skipped, which is what makes a normal
+    # incremental pass cheap
+    fetch.OUTCOMES.clear()
+    seen["generation"] = 0
+    fetch._attempt("generation", counted("generation"), good, force=False)
+    check("without --only a stored series is still skipped", seen["generation"] == 0,
+          f"{seen['generation']} call(s)")
 
     print("\n" + ("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: {FAILS}"))
     return 1 if FAILS else 0

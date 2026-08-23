@@ -158,6 +158,28 @@ async function getStatus(env) {
   return parse(await r.text());
 }
 
+/* The health record, published beside status.csv since 2026-08-23.
+ *
+ * status.csv can only say HOW OLD the data is. That was enough to notice the August outage
+ * — the page correctly read stale from the 20th — and useless for doing anything about it,
+ * because the reason (ENTSO-E answering 504 for one German series) lived in a run log. This
+ * file carries the reason, and a run that published from the fallback store says so too.
+ *
+ * Absent is not an error: a repo that has never failed has no record, which reads as fine.
+ */
+async function getHealth() {
+  try {
+    const r = await fetch(`${RAW}/published/charts/health.json`, {
+      cf: { cacheTtl: 300 },
+      headers: { "User-Agent": "power-price-status-page" },
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 async function latestRun(env) {
   if (!env.GH_TOKEN) return null;
   const r = await fetch(
@@ -177,7 +199,7 @@ async function latestRun(env) {
 
 /* --------------------------------------------------------------------- page */
 
-function page({ status, run, msg, err, hasToken, tokenWorks }) {
+function page({ status, run, health, msg, err, hasToken, tokenWorks }) {
   const now = new Date();
 
   let gen = null;
@@ -204,6 +226,19 @@ function page({ status, run, msg, err, hasToken, tokenWorks }) {
     tone = "bad";
     headline = `Data is ${Math.floor(ageDays)} days old`;
     detail = `The scheduled refresh has not run for longer than the ${limit}-day tolerance.`;
+    // NAME THE CAUSE WHEN WE KNOW IT. "Data is 13 days old" was true in August and told a
+    // reader nothing they could act on; "the German generation series: ENTSO-E returned 504"
+    // is the same fact with the reason attached.
+    if (health?.state === "failed" && health.reason) {
+      detail += ` Cause recorded by the last run: ${esc(health.reason)}.`;
+    }
+  } else if (health?.state === "ok-on-stored-data" && health.reason) {
+    // A run CAN succeed having leaned on the fallback store for one series. Everything on
+    // the page is otherwise fresh, so this is a note rather than an alarm — but a number
+    // that is quietly older than it looks is exactly what the bound exists to declare.
+    tone = "warn";
+    headline = "Published, with one series from stored data";
+    detail = `${esc(health.reason)}. Every other series is current; the next full re-pull replaces it.`;
   } else if (rolloverDue) {
     tone = "warn";
     headline = `Charts still built for ${chartsYear}`;
@@ -485,14 +520,14 @@ export default {
 };
 
 async function render(env, extra) {
-  const [status, run] = await Promise.all([getStatus(env), latestRun(env)]);
+  const [status, run, health] = await Promise.all([getStatus(env), latestRun(env), getHealth()]);
   // A token can be PRESENT and not work. That is exactly what happened on 2026-08-17 when the repo
   // moved to an organisation: the fine-grained PAT was scoped to the old owner, so it stopped
   // covering the repo, and the Refresh button still rendered as though it would work. The page could
   // read its status the whole time, because that falls back to unauthenticated raw, so nothing
   // looked wrong. Distinguish the two states rather than leaving a button that fails on click.
   return new Response(
-    page({ status, run, hasToken: Boolean(env.GH_TOKEN),
+    page({ status, run, health, hasToken: Boolean(env.GH_TOKEN),
            tokenWorks: Boolean(env.GH_TOKEN) && run !== null, ...extra }),
     { headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" } },
   );

@@ -18,18 +18,36 @@ function check(ok, name, extra) {
   if (!ok) fails.push(name);
 }
 
+// RELATIVE TO NOW, NEVER A LITERAL (fixed 2026-08-23). This was pinned to
+// "2026-08-10 09:17:15" against a 10-day tolerance, so the suite was green when it was
+// written and went red on 20 August for a calendar reason: the fixture aged past the
+// tolerance and every assertion about the HEALTHY page started seeing the stale-and-recover
+// page instead. Three checks had been failing for days with nothing wrong in the code, and
+// a suite that is red for a reason nobody caused is one people learn to ignore.
+const stamp = (d) => d.toISOString().slice(0, 19).replace("T", " ");
+const YESTERDAY = new Date(Date.now() - 24 * 3600 * 1000);
 const STATUS_CSV =
   "generated_utc,coverage_end,last_complete_year,expected_refresh_days\n" +
-  "2026-08-10 09:17:15,2026-08-10 07:00,2025,10\n";
+  `${stamp(YESTERDAY)},${stamp(YESTERDAY)},${YESTERDAY.getUTCFullYear() - 1},10\n`;
 
 // Everything the Worker reaches for, stubbed. The deliverable body is a marker rather than a real
 // xlsx: this suite is about routing and headers, not about zip contents.
 const calls = [];
+// The health record published beside status.csv. `null` is the ordinary case: a repo that
+// has never failed has no such file, and the page must read that as fine rather than as an
+// error. Reassigned below to drive the two states that DO say something.
+let HEALTH = null;
+let STATUS = null;                       // null = use STATUS_CSV
 globalThis.fetch = async (u, opts = {}) => {
   const url = String(u);
   calls.push(url);
+  if (url.endsWith("/published/charts/health.json")) {
+    return HEALTH === null
+      ? new Response("not found", { status: 404 })
+      : new Response(JSON.stringify(HEALTH), { status: 200 });
+  }
   if (url.includes("/contents/published/charts/status.csv")) {
-    return new Response(STATUS_CSV, { status: 200 });
+    return new Response(STATUS || STATUS_CSV, { status: 200 });
   }
   if (url.includes("/contents/deliverables/")) {
     return new Response("DELIVERABLE-BYTES", { status: 200 });
@@ -41,7 +59,7 @@ globalThis.fetch = async (u, opts = {}) => {
     }] }), { status: 200, headers: { "content-type": "application/json" } });
   }
   if (url.startsWith("https://raw.githubusercontent.com")) {
-    return new Response(url.endsWith("status.csv") ? STATUS_CSV : "RAW-BYTES", { status: 200 });
+    return new Response(url.endsWith("status.csv") ? (STATUS || STATUS_CSV) : "RAW-BYTES", { status: 200 });
   }
   return new Response("nope", { status: 404 });
 };
@@ -175,6 +193,37 @@ check(!noRun.includes("has not been configured"),
 const noToken = await (await worker.fetch(get("/"), {})).text();
 check(noToken.includes("has not been configured") && !noToken.includes("Start a refresh"),
       "no token at all is still its own distinct message");
+
+// 8. THE HEALTH RECORD (2026-08-23). status.csv can only say how OLD the data is, which is
+// what the page said for thirteen days in August while the actual cause — ENTSO-E answering
+// 504 for one German series — sat in a run log. These pin the difference.
+{
+  STATUS =
+    "generated_utc,coverage_end,last_complete_year,expected_refresh_days\n" +
+    "2026-08-10 09:17:15,2026-08-10 07:00,2025,10\n";   // deliberately ancient
+  HEALTH = { state: "failed", reason: "generation: nothing stored",
+             series: ["generation"], fatal: [], stale: [] };
+  const bad = flat(await (await worker.fetch(get("/"), env)).text());
+  check(/days old/.test(bad), "an old page still leads with the age");
+  check(bad.includes("generation: nothing stored"),
+        "and now names the cause the failing run recorded");
+
+  STATUS = null;
+  HEALTH = { state: "ok-on-stored-data",
+             reason: "generation: fetch failed, published from stored data (2d old)",
+             series: ["generation"], fatal: [],
+             stale: [{ series: "generation", covers_to: "2026-08-21T07:00", days_old: 2 }] };
+  const warn = flat(await (await worker.fetch(get("/"), env)).text());
+  check(warn.includes("one series from stored data"),
+        "a run that leaned on the fallback store says so on the page");
+  check(warn.includes("Every other series is current"),
+        "and puts it in proportion rather than reading as an outage");
+
+  HEALTH = null;
+  const fine = flat(await (await worker.fetch(get("/"), env)).text());
+  check(!fine.includes("stored data") && /Data is current/.test(fine),
+        "no health record at all reads as healthy, not as an error");
+}
 
 console.log(fails.length ? `FAILED: ${fails.join(", ")}` : "page_test: all assertions passed");
 process.exit(fails.length ? 1 : 0);
