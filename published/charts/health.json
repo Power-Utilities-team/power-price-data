@@ -1,8 +1,17 @@
 {
- "state": "ok",
- "at": "2026-08-23T09:55:24+00:00",
- "reason": "",
- "series": [],
- "fatal": [],
+ "state": "failed",
+ "at": "2026-08-23T10:02:50+00:00",
+ "run": "DRILL \u2014 no run failed; this record was written by hand to exercise the repair path",
+ "reason": "DRILL: generation: nothing stored (simulated ENTSO-E 504)",
+ "series": [
+  "generation"
+ ],
+ "fatal": [
+  {
+   "series": "generation",
+   "file": "DE_generation_2026.parquet",
+   "why": "DRILL: nothing stored (simulated ENTSO-E 504)"
+  }
+ ],
  "stale": []
 }
