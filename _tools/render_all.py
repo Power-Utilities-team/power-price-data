@@ -30,7 +30,7 @@ os.makedirs(OUT, exist_ok=True)
 CUT = completeness.cutoffs()
 LCY = CUT["last_complete_year"]
 QEND = pd.Timestamp(CUT["last_complete_quarter_end"])
-COUNTRY_COLORS = {"DE": "#2E3E80", "ES": "#8A1E41", "PT": "#CC9F53", "FR": "#5FA1AD", "IT": "#3D664A"}
+COUNTRY_COLORS = cfg.COUNTRY_COLORS   # one palette, declared in config
 MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
 

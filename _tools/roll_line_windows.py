@@ -54,7 +54,14 @@ SLOTS = 8                # 7 complete years + the current YTD
 # chart -> column prefix in line_windows.csv. Their 5 series each read the same 7 rows,
 # and the category axis reads the shared win_year column, so the labels roll with them.
 CATEGORY_CHARTS = {1: "f1", 3: "f3"}
-CATEGORY_COUNTRIES = ["Ge", "Sp", "Po", "Fr", "It"]
+# The SAME token vocabulary extra_summaries writes the f1_/f3_ columns with, taken from
+# the same function rather than spelled out again. This list was hardcoded at the original
+# five, so adding Great Britain gave chart 1 a sixth series and this script stopped the
+# build outright: "6 series, expected 5". It was right to stop, and it should not have
+# needed a person to reconcile two copies of one list to restart it.
+from extra_summaries import _cat_key as _tok
+
+CATEGORY_COUNTRIES = [_tok(cfg.COUNTRIES[c]["name"]) for c in cfg.COUNTRY_ORDER]
 
 
 def header_of(parts, part):

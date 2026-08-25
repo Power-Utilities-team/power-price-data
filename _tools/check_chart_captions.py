@@ -58,6 +58,14 @@ SHEET_CSV = {
     "Fig7_GenMix": "fig7_gen_mix", "A_MonthPrice": "figA_monthly_price",
     "B_Penetration": "figB_penetration", "G1_SolarPeak": "g1_solar_peakhour",
     "G2_MonthDuck": "g2_price_by_month", "D_NetloadDuck": "figD_netload_duck",
+    # Added 2026-08-25. These four tabs were absent, so a chart reading them resolved only
+    # whichever of its series happened to live on a tab that WAS listed. The cross-market
+    # Fig 1 and Fig 3 charts resolved to their single Line_Window series and nothing else,
+    # which made them look like single-market charts. A missing entry here does not fail
+    # anything: it silently narrows what the guard can see, which is the same failure this
+    # whole file exists to stop, one level up.
+    "Fig1_PriceSD": "fig1_price_sd", "Fig3_NegHours": "fig3_neg_hours_annual",
+    "Fig5_Capture_abs": "fig5_capture_abs", "C_CaptureErosion": "figC_capture_erosion",
 }
 
 # Caption wording -> the country code whose columns the chart must read. Longest first,
@@ -154,11 +162,60 @@ def _charts_with_captions(path):
     return out
 
 
+def _resolve_columns(refs, headers):
+    """The set of CSV column headers a chart's series actually read."""
+    seen, unresolved = set(), 0
+    for sheet, letters in refs:
+        if sheet == "CaptureVsBase":
+            if "CaptureVsBase" not in headers:
+                headers["CaptureVsBase"] = _capture_vs_base_header()
+            h = headers["CaptureVsBase"]
+        else:
+            stem = SHEET_CSV.get(sheet)
+            if stem is None:
+                unresolved += 1
+                continue
+            if stem not in headers:
+                headers[stem] = _header(stem)
+            h = headers[stem]
+        i = _col_to_index(letters) - 1
+        if 0 <= i < len(h):
+            seen.add(h[i])
+    return seen, unresolved
+
+
+def _markets_in(columns):
+    """Which markets a set of column headers belongs to.
+
+    Three vocabularies, because the workbook genuinely uses three. Most tables key a
+    market by its CODE ("GB_w1", "GBpump_2019"); the Fig 1 and Fig 3 tables key it by a
+    DISPLAY NAME ("Germany"); and the rolling-window copies of those two use a short
+    CATEGORY TOKEN ("f1_Ge_w1"), which is not the country code and never has been.
+    Knowing only the first two made the cross-market Fig 1 and Fig 3 charts look
+    single-market, because "GB" was the one token this function could read.
+    """
+    import extra_summaries as _es
+    tokens = {_es._cat_key(cfg.COUNTRIES[c]["name"]): c for c in cfg.COUNTRY_ORDER}
+    out = set()
+    for col in columns:
+        m = re.match(r"f[13]_([A-Za-z]{2})_", col)
+        if m and m.group(1) in tokens:
+            out.add(tokens[m.group(1)])
+            continue
+        for code in cfg.COUNTRY_ORDER:
+            if re.search(rf"(^|_){re.escape(code)}(pump)?(_|$| )", col):
+                out.add(code)
+            elif cfg.COUNTRIES[code]["name"] in col:
+                out.add(code)
+    return out
+
+
 def main():
     if not os.path.exists(WB):
         raise SystemExit(f"{WB} not found — build the workbook first")
 
     errs, checked, skipped_nocountry, skipped_nosheet = [], 0, 0, 0
+    covered = set()          # markets a caption actually resolved to
     headers = {}
     for part, caption, refs in _charts_with_captions(WB):
         if not caption:
@@ -169,6 +226,23 @@ def main():
             if caption.startswith(zname + " "):
                 hydro_key = zkey
         if code is None and hydro_key is None:
+            # A CAPTION THAT NAMES NO MARKET IS ONLY LEGITIMATE IF IT PLOTS SEVERAL.
+            # The cross-market exhibits (Fig 1, Fig 3) genuinely name none because they
+            # show everyone at once. But a chart that names no market and reads exactly
+            # ONE market's columns is a chart whose caption fails to say what it shows,
+            # and it drops out of every check below. That is precisely how the four Great
+            # Britain charts went unverified: captioned "United Kingdom", a name no market
+            # in config carries, so they resolved to nothing and were skipped in silence
+            # while the guard reported PASS.
+            cols, _ = _resolve_columns(refs, headers)
+            mkts = _markets_in(cols)
+            if len(mkts) == 1:
+                only = mkts.pop()
+                errs.append(
+                    f"{part}: caption {caption[:48]!r} names no market this check knows, "
+                    f"but the chart reads only {cfg.COUNTRIES[only]['name']} columns — so "
+                    f"it is skipped by every caption check. Name the market as config "
+                    f"spells it ({cfg.COUNTRIES[only]['name']}).")
             skipped_nocountry += 1
             continue
 
@@ -203,6 +277,11 @@ def main():
             continue
 
         checked += 1
+        # Only a caption naming a COUNTRY counts towards coverage. The hydro tabs are
+        # keyed by reservoir ZONE (Norway, the Nordics), which are not markets and must
+        # not be able to make a market look covered when none of its country charts are.
+        if code is not None:
+            covered.add(code)
         # A column belongs to this chart's country if its header carries that token.
         wrong = [c for c in sorted(seen)
                  if not any(re.search(rf"(^|_){re.escape(w)}(_|$| )", c) for w in accept)]
@@ -211,7 +290,24 @@ def main():
                         f"{', '.join(wrong[:4])}"
                         f"{f' (+{len(wrong)-4} more)' if len(wrong) > 4 else ''}")
 
-    print(f"chart captions: {checked} country-specific chart(s) checked; "
+    # COVERAGE, not just correctness. This guard resolves a caption to a market by looking
+    # for a config country NAME inside it, so a caption that names the market some other
+    # way resolves to nothing and the chart is silently counted as "names no country" and
+    # skipped. That is not hypothetical: the four Great Britain charts were captioned
+    # "United Kingdom" until 2026-08-25, so this guard read PASS while checking none of
+    # the four charts it was written for. A guard that reports success by not looking is
+    # worse than no guard, because it is believed.
+    #
+    # So every market that HAS country-specific charts must appear among the checked ones.
+    uncovered = [cfg.COUNTRIES[c]["name"] for c in cfg.COUNTRY_ORDER
+                 if c not in covered]
+    if uncovered:
+        errs.append(f"no chart caption resolved to {', '.join(uncovered)} — either that "
+                    f"market has no exhibits, or its captions name it something this "
+                    f"check does not recognise and its charts are going UNCHECKED")
+
+    print(f"chart captions: {checked} country-specific chart(s) checked across "
+          f"{len(covered)} of {len(cfg.COUNTRY_ORDER)} market(s); "
           f"{skipped_nocountry} name no country; {skipped_nosheet} read a sheet with no "
           f"CSV behind it", flush=True)
     if errs:

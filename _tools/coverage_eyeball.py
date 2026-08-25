@@ -23,9 +23,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import config as cfg
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PUB = os.path.join(ROOT, "published")
-COUNTRIES = ["DE", "ES", "PT", "FR", "IT"]
+COUNTRIES = list(cfg.COUNTRY_ORDER)   # every market, not the original five
 
 
 def read(rel):

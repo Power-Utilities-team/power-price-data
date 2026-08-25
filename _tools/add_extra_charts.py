@@ -375,15 +375,28 @@ def build_monthly_chart(template_xml, country, tech, index):
 #
 # (template chart, the CSV behind the tab it reads, the country it currently shows,
 #  the caption for the new one)
+# THE NAME COMES FROM config, IT IS NOT WRITTEN OUT HERE. These four captions read
+# "United Kingdom" until 2026-08-25, which was wrong twice over. Wrong on the facts:
+# every GB source excludes Northern Ireland, which is the confusion config.COUNTRIES["GB"]
+# and fetch_uk.py's header both exist to stop, re-imported through the caption instead of
+# the domain code. And wrong structurally: check_chart_captions resolves a caption to a
+# market by looking for a config country NAME in it, so a caption saying "United Kingdom"
+# resolved to no market at all and those four charts were SKIPPED — the only four the
+# guard was written for, after four charts captioned "United Kingdom" shipped plotting
+# Spain and France. The guard read PASS by not looking. Deriving the name here means the
+# caption cannot drift from config again, and the coverage assertion in that guard now
+# fails if a market goes unchecked.
+_GB = cfg.COUNTRIES["GB"]["name"]
+
 UK_VARIANTS = [
     (15, "fig5_capture_window", "ES",
-     "United Kingdom — capture price vs baseload by technology"),
+     f"{_GB} — capture price vs baseload by technology"),
     (18, "fig9_capacity_window", "ES",
-     "Fig 9 — Installed generation capacity by technology (United Kingdom)"),
+     f"Fig 9 — Installed generation capacity by technology ({_GB})"),
     (17, "line_windows", "FR",
-     "United Kingdom — intraday price shape, indexed to daily mean"),
+     f"{_GB} — intraday price shape, indexed to daily mean"),
     (55, "line_windows", "FR",
-     "United Kingdom — cumulative near-negative-price hours through the year"),
+     f"{_GB} — cumulative near-negative-price hours through the year"),
 ]
 
 

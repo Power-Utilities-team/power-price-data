@@ -204,14 +204,32 @@ LINE_WINDOWS_APPEND = [
 # chart cannot see. This is exactly what Fred reported: typing into the 2027 row changes
 # nothing. Same window treatment, transposed: seven ROWS whose meaning rolls, plus a
 # column of year labels for the category axis.
+# The five tokens the published files have always carried. They are the first two letters
+# of a display name, which is where they came from, but they are PINNED here rather than
+# recomputed: these columns are published and addressed by position, so the token must not
+# move if a display name is ever edited.
+_LEGACY_CAT_KEYS = {"Germany": "Ge", "Spain": "Sp", "Portugal": "Po",
+                    "France": "Fr", "Italy": "It"}
+
+
 def _cat_key(name):
     """The short token used in the f1_/f3_ column names.
 
-    Historically the first two letters of the display name ("Ge", "Sp", "Po", "Fr", "It").
-    "United Kingdom" would collide with nothing but reads as "Un", so it is named
-    explicitly. Existing keys are untouched: every chart addresses these by position.
+    ANYTHING NEW IS KEYED BY COUNTRY CODE, not by display name. Deriving it from the name
+    was live for one commit and was wrong two ways. It drifts: renaming GB's display name
+    from "United Kingdom" to "Great Britain" on 2026-08-25 silently changed the column
+    from f1_GB to f1_Gr, so a token that is "GB" in every other table in the workbook and
+    in the Status sheet legend was about to be published as "Gr" in this one. And it
+    collides: "Gr" is what GREECE would get too, and Greece is an ENTSO-E market this
+    dataset could plausibly add. Two markets sharing a column token in a file every chart
+    addresses by position is the failure this whole append-only discipline exists to stop.
     """
-    return {"United Kingdom": "GB"}.get(name, name[:2])
+    if name in _LEGACY_CAT_KEYS:
+        return _LEGACY_CAT_KEYS[name]
+    for code, meta in cfg.COUNTRIES.items():
+        if meta["name"] == name:
+            return code
+    raise KeyError(f"no country in config is named {name!r}, so it has no column token")
 
 
 CATEGORY_WINDOWS = [

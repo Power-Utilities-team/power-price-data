@@ -84,7 +84,7 @@ NAMING_ROWS = [
      "Rolling-window copies the charts read: fixed column positions whose meaning advances "
      "each January, so charts roll on refresh without a rebuild"),
     ("Country codes",
-     "DE Germany, ES Spain, PT Portugal, FR France, IT Italy, GB United Kingdom "
+     "DE Germany, ES Spain, PT Portugal, FR France, IT Italy, GB Great Britain "
      "(Ge/Sp/Po/Fr/It in Line_Window's f1_/f3_ columns)"),
     ("DE_2019, ES_w4, ...",
      "country_year = that country's value for that calendar year; country_wN = rolling "
@@ -104,7 +104,7 @@ NAMING_ROWS = [
 WHERE_FROM_ROWS = [
     ("WHERE EACH COUNTRY'S DATA COMES FROM", ""),
     ("DE, ES, PT, FR, IT", "ENTSO-E Transparency Platform, day-ahead auction prices."),
-    ("GB (United Kingdom)",
+    ("GB (Great Britain, excluding Northern Ireland)",
      "Elexon Insights (generation, load), ECB (GBP/EUR), DESNZ DUKES 5.12.A (capacity). "
      "Great Britain stopped publishing to ENTSO-E on 15 June 2021 under the post-Brexit "
      "Trade and Cooperation Agreement."),

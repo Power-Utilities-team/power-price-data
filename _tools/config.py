@@ -168,6 +168,27 @@ NON_ENTSOE = {c for c, m in COUNTRIES.items() if m.get("source")}
 # own CSV, which is the same pattern the rolling-window tables already use.
 LEGACY_CSV_COUNTRIES = ["DE", "ES", "PT", "FR", "IT"]
 
+# ONE PALETTE, DECLARED BESIDE THE COUNTRIES IT COLOURS. Every renderer used to carry its
+# own copy of this dict, hardcoded at the original five. Adding Great Britain therefore
+# did not fail at the point of the change: it failed much later, inside the deck renderer,
+# as a bare KeyError('GB') that took the whole CI build down after a full six-market fetch
+# had already succeeded. The assertion below turns that into an import-time error that
+# names the market and the file to edit, and it fires before any work is done.
+COUNTRY_COLORS = {
+    "DE": "#2E3E80",   # navy
+    "ES": "#8A1E41",   # maroon
+    "PT": "#CC9F53",   # gold
+    "FR": "#5FA1AD",   # teal
+    "IT": "#3D664A",   # green
+    "GB": "#6B5B95",   # muted purple, added 2026-08-25 with the market itself
+}
+
+_missing = [c for c in COUNTRY_ORDER if c not in COUNTRY_COLORS]
+assert not _missing, (
+    f"COUNTRY_COLORS has no colour for {', '.join(_missing)}. Every chart renderer reads "
+    f"this map by country code, so a market without one crashes the render rather than "
+    f"drawing it. Add a colour here, not a fallback in the renderer.")
+
 # ---------------------------------------------------------------------------
 # Technology taxonomy
 # ---------------------------------------------------------------------------
