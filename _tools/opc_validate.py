@@ -133,6 +133,25 @@ def validate(path: str) -> list[str]:
             errs.append(f"{n}: relationship id(s) {', '.join(missing)} do not resolve"
                         f"{' (no .rels file at all)' if relpath not in names else ''}"
                         f" — Excel will offer Recover")
+
+    # CHILD ORDER INSIDE A CHART REFERENCE. CT_NumRef, CT_StrRef and CT_MultiLvlStrRef are
+    # a schema SEQUENCE: <c:f>, then the optional cache, then the optional <c:extLst>.
+    # Excel accepts any order, so a file that gets this wrong opens, draws correctly, and
+    # looks completely healthy on a Mac. The strict Open XML validator rejects it, and
+    # that validator runs on the Windows CI leg AFTER a full six-market fetch and build
+    # have already been paid for. On 2026-08-25 that cost a whole run: 14 errors, every
+    # one of them an <c:extLst> ahead of its <c:f>, inherited from a hand-built source
+    # workbook through an extracted chart template. Checking it here means the answer
+    # arrives in seconds on the machine doing the work.
+    for n in names:
+        if not re.match(r"xl/charts/chart\d+\.xml$", n):
+            continue
+        body = z.read(n).decode("utf-8", "replace")
+        bad = len(re.findall(r"<c:(?:num|str|multiLvlStr)Ref><c:extLst>", body))
+        if bad:
+            errs.append(f"{n}: {bad} chart reference(s) put <c:extLst> before <c:f> — "
+                        f"Excel tolerates it but the Open XML schema does not, so this "
+                        f"passes every check here and fails the Windows validate leg")
     return errs
 
 
