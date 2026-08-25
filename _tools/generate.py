@@ -90,6 +90,11 @@ def main():
         # data by absolute column and row, so an inserted column repoints every chart to
         # its right while leaving a perfectly valid file that every other check passes.
         # Runs BEFORE the copy, while published/ still holds the good baseline.
+        # THE FIXTURES RUN FIRST, LOCALLY TOO. CI has always run them; a local build did
+        # not, so a change that disconnected the guard from its own fixtures passed every
+        # local check and only failed once it reached CI. A guard cannot notice that it
+        # has stopped guarding, which is the entire reason it has fixtures.
+        run("check_reference_stability_fixtures.py")
         run("check_reference_stability.py")
         # And refuse to publish a SHORTER series. check_coverage ran only in CI until
         # 2026-08-25, so a local --fresh run could and did overwrite the tracked baseline
