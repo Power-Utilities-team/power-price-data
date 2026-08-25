@@ -40,8 +40,15 @@ import sys
 
 import config as cfg
 
+# The chart tables the workbook loads, and the tidy long-form set at published/ root.
+# BOTH are served over the network, so both are guarded. Kept as module-level names the
+# fixtures can override — deriving paths from cfg.ROOT inside check() instead is what
+# silently disconnected this guard from its own fixtures on 2026-08-25, and the fixtures
+# are what caught it.
 NEW = os.path.join(cfg.OUTPUT_DIR, "csv", "charts")
 BASELINE = os.path.join(cfg.ROOT, "published", "charts")
+ROOT_NEW = os.path.join(cfg.OUTPUT_DIR, "csv")
+ROOT_BASELINE = os.path.join(cfg.ROOT, "published")
 
 # THE BASELINE IS GIT HEAD, NOT THE WORKING TREE. published/ is a tracked directory that
 # a local `generate.py --fresh` overwrites in place, so comparing against it compares the
@@ -50,9 +57,6 @@ BASELINE = os.path.join(cfg.ROOT, "published", "charts")
 # passed it, because an earlier local publish had already replaced the baseline. The
 # committed copy is the one every workbook in the wild actually loads.
 USE_GIT_BASELINE = True
-
-# filename -> which published/ subdirectory it lives in ("" = the root set)
-_WHERE = {}
 
 # Files whose first column is a ROW LABEL that charts address by position (a technology
 # name, a month, a week). For these the row identity is checked as well as the columns.
@@ -81,12 +85,12 @@ def _read(path):
         return _read_rows(f.read())
 
 
-def _git_baseline():
-    """{filename: text} for published/charts at HEAD, or None if git cannot answer."""
+def _git_baseline(prefix="published/charts/"):
+    """{filename: text} for one published/ directory at HEAD, or None if git cannot answer."""
     import subprocess
     try:
         listing = subprocess.run(
-            ["git", "ls-tree", "-r", "--name-only", "HEAD", "published/"],
+            ["git", "ls-tree", "-r", "--name-only", "HEAD", prefix],
             cwd=cfg.ROOT, capture_output=True, text=True, check=True).stdout.split()
     except Exception:                             # noqa: BLE001 - not a git checkout
         return None
@@ -94,7 +98,8 @@ def _git_baseline():
     for path in listing:
         if not path.endswith(".csv"):
             continue
-        _WHERE[os.path.basename(path)] = "charts" if "/charts/" in path else ""
+        if os.path.dirname(path) + "/" != prefix:
+            continue
         try:
             out[os.path.basename(path)] = subprocess.run(
                 ["git", "show", f"HEAD:{path}"], cwd=cfg.ROOT,
@@ -104,62 +109,78 @@ def _git_baseline():
     return out
 
 
-def check():
-    git = _git_baseline() if USE_GIT_BASELINE else None
+def _compare(baseline_dir, new_dir, prefix, label, check_rows=True):
+    """One directory pair. Returns (errors, compared, widened, source description).
+
+    `check_rows` is False for the published/ ROOT set. Those are tidy long-form exports —
+    one row per country, technology and month — whose row order and count legitimately
+    change as data arrives, and which no chart addresses by position. Two files even
+    share a name across the two directories with entirely different shapes, so a
+    filename-keyed row check reported the long-form capture_monthly as having "moved" a
+    row when it had simply grown.
+    """
+    git = _git_baseline(prefix) if USE_GIT_BASELINE else None
     if git:
         source, names = "git HEAD", sorted(git)
-    elif os.path.isdir(BASELINE):
-        source = "the working tree (git baseline unavailable — a local publish may " \
-                 "already have overwritten it)"
-        names = sorted(n for n in os.listdir(BASELINE) if n.endswith(".csv"))
+    elif os.path.isdir(baseline_dir):
+        source = ("the working tree (git baseline unavailable — a local publish may "
+                  "already have overwritten it)")
+        names = sorted(n for n in os.listdir(baseline_dir) if n.endswith(".csv"))
     else:
-        print("no published baseline yet — nothing to compare against", flush=True)
-        return []
-    errs = []
-    compared = widened = 0
+        return [], 0, 0, "nothing to compare against"
+
+    errs, compared, widened = [], 0, 0
     for name in names:
         if not name.endswith(".csv"):
             continue
-        # published/ has two levels: charts/ (what the workbook loads) and a root set of
-        # tidy long-form CSVs. Both are served over the network, so both are guarded —
-        # the root ten were unchecked until 2026-08-25.
-        sub = _WHERE.get(name, "charts")
-        base_p = os.path.join(cfg.ROOT, "published", sub, name) if sub else \
-            os.path.join(cfg.ROOT, "published", name)
-        new_p = os.path.join(cfg.OUTPUT_DIR, "csv", sub, name) if sub else \
-            os.path.join(cfg.OUTPUT_DIR, "csv", name)
+        base_p, new_p = os.path.join(baseline_dir, name), os.path.join(new_dir, name)
         if not os.path.exists(new_p):
             # A published file the build no longer produces would be left stale on the
             # raw-URL surface for ever, still being loaded by every workbook in the wild.
-            errs.append(f"{name}: is published but is no longer built — the stale copy "
-                        f"would keep being served to every open workbook")
+            errs.append(f"{label}{name}: is published but is no longer built — the stale "
+                        f"copy would keep being served to every open workbook")
             continue
         compared += 1
         bh, bcol0 = _read_rows(git[name]) if git else _read(base_p)
         nh, ncol0 = _read(new_p)
 
+        moved = False
         for i, col in enumerate(bh):
             if i >= len(nh):
-                errs.append(f"{name}: column {i} {col!r} has been dropped "
+                errs.append(f"{label}{name}: column {i} {col!r} has been dropped "
                             f"(width {len(bh)} -> {len(nh)})")
+                moved = True
                 break
             if nh[i] != col:
-                errs.append(f"{name}: column {i} was {col!r} and is now {nh[i]!r} — "
-                            f"every chart reading it now plots a different series")
+                errs.append(f"{label}{name}: column {i} was {col!r} and is now {nh[i]!r} "
+                            f"— every chart reading it now plots a different series")
+                moved = True
                 break
-        if len(nh) > len(bh) and not errs:
+        if len(nh) > len(bh) and not moved:
             widened += 1
 
-        if name in ROW_ADDRESSED:
-            for i, label in enumerate(bcol0):
+        if check_rows and name in ROW_ADDRESSED:
+            for i, lab in enumerate(bcol0):
                 if i >= len(ncol0):
-                    errs.append(f"{name}: row {i + 1} {label!r} has been dropped")
+                    errs.append(f"{label}{name}: row {i + 1} {lab!r} has been dropped")
                     break
-                if ncol0[i] != label:
-                    errs.append(f"{name}: row {i + 1} was {label!r} and is now "
+                if ncol0[i] != lab:
+                    errs.append(f"{label}{name}: row {i + 1} was {lab!r} and is now "
                                 f"{ncol0[i]!r} — a chart addressing that row now reads "
                                 f"a different one")
                     break
+    return errs, compared, widened, source
+
+
+def check():
+    errs, compared, widened, source = _compare(BASELINE, NEW, "published/charts/", "")
+    # The root set only exists in a real checkout; the fixtures leave it absent.
+    if os.path.isdir(ROOT_BASELINE) and ROOT_BASELINE != BASELINE:
+        e2, c2, w2, _ = _compare(ROOT_BASELINE, ROOT_NEW, "published/", "published/",
+                                 check_rows=False)
+        errs += e2
+        compared += c2
+        widened += w2
     print(f"reference stability: compared {compared} file(s) against {source}, "
           f"{widened} widened by appending", flush=True)
     return errs

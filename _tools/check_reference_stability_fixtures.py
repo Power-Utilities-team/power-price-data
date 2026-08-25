@@ -40,7 +40,12 @@ for label, new_rows in cases.items():
         os.makedirs(n, exist_ok=True)
     # Point the guard at the fixture dirs and switch OFF the git baseline, or it
     # would compare the fixture against the real repository and prove nothing.
+    # Pin EVERY input, not just the pair under test. The guard also compares the
+    # published/ root set, and leaving those two pointing at the real repository made the
+    # fixture report failures that had nothing to do with the case it was exercising.
     g.BASELINE, g.NEW, g.USE_GIT_BASELINE = b, n, False
+    g.ROOT_BASELINE = os.path.join(tmp, "no-root-set")
+    g.ROOT_NEW = os.path.join(tmp, "no-root-set")
     errs = g.check()
     verdict = "PASS" if not errs else "FAIL"
     expect = "PASS" if label in ("identical","appended column","appended row") else "FAIL"
