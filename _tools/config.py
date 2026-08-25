@@ -90,6 +90,24 @@ COUNTRIES = {
         "price_zones": ["PT"],
         "tz": "Europe/Lisbon",  # WET/WEST (UTC+0/+1) — the only non-CET market
     },
+    # GREAT BRITAIN IS NOT AN ENTSO-E COUNTRY ANY MORE. Its series come from Elexon,
+    # the ECB and DUKES via fetch_uk.py, which writes the SAME raw parquet shapes, so
+    # everything downstream of the fetch treats GB like any other market. See that
+    # file's header for why, and for the Northern Ireland trap.
+    #
+    # `code` and `price_zones` are still "GB" because cross-border flows DO still come
+    # from ENTSO-E (the counterparty TSO publishes each border), and because the stored
+    # price file is named price_<zone> like everyone else's.
+    "GB": {
+        "name": "United Kingdom",
+        "code": "GB",
+        "price_zones": ["GB"],
+        "tz": "Europe/London",
+        "source": "elexon",          # read by fetch.py to skip GB, and by build_status
+        # The GB price is NOT a day-ahead auction. Recorded here so anything that
+        # displays a UK figure can say so without hunting for the reason.
+        "price_basis": "Elexon market index (APX), within-day near gate closure",
+    },
     "IT": {
         "name": "Italy",
         "code": "IT",  # national generation/load/flows/capacity work at "IT"
@@ -103,7 +121,40 @@ COUNTRIES = {
     },
 }
 
-COUNTRY_ORDER = ["DE", "ES", "PT", "FR", "IT"]  # display order (Iberia grouped)
+# DISPLAY ORDER, AND A HARD APPEND-ONLY RULE. Every wide chart CSV lays out one block
+# of columns per country in THIS order, and the workbook's chart references are absolute
+# column letters into those blocks. Inserting a country anywhere but the end shifts every
+# block to its right, so e.g. the Italian capture chart would silently start plotting
+# British data — the same class of fault that un-curated chart12 on 2026-07-22.
+# ADD NEW COUNTRIES AT THE END. GB was appended 2026-08-25 for exactly this reason,
+# even though grouping it beside France would read better.
+COUNTRY_ORDER = ["DE", "ES", "PT", "FR", "IT", "GB"]  # display order (Iberia grouped)
+
+# Countries whose raw series come from somewhere other than ENTSO-E. fetch.py skips
+# these; fetch_uk.py fills them. Kept as a set so the test is a lookup, not a country
+# name spelled out in five places.
+NON_ENTSOE = {c for c, m in COUNTRIES.items() if m.get("source")}
+
+# THE TWELVE LEGACY FIGURE TABS ARE FROZEN AT FIVE COUNTRIES, AND THIS IS WHY.
+#
+# Fig1..Fig9, Fig2_Intraday_avg, Fig5_Capture_abs and CaptureMonthly come from the
+# query-wired base workbook, and their Excel tables are fixed at 86 columns (A1:CH) —
+# exactly 1 + 5 x 17. Unlike the Phase-4 tabs, add_power_queries.py does NOT rebuild
+# them, so their width does not follow their CSV. Publishing a 103-column CSV into an
+# 86-column table puts every GB column OUTSIDE the table, where a chart cannot see it
+# and a refresh does not reach it. Widening them means rewriting table, queryTable and
+# column definitions on inherited parts, which is the exact surgery that silently
+# un-curated chart12 on 2026-07-22.
+#
+# It costs nothing, because the CHARTS DO NOT READ THESE TABS. Every annual bar chart
+# reads Fig5_Window or Fig9_Window and every line chart reads Line_Window, all three of
+# which add_power_queries rebuilds from their CSV each run, so their width tracks the
+# country list on its own and GB arrives there with no surgery at all.
+#
+# The one series that genuinely needed the legacy path is monthly capture, because the
+# CaptureVsBase formulas read CaptureMonthly directly. GB's goes to its own tab from its
+# own CSV, which is the same pattern the rolling-window tables already use.
+LEGACY_CSV_COUNTRIES = ["DE", "ES", "PT", "FR", "IT"]
 
 # ---------------------------------------------------------------------------
 # Technology taxonomy
@@ -305,6 +356,53 @@ TECH_DISPLAY_ORDER = None   # superseded by TECH_BLOCKS / tech_row_order()
 # bucket. For Portugal the 9 omitted types are 0.13% of volume (no nuclear,
 # lignite, coal, oil, waste, geothermal or marine at all).
 GENMIX_KEEP = TECH_BLOCKS["PT"] + ["Other"]
+
+# ---------------------------------------------------------------------------
+# Hydro reservoir tracker
+# ---------------------------------------------------------------------------
+# ENTSO-E's "Water Reservoirs and Hydro Storage Plants" (A72) is a WEEKLY stored-energy
+# figure in MWh, published per bidding zone. It is a different endpoint from anything
+# the price pipeline touched before 2026-08-25, and it is the series behind the
+# reservoir-fill-vs-historic-range charts.
+#
+# WHO HAS IT, probed 2026-08-25 (single-year call per zone, 2025):
+#   yes  FR ES PT IT, NO + NO_1..NO_5, SE, FI, AT, CH   (53 weekly points each)
+#   no   Germany, under DE_LU, DE and DE_AT_LU alike
+#   no   Great Britain, under any domain code
+# So "every country we have data for" genuinely excludes Germany and the UK. Both get a
+# pumped-storage chart instead (see PUMPED_ONLY below) rather than a blank panel.
+#
+# Zone choice: the national zone where one exists, plus Norway's five price zones,
+# because Norwegian hydro is the market where the zonal split is the story. Sweden is
+# taken nationally: SE_1..SE_4 exist but the reservoir series is reported for SE.
+HYDRO_RESERVOIR_ZONES = [
+    ("FR", "FR", "France"),
+    ("ES", "ES", "Spain"),
+    ("PT", "PT", "Portugal"),
+    ("IT", "IT", "Italy"),
+    ("NO", "NO", "Norway"),
+    # Norway's five price zones (NO_1..NO_5) all return clean weekly data and were built
+    # on 2026-08-25, then dropped the same day on Fred's call: five zonal charts beside
+    # the national one crowded the tab for a split nothing else in the workbook makes.
+    # The raw pulls are still on disk, so restoring them is a matter of adding the rows
+    # back here and re-running summarise_hydro.
+    ("SE", "SE", "Sweden"),
+    ("FI", "FI", "Finland"),
+    ("AT", "AT", "Austria"),
+    ("CH", "CH", "Switzerland"),
+]
+
+# Markets with no reservoir series at all. They get a weekly PUMPED-STORAGE chart built
+# from the hourly master instead (Fred's call, 2026-08-25: "add pumped storage where
+# possible for data that exists"). It is deliberately captioned as pumped storage, never
+# as reservoir: a pumped fleet's weekly output says nothing about stored inflow, and the
+# two would be read as the same exhibit if the captions let them.
+PUMPED_ONLY = ["DE", "GB"]
+
+# The tracker's historic band. The Hydro Tracker workbook this was modelled on uses a
+# 2015-2025 min/max range, which predates the price pipeline's 2019 start; reservoir data
+# is fetched from here regardless of START_YEAR so the band has its full depth.
+HYDRO_START_YEAR = 2015
 
 # ---------------------------------------------------------------------------
 # Paths

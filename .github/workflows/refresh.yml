@@ -91,7 +91,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        country: [DE, ES, PT, FR, IT]
+        # GB is here even though it is NOT an ENTSO-E source: Great Britain stopped
+        # publishing to the Transparency Platform on 15 June 2021, and its series come
+        # from Elexon, the ECB and DUKES instead. The fetch step below picks the right
+        # fetcher per country by asking config, so this list stays the single place a
+        # market is added.
+        country: [DE, ES, PT, FR, IT, GB]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -138,6 +143,18 @@ jobs:
         working-directory: _tools
         run: |
           YEAR=$(python -c "from datetime import date; print(date.today().year)")
+          # Which fetcher does this market use? config.NON_ENTSOE is derived from the
+          # country table, so a market added there routes itself without editing this.
+          NON_ENTSOE=$(python -c "
+          import config as c
+          print(1 if '${{ matrix.country }}' in c.NON_ENTSOE else 0)")
+          if [ "$NON_ENTSOE" = "1" ]; then
+            echo "${{ matrix.country }} is not an ENTSO-E source — using fetch_uk.py"
+            python fetch_uk.py --years $((YEAR-1)),$YEAR --force
+            # Cross-border flows still come from ENTSO-E (the counterparty TSO publishes
+            # each border), and fetch_uk handles that itself.
+            exit 0
+          fi
           # The frozen history normally ends at YEAR-1. In January it still ends at
           # YEAR-2, so the just-completed year has to be fetched too or it is lost
           # entirely (it is in neither the history nor the current-year pull).
@@ -246,6 +263,16 @@ jobs:
             cp "$f" "_meta/fetch-${c}.json"
           done
           echo "gap records: $(ls _meta/fetch-gaps*.json 2>/dev/null | wc -l)"
+      - name: Fetch the weekly hydro reservoir series
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        working-directory: _tools
+        run: |
+          # A72 water reservoirs: weekly, a STOCK not a flow, so it sits outside the
+          # per-country matrix above and never joins the hourly master. Cheap enough to
+          # pull here (one call per zone-year, and stored years are skipped).
+          python fetch_hydro.py
+
       - name: Build + summarise + export
         working-directory: _tools
         run: |
@@ -257,7 +284,11 @@ jobs:
           python summaries.py
           python export_csv.py          # tidy/long CSVs
           python chart_csv.py           # chart-ready wide CSVs (what Excel loads)
+          # extra_summaries AFTER chart_csv: its line_windows step READS the fig2/fig3/
+          # fig4 CSVs that chart_csv writes. Reversed, it builds that table from the
+          # previous run's files, which is invisible until a column set changes.
           python extra_summaries.py     # G1/G2/G3 hourly-granularity tables
+          python summarise_hydro.py     # weekly reservoir bands -> hydro_window.csv
           python build_status.py        # status.csv -> the staleness banner in Excel
 
       - name: Publish CSVs to /published

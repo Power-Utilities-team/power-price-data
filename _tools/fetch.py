@@ -376,7 +376,16 @@ def main():
         ONLY_SERIES = [s.strip() for s in a.only.split(",") if s.strip()]
         log(f"REPAIR: re-fetching only {', '.join(ONLY_SERIES)}")
 
+    # GB is on this list because everything downstream treats it as an ordinary market,
+    # but its raw series come from Elexon/ECB/DUKES via fetch_uk.py — ENTSO-E stopped
+    # publishing GB on 15 June 2021. Asking ENTSO-E for it would log five NoMatchingData
+    # failures a year and, worse, trip the required-series gap check into declaring the
+    # run broken. Named explicitly (--country GB) it still skips, with a reason.
     countries = [a.country] if a.country else cfg.COUNTRY_ORDER
+    skipped = [c for c in countries if c in cfg.NON_ENTSOE]
+    countries = [c for c in countries if c not in cfg.NON_ENTSOE]
+    for c in skipped:
+        log(f"{c}: not an ENTSO-E source ({cfg.COUNTRIES[c]['source']}) — see fetch_uk.py")
     years = [int(y) for y in a.years.split(",")] if a.years else cfg.YEARS
 
     t0 = time.time()

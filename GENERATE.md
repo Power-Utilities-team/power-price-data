@@ -30,9 +30,23 @@ python generate.py              # rebuild all 4 from data already on disk
 python generate.py --fresh      # pull ENTSO-E to today first, then rebuild
 python generate.py --deliver    # also copy the 4 files to ~/Downloads
 ```
-Pipeline: `[--fresh] fetch → build_hourly → summaries → extra_summaries → chart_csv` then
-`render_all → build_static_deck`, `build_frozen_excel`, `add_phase4_charts → build_deck`, and finally
+Pipeline: `[--fresh] fetch → fetch_uk → fetch_hydro → build_hourly → summaries → chart_csv →
+extra_summaries → summarise_hydro → build_status → publish` then `render_all → build_static_deck`,
+`build_frozen_excel`, `add_phase4_charts → add_extra_charts → build_deck`, and finally
 `check_consistency` (which **fails the run** if the two decks disagree).
+
+**Three ordering facts that are load-bearing, all fixed 2026-08-25:**
+- `chart_csv` runs BEFORE `extra_summaries`, because the latter's `line_windows` reads the
+  fig2/fig3/fig4 CSVs the former writes. The old order built that table from the PREVIOUS run's
+  files, which was invisible until a new country's columns did not exist there yet and its charts
+  came out blank.
+- The built CSVs are staged into `published/` BEFORE the workbook is built, the way CI has always
+  done it. `add_power_queries` and `add_extra_charts` both read `published/charts` to size load
+  targets and resolve chart columns, so building from last run's copies gives charts pointing at
+  last month's layout.
+- `add_extra_charts` runs after `add_status_sheet` (its charts name their year series from the
+  Status sheet's rolling cells) and before `add_power_queries` (it creates two tabs that script
+  then wires).
 
 > **Freshness note:** `--fresh` refreshes the static + frozen outputs to today. The **linked** workbook is
 > rebuilt structurally; its live data currency comes from the team's Power Query refresh (by design).
@@ -67,7 +81,20 @@ year / quarter / month; then:
 All scripts run on **`_tools/.venv`** (uv-managed: pandas, pyarrow, matplotlib, openpyxl, python-pptx,
 lxml). ENTSO-E key at `_tools/.entsoe_key`. The house chart style comes from the `chart-style` skill.
 
-## The 19 workbook charts
+## Where each country's data comes from
+DE, ES, PT, FR and IT are ENTSO-E. **GB is not, and cannot be**: Great Britain stopped publishing to
+the Transparency Platform on 15 June 2021 under the post-Brexit Trade and Cooperation Agreement.
+`fetch_uk.py` fills it from Elexon (generation, load), the ECB (GBP/EUR) and DESNZ DUKES 5.12.A
+(capacity), writing the same raw parquet shapes so nothing downstream needs a GB branch. Its header
+carries the full evidence, including why the `UK` ENTSO-E domain is a trap (it returns Northern
+Ireland alone) and why the GB price is a market index rather than a day-ahead auction.
+
+**The twelve inherited figure tabs are frozen at five countries.** Their Excel tables are a fixed 86
+columns and are not rebuilt from their CSVs, so a sixth market's columns would land outside the table
+where no chart or refresh reaches them. Every chart reads a rolling-window tab instead, and those ARE
+rebuilt, so they widen on their own. See `config.LEGACY_CSV_COUNTRIES`.
+
+## The workbook charts
 Charts 1–15 are the original figures + Phase-4 country variants + G1/G2. Charts **16–19** are the
 2026-07-19 "market-state" block, all live-linked: **16** monthly baseload price by market (A),
 **17** wind+solar penetration 12-mo avg (B), **18** solar/wind capture erosion, Germany (C),

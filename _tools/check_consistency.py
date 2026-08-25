@@ -22,6 +22,9 @@ STATIC = os.path.join(ROOT, "outputs", "HourlyPowerData_snapshot.pptx")
 WORKBOOK = os.path.join(ROOT, "outputs", "HourlyPowerData.xlsx")
 
 
+n_charts_msg = "?"   # filled by main() once the workbook's expected count is known
+
+
 def deck_content(path):
     """Return [(title, kicker, [captions...]), ...] for content slides (skip title)."""
     prs = Presentation(path)
@@ -236,13 +239,26 @@ def main():
     errs += check_no_future_data()
     errs += check_deck("LINKED", LINKED, exp)
     errs += check_deck("STATIC", STATIC, exp)
-    # workbook holds charts 1..15
+    # The workbook holds a contiguous run of chart parts: the 19 the original chain
+    # builds, then the per-country variants and the monthly capture exhibits that
+    # add_extra_charts.py appends. The expected total is DERIVED from the same lists
+    # those are built from, so adding a country or a charted technology moves the
+    # assertion with the build instead of failing it. A hardcoded 19 is what this line
+    # used to say, and it is why the check could not see that the circulated workbook
+    # had 62 charts while the pipeline produced 19.
     if os.path.exists(WORKBOOK):
+        global n_charts_msg
+        import add_extra_charts as _extra
+        # NOT named `expected`: that is a module-level function used a few lines above,
+        # and shadowing it makes the earlier call fail with an UnboundLocalError that
+        # points at the wrong line entirely.
+        n_charts = n_charts_msg = _extra.expected_chart_total()
         z = zipfile.ZipFile(WORKBOOK)
         nums = sorted(int(re.search(r"chart(\d+)", n).group(1))
                       for n in z.namelist() if re.match(r"xl/charts/chart\d+\.xml$", n))
-        if nums != list(range(1, 20)):
-            errs.append(f"WORKBOOK charts: {nums} != 1..19")
+        if nums != list(range(1, n_charts + 1)):
+            errs.append(f"WORKBOOK charts: {len(nums)} parts, expected {n_charts} "
+                        f"(1..{n_charts}); got {nums[:3]}..{nums[-3:]}")
         errs += check_xml_wellformed(WORKBOOK, 'WORKBOOK')
         errs += check_content_types(WORKBOOK, 'WORKBOOK')
         errs += check_refresh_stability(WORKBOOK)
@@ -258,7 +274,7 @@ def main():
         for e in errs: print("  ✗", e)
         sys.exit(1)
     print(f"CONSISTENCY: PASS — both decks match deck_spec ({len(exp)} content slides, "
-          f"{sum(len(s['exhibits']) for s in deck_spec.SLIDES)} exhibits) + workbook charts 1-19.")
+          f"{sum(len(s['exhibits']) for s in deck_spec.SLIDES)} exhibits) + workbook charts 1-{n_charts_msg}.")
 
 
 if __name__ == "__main__":

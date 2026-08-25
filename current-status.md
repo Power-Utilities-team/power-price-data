@@ -429,3 +429,63 @@ Verified against delivered files: 12/14 PQ queries already wired; ONLY G1_SolarP
 left to wire. Both live files go in the Redburn `…\Sector Presentation\` folder (deck link target).
 Frozen/static snapshots need no setup. Recommended: Fred sends the wired workbook back once for a
 read-only G1/G2 layout check.
+
+---
+
+## 2026-08-25 — the UK dataset, the hydro reservoir tracker, and generator parity
+
+**The headline finding, before the additions.** The pipeline produced 23 sheets and 19 charts. The
+workbook actually in circulation (`HourlyPowerData 3.xlsx`) had 24 and 62. The extra sheet
+(`CaptureVsBase`) and the extra 43 charts had been built by hand in Excel and existed in no script
+in either vault, so a fresh `generate.py` run returned a workbook missing two thirds of its
+exhibits and nothing reported a fault. Parity was rebuilt first; the new work sits on top of it.
+
+**Great Britain is not an ENTSO-E country.** Probed, not recalled: GB publication to the
+Transparency Platform stopped on 15 June 2021 under the post-Brexit Trade and Cooperation
+Agreement. Day-ahead price ends 2020, generation, capacity and load mid-2021; only cross-border
+flows continue, because the counterparty TSO publishes them. The `UK` domain (10Y1001A1001A92E)
+still returns data and is a trap: 857 MW mean generation against 24,716 MW in 2019, because it is
+Northern Ireland alone.
+
+GB now comes from Elexon (generation AGPT, load INDO), the ECB (daily GBP/EUR) and DESNZ DUKES
+5.12.A (installed capacity 2011-2025), via `fetch_uk.py`, which writes the same raw parquet shapes
+so nothing downstream needs a GB branch. Coverage: price and load 94-100% per year, generation
+87-99.7% with 2022 the weak year (86 days genuinely absent from Elexon).
+
+**The GB price is not a day-ahead auction, and that is Fred's recorded choice.** N2EX is not
+obtainable free: Elexon returns N2EXMIDP rows with price 0 and volume 0 in every year tested, Nord
+Pool's portal answers 401, energy-charts has no GB zone, neither NESO nor Ofgem publishes a
+wholesale series, and EPEX's GB auction exists only as rendered web pages. The workbook uses the
+Elexon market index (APX) and says so on the Status tab.
+
+**Hydro.** ENTSO-E's weekly A72 water-reservoir series, 2015 onward, for FR, ES, PT, IT, NO plus
+NO1-NO5, SE, FI, AT and CH. Germany and Great Britain publish no reservoir series under any domain
+code, so both get a pumped-storage chart instead, captioned as such. Run-of-river was swapped for
+reservoir only where hydro was a single series (Italy); Germany gained a reservoir chart as an
+addition, and Portugal and France, which already showed both, were left alone.
+
+**Structural constraint worth knowing.** The twelve inherited figure tabs have Excel tables fixed
+at 86 columns, exactly five countries wide, and are not rebuilt from their CSVs. A sixth market's
+columns land outside the table where no chart or refresh reaches them. Those CSVs are therefore
+frozen at five countries (`config.LEGACY_CSV_COUNTRIES`); every chart reads a rolling-window tab
+instead, and those ARE rebuilt, so they widen on their own.
+
+**Three ordering bugs fixed, all previously silent.** `extra_summaries` ran before `chart_csv`
+even though it reads that script's output, so `line_windows` was always a run behind. The built
+CSVs were never staged into `published/` before the workbook build locally, though CI has always
+done it. And Elexon's demand endpoint caps at seven days, so a monthly loop kept only the one month
+short enough to succeed and wrote a 1,392-row year. Each now has a guard that reports rather than
+passing quietly.
+
+**State: built and validated locally, NOT pushed.** 26 sheets, 89 charts, `opc_validate` and
+`check_chart_quality` both green, every new chart range carrying real prefilled data. Fred's call
+was to hold the push until after the 2026-08-26 07:23 UTC scheduled run has proved the existing
+code on the new organisation.
+
+**One loose end in the LOCAL raw store, self-healing.** A 2026 re-fetch was attempted on
+2026-08-25 and ENTSO-E returned 504 after 504 on the German generation pull (the same platform
+fault that broke the 18 August run). It was stopped part-way, so `data/raw/DE_*_2026.parquet` is
+now mixed: price and load run to 25 August, generation still to 16 July. Nothing shipped from that
+state — the delivered workbook was built beforehand and is internally consistent at 16 July for the
+five ENTSO-E markets. Any `--fresh` run re-pulls the whole year with `--force`, and CI always does,
+so the next run of either resolves it. GB and the hydro series are unaffected and current.

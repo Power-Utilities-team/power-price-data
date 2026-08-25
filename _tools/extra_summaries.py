@@ -190,6 +190,12 @@ LINE_WINDOWS_APPEND = [
     # cumulative near-negative hours for the remaining three countries, added
     # 2026-08-06 (evening) for the per-country Fig 3 charts
     ("fig3_cum_near_neg",     ["PT", "FR", "IT"], "c"),
+    # Great Britain, appended 2026-08-25 so the UK gets the same intraday-shape and
+    # cumulative-negative-hours charts every other market has. APPENDED, not slotted in
+    # beside its neighbours: every chart reads an absolute column into this table, so a
+    # block inserted anywhere but the end repoints all of them one place to the right.
+    ("fig2_intraday_indexed", ["GB"], "i"),
+    ("fig3_cum_near_neg",     ["GB"], "c"),
 ]
 
 # Fig 1 and Fig 3 are the other shape: YEARS are the x-axis CATEGORIES and the series are
@@ -263,10 +269,24 @@ def line_windows():
 
     for stem, countries, tag in LINE_WINDOWS:
         src = frames[stem]
+        # A country outside the original five is not in the legacy CSV at all — that
+        # file's Excel table is fixed at 86 columns and cannot hold a sixth market, so
+        # chart_csv publishes those columns to a companion "_extra" file instead. Look
+        # there when the main frame does not have the country. Without this the window
+        # columns are built, published and loaded exactly as normal, and are silently
+        # empty from end to end: the UK's intraday and cumulative-negative charts came
+        # out blank with nothing anywhere reporting a fault.
+        extra = None
         for c in countries:
             for i, y in enumerate(years, start=1):
                 col = f"{c}_{y}"
-                vals = src[col].tolist() if col in src.columns else []
+                frame = src
+                if col not in src.columns:
+                    if extra is None:
+                        ef = os.path.join(OUT, f"{stem}_extra.csv")
+                        extra = pd.read_csv(ef) if os.path.exists(ef) else pd.DataFrame()
+                    frame = extra
+                vals = frame[col].tolist() if col in frame.columns else []
                 vals = vals + [float("nan")] * (nrows - len(vals))
                 out[f"{tag}_{c}_w{i}"] = vals[:nrows]
 
@@ -312,12 +332,30 @@ def line_windows():
         if not os.path.exists(f):
             raise SystemExit(f"line_windows: {stem}.csv missing — build order changed?")
         src = pd.read_csv(f)
+        ef = os.path.join(OUT, f"{stem}_extra.csv")
+        extra = pd.read_csv(ef) if os.path.exists(ef) else pd.DataFrame()
         for c in countries:
             for i, y in enumerate(years, start=1):
                 col = f"{c}_{y}"
-                vals = src[col].tolist() if col in src.columns else []
+                # Countries beyond the original five are not in the legacy CSV; their
+                # columns are published to a companion "_extra" file. Same reasoning as
+                # in the loop above.
+                frame = src if col in src.columns else extra
+                vals = frame[col].tolist() if col in frame.columns else []
                 vals = vals + [float("nan")] * (nrows - len(vals))
                 out[f"{tag}_{c}_w{i}"] = vals[:nrows]
+
+    # An all-empty window means the source frame never held that country: the chart
+    # reading it draws nothing while every downstream check passes, because the column
+    # exists and is the right width. Both lists are checked, since a block added to the
+    # append list is exactly the case that went unnoticed.
+    for stem, countries, tag in LINE_WINDOWS + LINE_WINDOWS_APPEND:
+        for c in countries:
+            cols = [f"{tag}_{c}_w{i}" for i in range(1, len(years) + 1)
+                    if f"{tag}_{c}_w{i}" in out]
+            if cols and all(out[col].isna().all() for col in cols):
+                print(f"  !! line_windows: {tag}_{c} is empty in every slot — "
+                      f"{stem} has no {c} columns", flush=True)
 
     _save(out, "line_windows")
 

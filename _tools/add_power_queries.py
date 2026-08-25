@@ -56,6 +56,15 @@ TARGETS = [
     ("Fig5_Window",      "fig5_capture_window"),
     ("Fig9_Window",      "fig9_capacity_window"),
     ("Line_Window",      "line_windows"),
+    # Added 2026-08-25 with the UK and the hydro tracker. Both tabs are created by
+    # add_extra_charts.py, which runs just before this script for that reason.
+    #
+    # CaptureMonthlyExtra exists because CaptureMonthly cannot grow: its table is one of
+    # the inherited 86-column ones, exactly wide enough for the original five countries,
+    # so a sixth market's columns would fall outside it and no chart or refresh would
+    # ever reach them. Countries beyond those five load here instead.
+    ("CaptureMonthlyExtra", "capture_monthly_extra"),
+    ("HydroWindow",         "hydro_window"),
 ]
 
 _NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")   # fixed -> deterministic uids

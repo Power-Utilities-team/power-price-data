@@ -34,3 +34,7 @@ matplotlib==3.11.1
 openpyxl==3.1.5
 python-pptx==1.0.2
 lxml==6.1.1
+
+# Pinned explicitly 2026-08-25: fetch_uk.py calls Elexon, the ECB and gov.uk directly.
+# It arrived transitively via entsoe-py before that, which is not a dependency to rely on.
+requests==2.34.2

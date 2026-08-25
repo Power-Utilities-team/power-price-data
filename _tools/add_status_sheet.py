@@ -44,7 +44,86 @@ URL_TABS = [
     # charts and the three single-year ones — so it belongs in the recovery map even
     # though no tab is named after a figure.
     ("Line_Window", "line_windows"),
+    # Added 2026-08-25 with the UK and the hydro tracker.
+    ("CaptureMonthlyExtra", "capture_monthly_extra"),
+    ("HydroWindow", "hydro_window"),
     ("Status", "status"),
+]
+
+# The two reference blocks below used to exist only in the copy circulating by hand, so
+# a freshly generated workbook came out without them. They are generated now, which is
+# what makes the file reproducible rather than something to be edited after the fact.
+NAMING_ROWS = [
+    ("SHEET AND COLUMN NAMING - what the names mean", ""),
+    ("Fig1_PriceSD", "Annual standard deviation of hourly day-ahead price (deck Fig 1)"),
+    ("Fig2_Intraday / Fig2_Intraday_avg",
+     "Intraday price shape by year - indexed to daily mean / absolute EUR/MWh (Fig 2)"),
+    ("Fig3_NegHours / Fig3_CumNeg",
+     "Negative-price hours per year / cumulative near-negative hours through the year (Fig 3)"),
+    ("Fig4_Duration", "Price duration curves by year (Fig 4)"),
+    ("Fig5_Capture / Fig5_Capture_abs",
+     "Capture price vs baseload by technology - % vs base / absolute EUR/MWh (Fig 5)"),
+    ("Fig6_MinMax", "Daily min/max price, latest complete year (Fig 6)"),
+    ("Fig7_GenMix", "Intraday generation mix, Portugal (Fig 7)"),
+    ("Fig9_Capacity", "Installed generation capacity by technology (Fig 9)"),
+    ("A_MonthPrice / B_Penetration / C_CaptureErosion / D_NetloadDuck",
+     "Monthly market-state exhibits: baseload price by market / wind+solar penetration / "
+     "DE capture erosion / DE net-load duck"),
+    ("G1_SolarPeak / G2_MonthDuck",
+     "Solar share of the peak-price hour / Germany price-by-month duck curves"),
+    ("CaptureMonthly / CaptureMonthlyExtra",
+     "Monthly capture price per country and technology. Two tabs because CaptureMonthly's "
+     "table is fixed at the original five countries; later markets load to the Extra tab"),
+    ("CaptureVsBase",
+     "Capture minus base (diff) and capture as % of base, per country and technology, "
+     "monthly, plus the w1..w8 blocks the monthly charts read. All formulas, no query"),
+    ("HydroWindow",
+     "Weekly hydro reservoir fill by zone (TWh): the historic min and range that form the "
+     "shaded band, the long-run average, and the rolling year slots drawn over it"),
+    ("Fig5_Window / Fig9_Window / Line_Window",
+     "Rolling-window copies the charts read: fixed column positions whose meaning advances "
+     "each January, so charts roll on refresh without a rebuild"),
+    ("Country codes",
+     "DE Germany, ES Spain, PT Portugal, FR France, IT Italy, GB United Kingdom "
+     "(Ge/Sp/Po/Fr/It in Line_Window's f1_/f3_ columns)"),
+    ("DE_2019, ES_w4, ...",
+     "country_year = that country's value for that calendar year; country_wN = rolling "
+     "window slot N"),
+    ("w1..w7, w8",
+     "Rolling year slots: w1 = oldest of the last seven complete years, w7 = latest "
+     "complete year, w8 = current year to date"),
+    ("Line_Window prefixes",
+     "i_ intraday indexed, a_ intraday absolute, c_ cumulative near-negative hours, "
+     "d_ duration curve, n_ net-load duck, f1_/f3_ Fig1/Fig3 annual stats, mm_ daily "
+     "min/max, gm_ Portugal gen mix, md_ Germany monthly duck"),
+    ("Hydro zone codes",
+     "FR ES PT IT, NO plus NO1..NO5, SE, FI, AT, CH. DEpump/GBpump are pumped-storage "
+     "generation, NOT reservoir level: Germany and Great Britain publish no reservoir series"),
+]
+
+WHERE_FROM_ROWS = [
+    ("WHERE EACH COUNTRY'S DATA COMES FROM", ""),
+    ("DE, ES, PT, FR, IT", "ENTSO-E Transparency Platform, day-ahead auction prices."),
+    ("GB (United Kingdom)",
+     "Elexon Insights (generation, load), ECB (GBP/EUR), DESNZ DUKES 5.12.A (capacity). "
+     "Great Britain stopped publishing to ENTSO-E on 15 June 2021 under the post-Brexit "
+     "Trade and Cooperation Agreement."),
+    ("GB price basis - READ THIS BEFORE COMPARING",
+     "The GB price is the Elexon market index (APX): a within-day index near gate "
+     "closure, NOT a day-ahead auction like the other five. N2EX, the true GB day-ahead "
+     "benchmark, is not available without a paid subscription."),
+    ("GB known gap",
+     "Elexon's generation-by-type series is ~87% complete for 2022 (86 days absent at "
+     "source). Every other GB year is 94% or better."),
+    ("Hydro reservoir", "ENTSO-E weekly water reservoirs and hydro storage (A72)."),
+]
+
+PLANNED_ROWS = [
+    ("PLANNED ADDITIONS - not built yet", ""),
+    ("Hydrogen (via ENTSO-E)", "all relevant metrics and charts"),
+    ("Battery data", "all relevant metrics and charts"),
+    ("Battery + solar combined",
+     "all relevant metrics and charts (as in the original volatility capture charts)"),
 ]
 
 M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -291,6 +370,17 @@ def sheet_xml(styleids: dict, urlmap) -> str:
         put(row, "A", tab, "plain")
         put(row, "B", url, "plain")
         row += 1
+
+    # The three reference blocks. A section head is the row whose second cell is empty,
+    # and it takes the label style so it reads as a heading rather than as another entry.
+    for block in (NAMING_ROWS, WHERE_FROM_ROWS, PLANNED_ROWS):
+        row += 1                                  # one blank row between blocks
+        for left, right in block:
+            style = "label" if right == "" else "plain"
+            put(row, "A", left, style)
+            if right:
+                put(row, "B", right, "plain")
+            row += 1
 
     body = ""
     for r in sorted(cells):

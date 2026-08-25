@@ -1,6 +1,15 @@
 # Chart styling pipeline (Redburn look) — how it's built & maintained
 
-The delivered workbook's 9 charts are native Excel charts (so they auto-update on
+**Chart count, as of 2026-08-25: 89.** Nineteen from the original chain described below, then
+70 added by `add_extra_charts.py` — the per-country capture, capacity, intraday and
+cumulative-negative variants, 37 monthly capture-by-technology exhibits reading the generated
+`CaptureVsBase` tab, and 16 weekly hydro reservoir bands. `check_consistency.py` derives the
+expected total from the same lists those are built from, so adding a country or a charted
+technology moves the assertion with the build. Until that date the pipeline produced 19 while the
+workbook in circulation had 62, the difference having been added by hand in Excel and recorded
+nowhere.
+
+The delivered workbook's original 9 charts are native Excel charts (so they auto-update on
 Power-Query refresh and drive PowerPoint links). They are styled to the Redburn
 house look by editing ONLY the chart XML inside the .xlsx — Power Query is never
 touched. **openpyxl is never used to save a query file** (it would strip PQ).
