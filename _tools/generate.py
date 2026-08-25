@@ -135,6 +135,10 @@ def main():
     run("bake_frozen_values.py")
     run("build_deck.py", TEMPLATE, os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData.pptx"))
     # guard
+    # THE FIXTURES FIRST, as with the stability guard. opc_validate's schema checks were
+    # added after a CI run died at the Windows validate leg on faults every local check
+    # had passed; they are worth what the evidence that they still fire is worth.
+    run("opc_validate_fixtures.py")
     run("opc_validate.py")        # package joins: content-types, rel types, chart caches
     run("check_chart_quality.py")  # presentation faults that used to need a human to spot
     # Does the chart captioned "X" actually plot X's data? Every other guard here is

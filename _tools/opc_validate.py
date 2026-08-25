@@ -152,6 +152,48 @@ def validate(path: str) -> list[str]:
             errs.append(f"{n}: {bad} chart reference(s) put <c:extLst> before <c:f> — "
                         f"Excel tolerates it but the Open XML schema does not, so this "
                         f"passes every check here and fails the Windows validate leg")
+
+    # THE SAME CLASS, GENERALISED. The extLst fault above is one instance of a rule that
+    # holds throughout DrawingML: these elements are schema SEQUENCES, so their children
+    # must appear in a fixed order. Excel reads them in any order and renders correctly,
+    # which is exactly why this survives every local check and every human looking at the
+    # file. restyle_charts already carries the authoritative orders, because it has to
+    # INSERT into these elements correctly; reusing them here means the checker and the
+    # writer cannot disagree about what the order is.
+    #
+    # Deliberately conservative: an element is only flagged when TWO of its children are
+    # both known to the order list and appear the wrong way round. An unrecognised child
+    # is skipped rather than guessed at, so this reports faults instead of noise.
+    try:
+        import restyle_charts as _rs
+        ORDERS = {"chartSpace": _rs.ORDER_SPACE, "chart": _rs.ORDER_CHART,
+                  "legend": _rs.ORDER_LEGEND, "valAx": _rs.ORDER_AXIS,
+                  "catAx": _rs.ORDER_AXIS, "dateAx": _rs.ORDER_AXIS,
+                  "serAx": _rs.ORDER_AXIS}
+        from lxml import etree as _et
+    except Exception:                                  # noqa: BLE001
+        ORDERS = None
+    if ORDERS:
+        for n in names:
+            if not re.match(r"xl/charts/chart\d+\.xml$", n):
+                continue
+            try:
+                root = _et.fromstring(z.read(n))
+            except Exception:                          # noqa: BLE001
+                continue
+            for el in root.iter():
+                ln = _et.QName(el).localname
+                order = ORDERS.get(ln)
+                if not order:
+                    continue
+                seen = [(_et.QName(c).localname, i) for i, c in enumerate(el)
+                        if _et.QName(c).localname in order]
+                for (a, _), (b, _) in zip(seen, seen[1:]):
+                    if order.index(a) > order.index(b):
+                        errs.append(f"{n}: inside <c:{ln}>, <c:{a}> precedes <c:{b}> but "
+                                    f"the schema orders them the other way — Excel "
+                                    f"renders it, the Open XML validator rejects it")
+                        break
     return errs
 
 
