@@ -301,6 +301,28 @@ def _strip_caches(xml):
     return xml
 
 
+def _strip_user_shapes(xml):
+    """Remove the <c:userShapes> reference from a cloned chart.
+
+    THE FAULT THIS FIXES, found by opening the file in Excel on 2026-08-25. Every chart
+    in the source workbook carries <c:userShapes r:id="rId1"/>, pointing through its own
+    .rels file at a chart-drawing part. Cloning the chart XML without also copying that
+    rels file leaves the reference dangling, and Excel answers a dangling relationship
+    with "We found a problem with some content ... do you want us to try to recover",
+    which is the one outcome this project treats as unacceptable because recovering
+    strips Power Query.
+
+    Every structural check passed on that file: the XML was well-formed, every part was
+    declared in [Content_Types].xml, the package joins were consistent and the chart
+    ranges were in bounds. None of them looked INSIDE a chart part for a relationship id
+    and asked whether it resolved. opc_validate.py now does.
+
+    Stripping rather than copying, because these overlays are empty — no shapes, no text
+    runs, just a zero-size anchor left behind by Excel's editor. Nothing visible is lost.
+    """
+    return re.sub(r"<c:userShapes[^>]*/>", "", xml)
+
+
 def _repoint(xml, mapping):
     """Rewrite every <c:f> reference through `mapping` (old -> new)."""
     def repl(m):
@@ -330,7 +352,7 @@ def build_monthly_chart(template_xml, country, tech, index):
     for i, ot in enumerate(old_tx):
         if i < len(SERIES_NAME_CELLS):
             mapping[ot] = SERIES_NAME_CELLS[i]
-    return _strip_caches(_repoint(xml, mapping))
+    return _strip_user_shapes(_strip_caches(_repoint(xml, mapping)))
 
 
 # ---------------------------------------------------------------------------
@@ -387,10 +409,26 @@ def _country_letter_map(stem, src, dst):
 
 
 def build_country_variant(template_xml, stem, src, dst):
-    """Repoint every reference in a chart from one country's columns to another's."""
+    """Repoint every reference in a chart from one country's columns to another's.
+
+    THIS FUNCTION FAILED SILENTLY AND SHIPPED FOUR WRONG CHARTS (found by review,
+    2026-08-25). The substitution pattern was written `r'\\$([A-Z]{1,3})\\$'`, which in a
+    raw string is a literal backslash followed by a dollar — a sequence that never occurs
+    in an Excel reference. So every reference passed through untouched, and four charts
+    captioned "United Kingdom" were emitted plotting Spain's and France's columns. The
+    letter map was correct; only the rewrite was dead, which is why checking the map
+    looked like checking the function.
+
+    Nothing caught it. The package was valid, the chart count was right, the ranges were
+    in bounds, no column had moved, and the deck matched its spec. Wrong data under a
+    right title is invisible to every positional check, which is why this now VERIFIES
+    ITS OWN WORK and raises rather than returning a chart it failed to repoint.
+    """
     letters = _country_letter_map(stem, src, dst)
     if not letters:
-        return None
+        raise SystemExit(
+            f"build_country_variant: no {src} -> {dst} column mapping for {stem}. "
+            f"Refusing to emit a chart that would carry {src}'s data under a {dst} label.")
 
     def repl(m):
         ref = m.group(1)
@@ -398,14 +436,29 @@ def build_country_variant(template_xml, stem, src, dst):
         # ("(Sheet!$W$2:$W$7,Sheet!$W$9)") without having to parse them apart.
         def one(mm):
             return f"${letters.get(mm.group(1), mm.group(1))}$"
-        return f"<c:f>{re.sub(r'\\$([A-Z]{1,3})\\$', one, ref)}</c:f>"
+        return f"<c:f>{re.sub(r'\$([A-Z]{1,3})\$', one, ref)}</c:f>"
 
     xml = re.sub(r"<c:f>([^<]+)</c:f>", repl, template_xml)
+
+    # A repointed chart MUST differ from the one it was cloned from, and must no longer
+    # mention any source-country column. Both halves matter: the first catches a dead
+    # substitution, the second catches a partial one that moved some references and left
+    # others pointing at the country whose chart this used to be.
+    if xml == template_xml:
+        raise SystemExit(
+            f"build_country_variant: repointing {src} -> {dst} on {stem} changed nothing. "
+            f"The chart would have shipped as {src}'s data under a {dst} label.")
+    leftover = sorted({c for c in letters
+                       if re.search(rf"\${c}\$\d", xml)})
+    if leftover:
+        raise SystemExit(
+            f"build_country_variant: {src} -> {dst} on {stem} left column(s) "
+            f"{', '.join(leftover)} still pointing at {src}.")
     mapping = {}
     for i, ot in enumerate(re.findall(r"<c:tx><c:strRef><c:f>([^<]+)</c:f>", xml)):
         if i < len(SERIES_NAME_CELLS):
             mapping[ot] = SERIES_NAME_CELLS[i]
-    return _strip_caches(_repoint(xml, mapping))
+    return _strip_user_shapes(_strip_caches(_repoint(xml, mapping)))
 
 
 # ---------------------------------------------------------------------------
@@ -490,7 +543,7 @@ def build_hydro_chart(template_xml, label, hcols):
     for i, slot in enumerate(HYDRO_LINE_SLOTS):
         ot = old_tx[2 + i]
         mapping[ot] = f"Status!${get_column_letter(6 + slot)}$2"
-    return _strip_caches(_repoint(xml, mapping))
+    return _strip_user_shapes(_strip_caches(_repoint(xml, mapping)))
 
 
 def _hydro_columns():
@@ -522,6 +575,86 @@ def empty_sheet_xml():
         '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" '
         'header="0.3" footer="0.3"/>'
         '</worksheet>').encode("utf-8")
+
+
+# The five CROSS-MARKET charts: one series per country, so a sixth market means a sixth
+# series rather than a new chart. They were missed when GB was added everywhere else,
+# because "add a country" had meant "add a column block" up to that point.
+#
+# (chart part, sheet, GB's column, first/last data row, the caption's country name)
+CROSS_MARKET_SERIES = [
+    ("chart1.xml", "Line_Window", "f1_GB_w", 2, 8),
+    ("chart3.xml", "Line_Window", "f3_GB_w", 2, 8),
+    ("chart14.xml", "G1_SolarPeak", "GB_qavg", 2, 6210),
+    ("chart16.xml", "A_MonthPrice", "GB", 2, 205),
+    ("chart17.xml", "B_Penetration", "GB", 2, 205),
+]
+
+# Country colours in this workbook are 1F3864, 8A1E41, CC9F53, 2E7D8A and 3D664A. TEAL
+# from the Redburn palette is unused and distinct from all five.
+SIXTH_COUNTRY_COLOUR = "5FA1AD"
+
+
+def _sheet_column(sheet, header_name):
+    """1-based column of a named header on a query-loaded tab."""
+    stem = {"Line_Window": "line_windows", "G1_SolarPeak": "g1_solar_peakhour",
+            "A_MonthPrice": "figA_monthly_price",
+            "B_Penetration": "figB_penetration"}[sheet]
+    import csv as _csv
+    for base in (os.path.join(cfg.OUTPUT_DIR, "csv", "charts"),
+                 os.path.join(ROOT, "published", "charts")):
+        f = os.path.join(base, f"{stem}.csv")
+        if os.path.exists(f):
+            with open(f, newline="", encoding="utf-8") as fh:
+                hdr = next(_csv.reader(fh))
+            if header_name in hdr:
+                return hdr.index(header_name) + 1
+    return None
+
+
+def append_country_series(parts, part_name, sheet, header_name, r0, r1, label):
+    """Add one more country series to a cross-market chart, by cloning the last one.
+
+    Cloning rather than composing, so the new series inherits the chart's own idiom —
+    marker settings, smoothing, axis ids, the lot — and only the things that must differ
+    are changed: which column it reads, what it is called, and its colour.
+    """
+    path = f"xl/charts/{part_name}"
+    if path not in parts:
+        return f"{part_name}: not in the workbook"
+    xml = parts[path].decode()
+    col = _sheet_column(sheet, header_name)
+    if col is None:
+        return f"{part_name}: {sheet} has no column named {header_name!r}"
+    letter = get_column_letter(col)
+    ref = f"{sheet}!${letter}${r0}:${letter}${r1}"
+    if ref in xml:
+        return None                                   # already added; idempotent re-run
+
+    sers = re.findall(r"<c:ser>.*?</c:ser>", xml, re.S)
+    if not sers:
+        return f"{part_name}: no series to clone"
+    clone = sers[-1]
+    n = len(sers)
+
+    new = re.sub(r'<c:idx val="\d+"/>', f'<c:idx val="{n}"/>', clone, count=1)
+    new = re.sub(r'<c:order val="\d+"/>', f'<c:order val="{n}"/>', new, count=1)
+    new = re.sub(r"(<c:val><c:numRef><c:f>)[^<]+(</c:f>)", rf"\g<1>{ref}\g<2>", new, count=1)
+    # The series NAME is a literal, matching every other series on these charts. That is
+    # the project's own idiom (CHARTS.md): a name read from a cell can be reverted by a
+    # Power Query refresh, a literal cannot.
+    new = re.sub(r"<c:tx>.*?</c:tx>", f"<c:tx><c:v>{_esc(label)}</c:v></c:tx>",
+                 new, count=1, flags=re.S)
+    new = re.sub(r'<a:srgbClr val="[0-9A-Fa-f]{6}"/>',
+                 f'<a:srgbClr val="{SIXTH_COUNTRY_COLOUR}"/>', new)
+    new = _strip_caches(new)
+    # A cloned series keeps the uniqueId of the one it came from, and two series sharing
+    # one is a duplicate identity Excel objects to.
+    new = re.sub(r'<c:extLst>.*?</c:extLst>', "", new, flags=re.S)
+
+    xml = xml.replace(clone, clone + new, 1)
+    parts[path] = xml.encode()
+    return None
 
 
 def _next_chart_num(parts):
@@ -628,7 +761,7 @@ def add_charts(parts, order, tparts, charts_part, index):
             for i, ot in enumerate(re.findall(r"<c:tx><c:strRef><c:f>([^<]+)</c:f>", xml)):
                 if i < len(SERIES_NAME_CELLS):
                     mapping[ot] = SERIES_NAME_CELLS[i]
-            xml = _repoint(xml, mapping)
+            xml = _strip_user_shapes(_repoint(xml, mapping))
         elif kind == "variant":
             xml = build_country_variant(
                 tparts[f"xl/charts/chart{tnum}.xml"].decode(), country, tech, "GB")
@@ -688,6 +821,22 @@ def main():
     tparts, _ = read_parts(TEMPLATE)
     charts_part = sheet_part_for(parts, "Charts")
     added = add_charts(parts, order, tparts, charts_part, index)
+
+    # The cross-market charts gain a SERIES rather than a chart, one per market beyond
+    # the original five. Failing loudly here rather than skipping: a cross-market chart
+    # quietly missing a country is the fault this whole block exists to correct.
+    for code in cfg.COUNTRY_ORDER:
+        if code in cfg.LEGACY_CSV_COUNTRIES:
+            continue
+        label = cfg.COUNTRIES[code]["name"]
+        for part_name, sheet, header, r0, r1 in CROSS_MARKET_SERIES:
+            header = header.replace("GB", code)
+            problem = append_country_series(parts, part_name, sheet, header,
+                                            r0, r1, label)
+            if problem:
+                raise SystemExit(f"cross-market series ({label}): {problem}")
+        print(f"added a {label} series to {len(CROSS_MARKET_SERIES)} cross-market chart(s)",
+              flush=True)
 
     write_parts(WB, parts, order)
     print(f"added {SHEET_NAME} ({len(hdr)} columns, {len(cvb.MONTHS)} months) -> {part}",

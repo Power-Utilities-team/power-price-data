@@ -102,10 +102,16 @@ def save_extra(df, index_col, value_col, index_vals, name):
 # --- Fig 1: price SD, rows=year, cols=country -------------------------------
 def fig1():
     df = load("price_sd").set_index(["country", "year"])["sd"]
-    out = pd.DataFrame({"year": YRS})
-    for c in LEGACY:
-        out[cfg.COUNTRIES[c]["name"]] = [df.get((c, y), np.nan) for y in YRS]
-    save(out.round(2), "fig1_price_sd")
+
+    def frame(countries):
+        f = pd.DataFrame({"year": YRS})
+        for c in countries:
+            f[cfg.COUNTRIES[c]["name"]] = [df.get((c, y), np.nan) for y in YRS]
+        return f
+
+    save(frame(LEGACY).round(2), "fig1_price_sd")
+    if EXTRA:
+        save(frame(EXTRA).round(2), "fig1_price_sd_extra")
 
 # --- Fig 2: indexed & avg intraday price, rows=hour, cols=country_year ------
 def fig2():
@@ -117,12 +123,18 @@ def fig2():
 # --- Fig 3: neg-hour totals (year x country) + cumulative (doy x cy) --------
 def fig3():
     n = load("neg_hours").set_index(["country", "year"])
-    out = pd.DataFrame({"year": YRS})
-    for c in LEGACY:
-        out[f"{cfg.COUNTRIES[c]['name']}_neg"] = [n["neg_hours"].get((c, y), np.nan) for y in YRS]
-    for c in LEGACY:
-        out[f"{cfg.COUNTRIES[c]['name']}_nearneg"] = [n["near_neg_hours"].get((c, y), np.nan) for y in YRS]
-    save(out, "fig3_neg_hours_annual")
+
+    def frame(countries):
+        f = pd.DataFrame({"year": YRS})
+        for c in countries:
+            f[f"{cfg.COUNTRIES[c]['name']}_neg"] = [n["neg_hours"].get((c, y), np.nan) for y in YRS]
+        for c in countries:
+            f[f"{cfg.COUNTRIES[c]['name']}_nearneg"] = [n["near_neg_hours"].get((c, y), np.nan) for y in YRS]
+        return f
+
+    save(frame(LEGACY), "fig3_neg_hours_annual")
+    if EXTRA:
+        save(frame(EXTRA), "fig3_neg_hours_annual_extra")
     cum = load("cum_neghours")
     save(_pivot(cum, "doy", "cum_near_neg", list(range(1, 367))), "fig3_cum_near_neg")
     save_extra(cum, "doy", "cum_near_neg", list(range(1, 367)), "fig3_cum_near_neg")

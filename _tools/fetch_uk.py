@@ -367,10 +367,18 @@ def fetch_capacity(years, force):
         return
     import openpyxl
     local = os.path.join(cfg.RAW_DIR, "DUKES_5.12.xlsx")
-    r = requests.get(DUKES_512, timeout=HTTP_TIMEOUT)
+    # RAISE, DO NOT RETURN. This URL embeds a content hash that DESNZ rotates every time
+    # it re-issues DUKES, so it WILL stop resolving, probably at the next annual release.
+    # Logging and returning meant GB installed capacity would quietly freeze at its last
+    # stored year: check_coverage sees no shrink (the old parquet is still there), the
+    # chart keeps drawing, and nothing anywhere says the series stopped advancing. A
+    # source that has moved is news on the day it moves.
+    r = _get(DUKES_512, {}, accept="*/*")
     if r.status_code != 200:
-        log(f"   capacity: DUKES download HTTP {r.status_code} — not written")
-        return
+        raise RuntimeError(
+            f"DUKES capacity download failed: HTTP {r.status_code} for {DUKES_512}. "
+            f"The gov.uk media id rotates on re-issue — find the current DUKES 5.12 "
+            f"link from the electricity chapter page and update DUKES_512.")
     with open(local, "wb") as f:
         f.write(r.content)
     ws = openpyxl.load_workbook(local, data_only=True)["5.12"]
@@ -383,8 +391,9 @@ def fetch_capacity(years, force):
             hdr = row
             break
     if hdr is None:
-        log("   capacity: could not find the 5.12.A header row — not written")
-        return
+        raise RuntimeError(
+            "DUKES 5.12: could not find the 'Network type' header row. The workbook's "
+            "layout has changed; re-read it before trusting any capacity figure.")
     year_col = {}
     for c in range(3, ws.max_column + 1):
         v = ws.cell(hdr, c).value

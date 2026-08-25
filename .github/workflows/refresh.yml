@@ -300,6 +300,9 @@ jobs:
         run: |
           python check_reference_stability_fixtures.py
           python check_reference_stability.py
+          # The two halves of every split table must reach the same period: they come
+          # from different sources, so one can stall while the other keeps publishing.
+          python check_split_parity.py
 
       - name: Publish CSVs to /published
         run: |
@@ -520,7 +523,11 @@ jobs:
   # failing schedule leaves a single thread with a comment per run, not forty issues.
   notify:
     needs: [fetch, build, validate, publish]
-    if: failure()
+    # cancelled() as well as failure(): GitHub's failure() is FALSE for a
+    # cancelled run, so a cancellation opened no issue and wrote no health
+    # record, and the status page went stale on age alone — the exact
+    # blindness the health record exists to remove.
+    if: failure() || cancelled()
     runs-on: ubuntu-latest
     permissions:
       issues: write

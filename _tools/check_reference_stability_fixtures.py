@@ -38,7 +38,9 @@ for label, new_rows in cases.items():
         write(os.path.join(n,"fig5_capture_window.csv"), new_rows)
     else:
         os.makedirs(n, exist_ok=True)
-    g.BASELINE, g.NEW = b, n
+    # Point the guard at the fixture dirs and switch OFF the git baseline, or it
+    # would compare the fixture against the real repository and prove nothing.
+    g.BASELINE, g.NEW, g.USE_GIT_BASELINE = b, n, False
     errs = g.check()
     verdict = "PASS" if not errs else "FAIL"
     expect = "PASS" if label in ("identical","appended column","appended row") else "FAIL"

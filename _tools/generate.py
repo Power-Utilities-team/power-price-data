@@ -61,6 +61,10 @@ def main():
         # Weekly reservoir levels: a different ENTSO-E endpoint (A72), a stock rather
         # than a flow, so it never joins the hourly master and has its own summary step.
         run("fetch_hydro.py")
+        # At the January rollover, fold the completed year into the frozen history first,
+        # or the incremental build silently loses it. CI has always done this; a local run
+        # did not, which is two specifications of one pipeline.
+        run("build_hourly.py", "--absorb-prior-year")
         run("build_hourly.py")
         run("summaries.py")
         # chart_csv BEFORE extra_summaries, corrected 2026-08-25. extra_summaries ends by
@@ -70,6 +74,7 @@ def main():
         # they did: a newly added country's columns did not exist in last run's CSVs, so
         # its window came out empty and its charts drew nothing, with every downstream
         # check passing because the columns were present and the right width.
+        run("export_csv.py")          # tidy/long CSVs, the published/ root set
         run("chart_csv.py")
         run("extra_summaries.py")
         run("summarise_hydro.py")
@@ -86,6 +91,14 @@ def main():
         # its right while leaving a perfectly valid file that every other check passes.
         # Runs BEFORE the copy, while published/ still holds the good baseline.
         run("check_reference_stability.py")
+        # And refuse to publish a SHORTER series. check_coverage ran only in CI until
+        # 2026-08-25, so a local --fresh run could and did overwrite the tracked baseline
+        # with a month less data while every local check passed.
+        run("check_coverage.py")
+        # The legacy five and the "_extra" sixth come from different sources with
+        # independent failure modes, so they can drift apart while both stay individually
+        # valid. Nothing else compares them to each other.
+        run("check_split_parity.py")
         publish_local_csvs()
     # static path (fresh data)
     run("render_all.py")
@@ -112,10 +125,17 @@ def main():
     # Running it earlier meant consuming the PREVIOUS run's workbook (and failing outright
     # on a clean checkout, e.g. in CI).
     run("build_frozen_excel.py", os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData_frozen.xlsx"))
+    # build_frozen_excel hardcodes the query tabs; this removes the remaining dependence
+    # on a reader whose Excel recalculates, which is what "self-contained" has to mean.
+    run("bake_frozen_values.py")
     run("build_deck.py", TEMPLATE, os.path.join(OUT, "HourlyPowerData.xlsx"), os.path.join(OUT, "HourlyPowerData.pptx"))
     # guard
     run("opc_validate.py")        # package joins: content-types, rel types, chart caches
     run("check_chart_quality.py")  # presentation faults that used to need a human to spot
+    # Does the chart captioned "X" actually plot X's data? Every other guard here is
+    # positional; this is the only one that asks what a chart MEANS, and it exists
+    # because four charts captioned "United Kingdom" shipped plotting Spain and France.
+    run("check_chart_captions.py")
     run("check_consistency.py")
 
     if DELIVER:

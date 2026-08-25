@@ -99,7 +99,12 @@ COUNTRIES = {
     # from ENTSO-E (the counterparty TSO publishes each border), and because the stored
     # price file is named price_<zone> like everyone else's.
     "GB": {
-        "name": "United Kingdom",
+        # GREAT BRITAIN, not the United Kingdom. Every GB source here excludes Northern
+        # Ireland: DUKES 5.12.A puts NI in its own table 5.12.B, and Elexon's price, load
+        # and generation are all GB-only. Labelling it "United Kingdom" would re-import
+        # the exact Northern Ireland confusion fetch_uk.py's header warns about, through
+        # the caption instead of the domain code. Renamed 2026-08-25 after review.
+        "name": "Great Britain",
         "code": "GB",
         "price_zones": ["GB"],
         "tz": "Europe/London",

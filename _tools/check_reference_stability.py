@@ -43,6 +43,17 @@ import config as cfg
 NEW = os.path.join(cfg.OUTPUT_DIR, "csv", "charts")
 BASELINE = os.path.join(cfg.ROOT, "published", "charts")
 
+# THE BASELINE IS GIT HEAD, NOT THE WORKING TREE. published/ is a tracked directory that
+# a local `generate.py --fresh` overwrites in place, so comparing against it compares the
+# new build with a copy of itself and passes anything. That is not hypothetical: on
+# 2026-08-25 a change inserted a column mid-table and shifted 132 others, and this guard
+# passed it, because an earlier local publish had already replaced the baseline. The
+# committed copy is the one every workbook in the wild actually loads.
+USE_GIT_BASELINE = True
+
+# filename -> which published/ subdirectory it lives in ("" = the root set)
+_WHERE = {}
+
 # Files whose first column is a ROW LABEL that charts address by position (a technology
 # name, a month, a week). For these the row identity is checked as well as the columns.
 ROW_ADDRESSED = {
@@ -50,25 +61,73 @@ ROW_ADDRESSED = {
     "fig9_capacity.csv", "fig9_capacity_window.csv",
     "capture_monthly.csv", "capture_monthly_extra.csv",
     "line_windows.csv", "hydro_window.csv", "hydro_reservoir.csv",
+    # Added 2026-08-25 after review: these have a positional first column too (hour,
+    # percentile, day-of-year, month, date) that charts address by row number, so a
+    # leap-year or timezone shift would move them and pass unnoticed.
+    "fig2_intraday_indexed.csv", "fig2_intraday_avg.csv", "fig4_duration_curve.csv",
+    "fig6_daily_minmax.csv", "fig7_gen_mix.csv", "figA_monthly_price.csv",
+    "figB_penetration.csv", "figC_capture_erosion.csv", "figD_netload_duck.csv",
+    "fig1_price_sd.csv", "fig3_neg_hours_annual.csv", "fig3_cum_near_neg.csv",
 }
 
 
-def _read(path):
-    with open(path, newline="", encoding="utf-8") as f:
-        rows = list(csv.reader(f))
+def _read_rows(text):
+    rows = list(csv.reader(text.splitlines()))
     return (rows[0] if rows else []), [r[0] if r else "" for r in rows]
 
 
+def _read(path):
+    with open(path, encoding="utf-8") as f:
+        return _read_rows(f.read())
+
+
+def _git_baseline():
+    """{filename: text} for published/charts at HEAD, or None if git cannot answer."""
+    import subprocess
+    try:
+        listing = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", "HEAD", "published/"],
+            cwd=cfg.ROOT, capture_output=True, text=True, check=True).stdout.split()
+    except Exception:                             # noqa: BLE001 - not a git checkout
+        return None
+    out = {}
+    for path in listing:
+        if not path.endswith(".csv"):
+            continue
+        _WHERE[os.path.basename(path)] = "charts" if "/charts/" in path else ""
+        try:
+            out[os.path.basename(path)] = subprocess.run(
+                ["git", "show", f"HEAD:{path}"], cwd=cfg.ROOT,
+                capture_output=True, text=True, check=True).stdout
+        except Exception:                         # noqa: BLE001
+            continue
+    return out
+
+
 def check():
-    if not os.path.isdir(BASELINE):
+    git = _git_baseline() if USE_GIT_BASELINE else None
+    if git:
+        source, names = "git HEAD", sorted(git)
+    elif os.path.isdir(BASELINE):
+        source = "the working tree (git baseline unavailable — a local publish may " \
+                 "already have overwritten it)"
+        names = sorted(n for n in os.listdir(BASELINE) if n.endswith(".csv"))
+    else:
         print("no published baseline yet — nothing to compare against", flush=True)
         return []
     errs = []
     compared = widened = 0
-    for name in sorted(os.listdir(BASELINE)):
+    for name in names:
         if not name.endswith(".csv"):
             continue
-        base_p, new_p = os.path.join(BASELINE, name), os.path.join(NEW, name)
+        # published/ has two levels: charts/ (what the workbook loads) and a root set of
+        # tidy long-form CSVs. Both are served over the network, so both are guarded —
+        # the root ten were unchecked until 2026-08-25.
+        sub = _WHERE.get(name, "charts")
+        base_p = os.path.join(cfg.ROOT, "published", sub, name) if sub else \
+            os.path.join(cfg.ROOT, "published", name)
+        new_p = os.path.join(cfg.OUTPUT_DIR, "csv", sub, name) if sub else \
+            os.path.join(cfg.OUTPUT_DIR, "csv", name)
         if not os.path.exists(new_p):
             # A published file the build no longer produces would be left stale on the
             # raw-URL surface for ever, still being loaded by every workbook in the wild.
@@ -76,7 +135,7 @@ def check():
                         f"would keep being served to every open workbook")
             continue
         compared += 1
-        bh, bcol0 = _read(base_p)
+        bh, bcol0 = _read_rows(git[name]) if git else _read(base_p)
         nh, ncol0 = _read(new_p)
 
         for i, col in enumerate(bh):
@@ -101,7 +160,7 @@ def check():
                                 f"{ncol0[i]!r} — a chart addressing that row now reads "
                                 f"a different one")
                     break
-    print(f"reference stability: compared {compared} published file(s), "
+    print(f"reference stability: compared {compared} file(s) against {source}, "
           f"{widened} widened by appending", flush=True)
     return errs
 

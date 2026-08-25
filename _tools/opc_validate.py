@@ -102,6 +102,37 @@ def validate(path: str) -> list[str]:
             if declared > 0 and actual == 0:
                 errs.append(f"{n}: a cache declares ptCount={declared} but contains no "
                             f"<c:pt> — Excel will offer Recover")
+
+    # EVERY r:id INSIDE A PART MUST RESOLVE IN THAT PART'S OWN .rels.
+    #
+    # Added 2026-08-25, after a build shipped 65 charts each carrying
+    # <c:userShapes r:id="rId1"/> with no chart .rels file at all. Excel answered with
+    # "We found a problem with some content ... recover?", and recovering strips Power
+    # Query. Every check in this file passed: the XML was well-formed, every part was
+    # declared in [Content_Types].xml, and the package-level joins were consistent —
+    # because nothing looked INSIDE a part for a relationship id and asked whether the
+    # part it points at exists. A reference to a part that is not there is invisible from
+    # the outside and fatal from the inside.
+    for n in sorted(names):
+        if not n.endswith((".xml", ".rels")) or n.endswith(".rels"):
+            continue
+        try:
+            body = z.read(n).decode("utf-8", "replace")
+        except KeyError:
+            continue
+        used = set(re.findall(r'r:(?:id|embed|link|pict)="(rId\d+)"', body))
+        if not used:
+            continue
+        d, base = os.path.split(n)
+        relpath = f"{d}/_rels/{base}.rels"
+        have = set()
+        if relpath in names:
+            have = set(re.findall(r'Id="(rId\d+)"', z.read(relpath).decode("utf-8", "replace")))
+        missing = sorted(used - have)
+        if missing:
+            errs.append(f"{n}: relationship id(s) {', '.join(missing)} do not resolve"
+                        f"{' (no .rels file at all)' if relpath not in names else ''}"
+                        f" — Excel will offer Recover")
     return errs
 
 

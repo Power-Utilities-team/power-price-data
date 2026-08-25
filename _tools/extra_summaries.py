@@ -204,11 +204,32 @@ LINE_WINDOWS_APPEND = [
 # chart cannot see. This is exactly what Fred reported: typing into the 2027 row changes
 # nothing. Same window treatment, transposed: seven ROWS whose meaning rolls, plus a
 # column of year labels for the category axis.
+def _cat_key(name):
+    """The short token used in the f1_/f3_ column names.
+
+    Historically the first two letters of the display name ("Ge", "Sp", "Po", "Fr", "It").
+    "United Kingdom" would collide with nothing but reads as "Un", so it is named
+    explicitly. Existing keys are untouched: every chart addresses these by position.
+    """
+    return {"United Kingdom": "GB"}.get(name, name[:2])
+
+
 CATEGORY_WINDOWS = [
     ("fig1_price_sd",         "f1"),
     ("fig3_neg_hours_annual", "f3"),
 ]
-CATEGORY_COUNTRIES = ["Germany", "Spain", "Portugal", "France", "Italy"]
+# Every market, by display name. Derived from config rather than spelled out, because
+# this list being hardcoded at five is exactly why Great Britain was missing from the
+# price-volatility and negative-hours exhibits after it was added everywhere else.
+CATEGORY_COUNTRIES = [cfg.COUNTRIES[c]["name"] for c in cfg.COUNTRY_ORDER]
+
+# The five whose f1_/f3_ blocks occupy their ORIGINAL positions and must not move. Any
+# market added later is appended after every existing block, never slotted in beside its
+# neighbours: writing this loop over all six inserted f1_GB_w between f1_It_w and
+# f3_Ge_w, which shifted 132 columns and would have repointed every line chart in the
+# workbook. Caught 2026-08-25 by diffing against the committed baseline.
+CATEGORY_LEGACY = [cfg.COUNTRIES[c]["name"] for c in cfg.LEGACY_CSV_COUNTRIES]
+CATEGORY_EXTRA = [n for n in CATEGORY_COUNTRIES if n not in CATEGORY_LEGACY]
 
 # The three charts that plot a SINGLE year (the latest complete one) rather than a span
 # of years, so they need one rolling column each rather than a w1..w7 window.
@@ -257,15 +278,25 @@ def line_windows():
         if not os.path.exists(f):
             raise SystemExit(f"line_windows: {stem}.csv missing — build order changed?")
         src = pd.read_csv(f)
+        ef = os.path.join(OUT, f"{stem}_extra.csv")
+        extra = pd.read_csv(ef) if os.path.exists(ef) else pd.DataFrame()
         ycol = src.columns[0]
-        for country in CATEGORY_COUNTRIES:
+        for country in CATEGORY_LEGACY:
+            # The legacy file holds the original five; a later market's columns are in the
+            # companion "_extra" file, because these tabs are frozen at 86 columns.
+            frame = src
             col = country if country in src.columns else f"{country}_neg"
+            if col not in src.columns and not extra.empty:
+                frame = extra
+                col = country if country in extra.columns else f"{country}_neg"
             vals = [float("nan")] * nrows
-            if col in src.columns:
-                lut = dict(zip(src[ycol].astype(str), src[col]))
+            if col in frame.columns:
+                lut = dict(zip(frame[ycol].astype(str), frame[col]))
                 for i, y in enumerate(cfg_window):
                     vals[i] = lut.get(str(y), float("nan"))
-            out[f"{tag}_{country[:2]}_w"] = vals
+            elif country in CATEGORY_COUNTRIES:
+                print(f"  !! line_windows: {stem} has no column for {country}", flush=True)
+            out[f"{tag}_{_cat_key(country)}_w"] = vals
 
     for stem, countries, tag in LINE_WINDOWS:
         src = frames[stem]
@@ -344,6 +375,26 @@ def line_windows():
                 vals = frame[col].tolist() if col in frame.columns else []
                 vals = vals + [float("nan")] * (nrows - len(vals))
                 out[f"{tag}_{c}_w{i}"] = vals[:nrows]
+
+    # Category blocks for markets added after the original five. At the END of the whole
+    # table, after every LINE_WINDOWS_APPEND block, for the same append-only reason.
+    for stem, tag in CATEGORY_WINDOWS:
+        f = os.path.join(OUT, f"{stem}.csv")
+        ef = os.path.join(OUT, f"{stem}_extra.csv")
+        src = pd.read_csv(f) if os.path.exists(f) else pd.DataFrame()
+        extra = pd.read_csv(ef) if os.path.exists(ef) else pd.DataFrame()
+        ycol = src.columns[0] if not src.empty else "year"
+        for country in CATEGORY_EXTRA:
+            frame = extra if not extra.empty else src
+            col = country if country in frame.columns else f"{country}_neg"
+            vals = [float("nan")] * nrows
+            if col in frame.columns and ycol in frame.columns:
+                lut = dict(zip(frame[ycol].astype(str), frame[col]))
+                for i, y in enumerate(cfg_window):
+                    vals[i] = lut.get(str(y), float("nan"))
+            else:
+                print(f"  !! line_windows: {stem} has no column for {country}", flush=True)
+            out[f"{tag}_{_cat_key(country)}_w"] = vals
 
     # An all-empty window means the source frame never held that country: the chart
     # reading it draws nothing while every downstream check passes, because the column
