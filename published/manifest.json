@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-08-23T11:25:34Z",
+  "generated_utc": "2026-08-25T19:09:29Z",
   "tables": {
     "neg_hours": {
-      "rows": 40,
+      "rows": 48,
       "cols": [
         "country",
         "year",
@@ -14,7 +14,7 @@
       ]
     },
     "cum_neghours": {
-      "rows": 14640,
+      "rows": 17568,
       "cols": [
         "country",
         "year",
@@ -24,7 +24,7 @@
       ]
     },
     "intraday_price": {
-      "rows": 960,
+      "rows": 1152,
       "cols": [
         "country",
         "year",
@@ -34,7 +34,7 @@
       ]
     },
     "price_sd": {
-      "rows": 40,
+      "rows": 48,
       "cols": [
         "country",
         "year",
@@ -44,7 +44,7 @@
       ]
     },
     "duration_curve": {
-      "rows": 4040,
+      "rows": 4848,
       "cols": [
         "country",
         "year",
@@ -53,7 +53,7 @@
       ]
     },
     "daily_minmax": {
-      "rows": 13960,
+      "rows": 16764,
       "cols": [
         "country",
         "year",
@@ -65,7 +65,7 @@
       ]
     },
     "capture_monthly": {
-      "rows": 7820,
+      "rows": 9384,
       "cols": [
         "country",
         "year",
@@ -78,7 +78,7 @@
       ]
     },
     "capture_annual": {
-      "rows": 680,
+      "rows": 816,
       "cols": [
         "country",
         "year",
@@ -90,7 +90,7 @@
       ]
     },
     "intraday_genmix": {
-      "rows": 960,
+      "rows": 1152,
       "cols": [
         "country",
         "year",
@@ -120,7 +120,7 @@
       ]
     },
     "capacity": {
-      "rows": 646,
+      "rows": 730,
       "cols": [
         "country",
         "year",

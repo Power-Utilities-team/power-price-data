@@ -566,6 +566,90 @@ IT,2025,Solar,8922.0
 IT,2025,Waste,671.0
 IT,2025,Offshore wind,30.0
 IT,2025,Onshore wind,12233.0
+GB,2019,Hard coal,7323.49
+GB,2019,Oil & other fossil,1099.74
+GB,2019,Gas,34398.46
+GB,2019,Nuclear,8923.0
+GB,2019,Hydro run-of-river,1839.78
+GB,2019,Onshore wind,12649.65
+GB,2019,Offshore wind,9888.1
+GB,2019,Solar,13010.5
+GB,2019,Biomass,6293.67
+GB,2019,Other,951.83
+GB,2019,Hydro pumped (production),2900.0
+GB,2019,Marine,22.4
+GB,2020,Hard coal,5362.48
+GB,2020,Oil & other fossil,959.83
+GB,2020,Gas,34435.32
+GB,2020,Nuclear,8923.0
+GB,2020,Hydro run-of-river,1874.19
+GB,2020,Onshore wind,12720.91
+GB,2020,Offshore wind,10382.4
+GB,2020,Solar,13360.52
+GB,2020,Biomass,6315.18
+GB,2020,Other,853.08
+GB,2020,Hydro pumped (production),2900.0
+GB,2020,Marine,9.4
+GB,2021,Hard coal,5362.37
+GB,2021,Oil & other fossil,1031.77
+GB,2021,Gas,34172.99
+GB,2021,Nuclear,7833.0
+GB,2021,Hydro run-of-river,1879.09
+GB,2021,Onshore wind,13062.66
+GB,2021,Offshore wind,11255.68
+GB,2021,Solar,13830.52
+GB,2021,Biomass,6405.27
+GB,2021,Other,792.97
+GB,2021,Hydro pumped (production),2900.0
+GB,2021,Marine,9.4
+GB,2022,Hard coal,5353.12
+GB,2022,Oil & other fossil,1034.69
+GB,2022,Gas,34234.3
+GB,2022,Nuclear,5883.0
+GB,2022,Hydro run-of-river,1879.87
+GB,2022,Onshore wind,13409.83
+GB,2022,Offshore wind,13847.88
+GB,2022,Solar,14461.59
+GB,2022,Biomass,6485.19
+GB,2022,Other,798.37
+GB,2022,Hydro pumped (production),2900.0
+GB,2022,Marine,8.4
+GB,2023,Hard coal,2034.0
+GB,2023,Oil & other fossil,1101.84
+GB,2023,Gas,35357.1
+GB,2023,Nuclear,5883.0
+GB,2023,Hydro run-of-river,1884.72
+GB,2023,Onshore wind,14097.29
+GB,2023,Offshore wind,14734.88
+GB,2023,Solar,17202.7
+GB,2023,Biomass,6556.79
+GB,2023,Other,717.02
+GB,2023,Hydro pumped (production),2900.0
+GB,2023,Marine,10.1
+GB,2024,Hard coal,6.78
+GB,2024,Oil & other fossil,1088.95
+GB,2024,Gas,34872.49
+GB,2024,Nuclear,5883.0
+GB,2024,Hydro run-of-river,1884.72
+GB,2024,Onshore wind,14727.76
+GB,2024,Offshore wind,16139.88
+GB,2024,Solar,19047.24
+GB,2024,Biomass,6558.24
+GB,2024,Other,716.01
+GB,2024,Hydro pumped (production),2900.0
+GB,2024,Marine,10.17
+GB,2025,Hard coal,0.0
+GB,2025,Oil & other fossil,1089.15
+GB,2025,Gas,34891.33
+GB,2025,Nuclear,5883.0
+GB,2025,Hydro run-of-river,1884.42
+GB,2025,Onshore wind,14911.71
+GB,2025,Offshore wind,16649.88
+GB,2025,Solar,21517.08
+GB,2025,Biomass,6548.35
+GB,2025,Other,705.51
+GB,2025,Hydro pumped (production),2900.0
+GB,2025,Marine,10.17
 DE,2026,Biomass,8855.9
 DE,2026,Other,16056.28
 DE,2026,Lignite,14808.4
