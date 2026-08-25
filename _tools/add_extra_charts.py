@@ -44,8 +44,13 @@ import capture_vs_base as cvb
 
 ROOT = cfg.ROOT
 WB = os.path.join(ROOT, "outputs", "HourlyPowerData.xlsx")
-TEMPLATE = os.path.join(ROOT, "archive", "extra-charts-base-2026-08-25",
-                        "HourlyPowerData_with-extra-charts.xlsx")
+# THE CHART TEMPLATES ARE TEXT, NOT A WORKBOOK. They began as chart parts inside a 2.8 MB
+# hand-built .xlsx committed to archive/, which made the formatting of 65 charts exist in
+# exactly one opaque, undiffable place, in the directory the project uses for finished
+# things rather than build inputs. Nobody could tell whether a change to that file would
+# alter one chart or all of them. Extracted 2026-08-25; the workbooks they came from are
+# no longer needed to build and are no longer in the repository.
+TEMPLATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chart_templates")
 
 M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -323,6 +328,12 @@ def _strip_user_shapes(xml):
     return re.sub(r"<c:userShapes[^>]*/>", "", xml)
 
 
+def template_chart(name):
+    """One chart template, by file name."""
+    with open(os.path.join(TEMPLATES, name), encoding="utf-8") as f:
+        return f.read()
+
+
 def _repoint(xml, mapping):
     """Rewrite every <c:f> reference through `mapping` (old -> new)."""
     def repl(m):
@@ -378,8 +389,14 @@ UK_VARIANTS = [
 
 def _csv_header(stem):
     import csv
-    for base in (os.path.join(ROOT, "published", "charts"),
-                 os.path.join(cfg.OUTPUT_DIR, "csv", "charts")):
+    # OUTPUTS FIRST, published/ only as a fallback. This build's whole point is the new
+    # layout, so reading the previously-published header describes the wrong workbook.
+    # It also fails safe rather than silently: with published/ first, a local rebuild
+    # after a git checkout found no GB columns and the country-variant guard refused to
+    # emit the charts at all — correct, but for a reason that had nothing to do with the
+    # data. Order corrected 2026-08-25 after review.
+    for base in (os.path.join(cfg.OUTPUT_DIR, "csv", "charts"),
+                 os.path.join(ROOT, "published", "charts")):
         p = os.path.join(base, f"{stem}.csv")
         if os.path.exists(p):
             with open(p, newline="", encoding="utf-8") as f:
@@ -469,9 +486,7 @@ HYDRO_CSV = "hydro_window"
 EXTRA_CAPTURE_TAB = "CaptureMonthlyExtra"
 EXTRA_CAPTURE_CSV = "capture_monthly_extra"
 
-HYDRO_TEMPLATE = os.path.join(ROOT, "archive", "extra-charts-base-2026-08-25",
-                              "Hydro_Tracker_reference.xlsx")
-HYDRO_TEMPLATE_CHART = "xl/charts/chart10.xml"     # the Norway band-and-lines combo
+HYDRO_TEMPLATE_CHART = "hydro_band.xml"   # the band-and-lines combo, from the tracker
 
 HYDRO_WEEKS = 53
 HYDRO_FIRST_ROW = 2
@@ -549,9 +564,9 @@ def build_hydro_chart(template_xml, label, hcols):
 def _hydro_columns():
     """1-based column numbers on the HydroWindow tab, from the published CSV header."""
     import csv
-    path = os.path.join(ROOT, "published", "charts", f"{HYDRO_CSV}.csv")
+    path = os.path.join(cfg.OUTPUT_DIR, "csv", "charts", f"{HYDRO_CSV}.csv")
     if not os.path.exists(path):
-        path = os.path.join(cfg.OUTPUT_DIR, "csv", "charts", f"{HYDRO_CSV}.csv")
+        path = os.path.join(ROOT, "published", "charts", f"{HYDRO_CSV}.csv")
     if not os.path.exists(path):
         return {}
     with open(path, newline="", encoding="utf-8") as f:
@@ -657,6 +672,45 @@ def append_country_series(parts, part_name, sheet, header_name, r0, r1, label):
     return None
 
 
+# CHARTS WHERE GB'S PRICE BASIS IS A COMPARABILITY PROBLEM, and the caveat therefore has
+# to be ON the exhibit. GB's figure is the Elexon market index (a within-day index near
+# gate closure); the other five are day-ahead auction clears. These three put them on one
+# axis, and all three live on their own tab with no caption cell above them, so the only
+# place a note survives a screenshot is the chart's own title.
+#
+# The generation-based cross-market charts (solar share of the peak hour, wind and solar
+# penetration) are NOT here: they compare volumes, and the price basis does not enter.
+PRICE_BASIS_CHARTS = ["chart1.xml", "chart3.xml", "chart16.xml"]
+
+PRICE_BASIS_TITLE = ("GB = Elexon market index (within-day), not a day-ahead auction")
+
+
+def set_chart_note(parts, part_name, text):
+    """Put a small note in a chart's title, replacing any title it has."""
+    path = f"xl/charts/{part_name}"
+    if path not in parts:
+        return f"{part_name}: not in the workbook"
+    xml = parts[path].decode()
+    if text in xml:
+        return None
+    title = (
+        '<c:title><c:tx><c:rich>'
+        '<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"/>'
+        '<a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+        '<a:pPr><a:defRPr sz="800" b="0" i="1"/></a:pPr>'
+        f'<a:r><a:rPr lang="en-GB" sz="800" b="0" i="1"/><a:t>{_esc(text)}</a:t></a:r>'
+        '</a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
+        '<c:autoTitleDeleted val="0"/>')
+    if "<c:title>" in xml:
+        xml = re.sub(r"<c:title>.*?</c:title>", "", xml, count=1, flags=re.S)
+    xml = re.sub(r'<c:autoTitleDeleted val="\d"/>', "", xml, count=1)
+    # The title must be the FIRST child of <c:chart>; OOXML enforces child order and
+    # Excel offers to recover a file that gets it wrong.
+    xml = xml.replace("<c:chart>", "<c:chart>" + title, 1)
+    parts[path] = xml.encode()
+    return None
+
+
 def _next_chart_num(parts):
     nums = [int(re.search(r"chart(\d+)\.xml$", n).group(1))
             for n in parts if re.match(r"xl/charts/chart\d+\.xml$", n)]
@@ -694,7 +748,7 @@ def _caption_row(row, col_letter, text):
             f'<is><t xml:space="preserve">{_esc(text)}</t></is></c></row>')
 
 
-def add_charts(parts, order, tparts, charts_part, index):
+def add_charts(parts, order, charts_part, index):
     """Clone the variant charts and build the monthly ones, then anchor and caption them.
 
     Everything is APPENDED: new chart parts take numbers above the highest in use, new
@@ -719,7 +773,7 @@ def add_charts(parts, order, tparts, charts_part, index):
     rows_used = [int(r) for r in re.findall(r'<row r="(\d+)"', parts[charts_part].decode())]
     next_row = (max(rows_used) if rows_used else 1) + ROW_STEP
 
-    template_monthly = tparts[f"xl/charts/chart{MONTHLY_TEMPLATE}.xml"].decode()
+    template_monthly = template_chart(f"chart{MONTHLY_TEMPLATE}.xml")
 
     jobs = []
     for tnum, caption in VARIANTS:
@@ -736,9 +790,8 @@ def add_charts(parts, order, tparts, charts_part, index):
 
     hcols = _hydro_columns()
     hydro_template = None
-    if hcols and os.path.exists(HYDRO_TEMPLATE):
-        with zipfile.ZipFile(HYDRO_TEMPLATE) as hz:
-            hydro_template = hz.read(HYDRO_TEMPLATE_CHART).decode()
+    if hcols and os.path.exists(os.path.join(TEMPLATES, HYDRO_TEMPLATE_CHART)):
+        hydro_template = template_chart(HYDRO_TEMPLATE_CHART)
         for label, caption in _hydro_labels():
             if f"{label}_min" not in hcols:
                 # A zone with no data at all publishes no columns, so there is nothing
@@ -756,7 +809,7 @@ def add_charts(parts, order, tparts, charts_part, index):
         cnum = _next_chart_num(parts)
         cpart = f"xl/charts/chart{cnum}.xml"
         if kind == "copy":
-            xml = tparts[f"xl/charts/chart{tnum}.xml"].decode()
+            xml = template_chart(f"chart{tnum}.xml")
             mapping = {}
             for i, ot in enumerate(re.findall(r"<c:tx><c:strRef><c:f>([^<]+)</c:f>", xml)):
                 if i < len(SERIES_NAME_CELLS):
@@ -764,7 +817,7 @@ def add_charts(parts, order, tparts, charts_part, index):
             xml = _strip_user_shapes(_repoint(xml, mapping))
         elif kind == "variant":
             xml = build_country_variant(
-                tparts[f"xl/charts/chart{tnum}.xml"].decode(), country, tech, "GB")
+                template_chart(f"chart{tnum}.xml"), country, tech, "GB")
             if xml is None:
                 print(f"  skipped (no {country}.csv): {caption}", flush=True)
                 continue
@@ -818,9 +871,8 @@ def main():
     set_full_calc_on_load(parts)
     hdr, index = cvb.layout()
 
-    tparts, _ = read_parts(TEMPLATE)
     charts_part = sheet_part_for(parts, "Charts")
-    added = add_charts(parts, order, tparts, charts_part, index)
+    added = add_charts(parts, order, charts_part, index)
 
     # The cross-market charts gain a SERIES rather than a chart, one per market beyond
     # the original five. Failing loudly here rather than skipping: a cross-market chart
@@ -837,6 +889,13 @@ def main():
                 raise SystemExit(f"cross-market series ({label}): {problem}")
         print(f"added a {label} series to {len(CROSS_MARKET_SERIES)} cross-market chart(s)",
               flush=True)
+
+    for part_name in PRICE_BASIS_CHARTS:
+        problem = set_chart_note(parts, part_name, PRICE_BASIS_TITLE)
+        if problem:
+            raise SystemExit(f"price-basis note: {problem}")
+    print(f"noted the GB price basis on {len(PRICE_BASIS_CHARTS)} shared-axis chart(s)",
+          flush=True)
 
     write_parts(WB, parts, order)
     print(f"added {SHEET_NAME} ({len(hdr)} columns, {len(cvb.MONTHS)} months) -> {part}",

@@ -9,7 +9,14 @@ Key design decisions (locked with Fred, 2026-07-16):
   * Italy has no single national day-ahead price -> we build a load-weighted
     PUN *proxy* across the Italian bidding zones. Generation / load / flows /
     capacity for Italy are queried at national "IT" level (verified to work).
-  * Intraday "hour-of-day" analytics bucket by UTC hour (Fred's choice).
+  * Intraday "hour-of-day" analytics bucket by UTC hour (Fred's choice, 2026-07-16).
+    THE COST, now that six markets share these axes: a market's local solar peak lands
+    at a different x position depending on its offset from UTC. Portugal has always sat
+    an hour left of the four CET markets, and Great Britain now does too. On the
+    intraday-shape, solar-peak and duck exhibits that is a real, visible misalignment
+    between countries, not a rounding matter. It stays UTC because the decision was
+    taken deliberately and reversing it would move every existing series; the exhibits
+    that compare markets say so on the axis. Revisit only as a deliberate choice.
   * Charts to reproduce: Redburn Figs 1-6 (ENTSO-E), + Fig 7 (intraday gen mix)
     + Fig 9 (annual capacity).
 """

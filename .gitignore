@@ -48,3 +48,8 @@ _tools/refresh-page/.wrangler/
 # are the archive-before-a-risky-move copies the vault convention wants on disk, not in
 # history. Ignored so a later `git add -A` cannot do it by accident.
 archive/workbook-pre-surgery-2026-08-06/
+
+# The two hand-made reference workbooks the chart templates were extracted FROM
+# (2026-08-25). The templates themselves are text in _tools/chart_templates/ and are
+# what the build reads; these are kept locally as provenance, not as a build input.
+archive/extra-charts-base-2026-08-25/

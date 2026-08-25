@@ -236,6 +236,19 @@ def fetch_load(year, force):
 
     INDO, not ATL. ATL is the exact ENTSO-E item (B0610) but Elexon only holds it for
     recent months, whereas INDO runs from 2019 to today (probed 2026-08-25).
+
+    ⚠ THIS IS TRANSMISSION DEMAND, AND IT IS NOT THE SAME BASIS AS ENTSO-E'S LOAD.
+    INDO is metered at the transmission boundary, so it is already NET of Britain's
+    distribution-connected generation — most of which is solar. ENTSO-E's figures for the
+    other five markets are not netted that way. GENERATION is unaffected: Elexon's AGPT
+    does include embedded plant, verified 2026-08-25 by GB solar peaking at 13.5 GW
+    against 21.5 GW installed, a load factor only reachable if embedded solar is counted.
+
+    So GB load must NEVER be dropped into a net-load calculation of the form
+    (demand - wind - solar) without correcting the basis: embedded solar would be
+    subtracted twice, deepening the midday trough by roughly its own size. No exhibit
+    does this today — the net-load duck is Germany only, and GB load currently feeds no
+    chart at all — which is exactly why this warning is here rather than in a fix.
     """
     path = raw_path("load", year)
     if not _need(path, force):

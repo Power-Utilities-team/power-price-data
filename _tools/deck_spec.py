@@ -119,7 +119,10 @@ SLIDES = [
     dict(title="European power prices & renewables penetration",
          kicker="Monthly baseload price by market, and the rising share of wind & solar in generation",
          exhibits=[
-            ex("A_monthly_price", "Monthly baseload power price by market (€/MWh)", "L", 16,
+            ex("A_monthly_price",
+               "Monthly baseload power price by market (€/MWh). GB is the Elexon market "
+               "index, not a day-ahead auction",
+               "L", 16,
                "A_monthly_price.png", dict(kind="a_price")),
             ex("B_penetration", "Wind & solar share of generation, by market (12-month average)", "R", 17,
                "B_penetration.png", dict(kind="b_pen")),
