@@ -81,6 +81,11 @@ def main():
         # column layout. CI has always done this in the right order (publish, then
         # rebuild the deliverables); a local run did not, which is why a country added
         # here appeared in the data and nowhere in the charts.
+        # Refuse to publish a layout that MOVED existing data. Charts address their
+        # data by absolute column and row, so an inserted column repoints every chart to
+        # its right while leaving a perfectly valid file that every other check passes.
+        # Runs BEFORE the copy, while published/ still holds the good baseline.
+        run("check_reference_stability.py")
         publish_local_csvs()
     # static path (fresh data)
     run("render_all.py")

@@ -291,6 +291,16 @@ jobs:
           python summarise_hydro.py     # weekly reservoir bands -> hydro_window.csv
           python build_status.py        # status.csv -> the staleness banner in Excel
 
+      # BEFORE publishing, while published/ is still the baseline the live workbooks in
+      # the wild are pointed at. A column that moved sideways does not shorten anything
+      # and does not break the package, so neither check_coverage nor check_consistency
+      # can see it — but every chart to its right silently plots a different series.
+      - name: Refuse a layout that moved existing columns or rows
+        working-directory: _tools
+        run: |
+          python check_reference_stability_fixtures.py
+          python check_reference_stability.py
+
       - name: Publish CSVs to /published
         run: |
           mkdir -p published/charts
