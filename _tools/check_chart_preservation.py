@@ -21,6 +21,11 @@ WHAT IT COMPARES. The freshly built workbook against the PUBLISHED one at git HE
 is the copy people already have open. For every chart present in both:
 
   * every axis title that existed must still exist, with the same text;
+  * every CHART title that existed must still exist, with the same text (added 2026-08-26:
+    the first version guarded axis titles only, so the sibling of the bug it was written
+    for was still open. Injection proved it: three chart titles deleted from the built
+    workbook, and check_chart_captions passed, because that guard asks whether a caption
+    that is PRESENT is correct, not whether it is still there at all);
   * every series must still be there, counted;
   * a chart may GAIN a title, a series or an axis label freely. Adding is the sanctioned
     way to bring in a market or a technology.
@@ -65,6 +70,20 @@ def _axis_titles(xml: str):
             out.append((seen, text))
             seen += 1
     return out
+
+
+def _chart_title(xml: str):
+    """The chart's OWN title, or None. It sits between <c:chart> and <c:plotArea>.
+
+    Same depth trick as _axis_titles and for the same reason: these parts carry namespaces
+    the project edits as bytes, so a real XML parse is the wrong tool. Everything before
+    <c:plotArea> is outside every axis, which is exactly the chart title's home.
+    """
+    head = xml.split("<c:plotArea>")[0]
+    m = re.search(r"<c:title>.*?</c:title>", head, re.S)
+    if not m:
+        return None
+    return " ".join(re.findall(r"<a:t>([^<]*)</a:t>", m.group(0))).strip()
 
 
 def _series_count(xml: str) -> int:
@@ -114,14 +133,20 @@ def check():
                 errs.append(f"{os.path.basename(name)}: axis title was {text!r} and is now "
                             f"{new_by_i[i]!r}")
 
+        ot, nt = _chart_title(old_xml), _chart_title(new_xml)
+        if ot is not None and nt is None:
+            errs.append(f"{os.path.basename(name)}: chart title {ot!r} has been REMOVED")
+        elif ot is not None and nt is not None and ot != nt:
+            errs.append(f"{os.path.basename(name)}: chart title was {ot!r} and is now {nt!r}")
+
         o, n = _series_count(old_xml), _series_count(new_xml)
         if n < o:
             errs.append(f"{os.path.basename(name)}: had {o} series and now has {n} — "
                         f"{o - n} were dropped")
 
     gained = len(new_names - old_names)
-    print(f"chart preservation: compared {compared} chart(s) against git HEAD, "
-          f"{gained} new", flush=True)
+    print(f"chart preservation: compared {compared} chart(s) against git HEAD "
+          f"(chart titles, axis titles and series counts), {gained} new", flush=True)
     return errs
 
 
@@ -135,7 +160,7 @@ def main():
               "This one asks whether anything that was already there survived it.",
               flush=True)
         sys.exit(1)
-    print("CHART PRESERVATION: PASS — no chart lost an axis title or a series", flush=True)
+    print("CHART PRESERVATION: PASS — no chart lost a title, an axis label or a series", flush=True)
 
 
 if __name__ == "__main__":

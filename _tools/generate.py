@@ -69,7 +69,47 @@ def publish_local_csvs():
         shutil.copy(manifest, os.path.join(dst, "manifest.json"))
     print(f"\n$ publish {n} CSVs -> published/", flush=True)
 
+def unit_suites():
+    """The suites that need no data, run on EVERY build including CI's.
+
+    THEY LIVED IN THE `--fresh` BRANCH UNTIL 2026-08-26 AND CI DOES NOT PASS `--fresh`.
+    So the whole set was wired in that morning, declared to be running, and ran nowhere:
+    the workflow calls a bare `python generate.py`. That is the same fault as the one the
+    block was written to fix, one level up — a suite nothing invokes is documentation, and
+    a suite invoked on a branch nobody takes is worse, because it looks invoked.
+
+    Nothing here reads data/, published/ or outputs/, so there is no reason to gate them.
+    The guards that DO compare against built data stay in the fresh branch, and CI runs
+    those as their own workflow steps.
+    """
+    # FIRST, and the cheapest: the only one that reads every module. It exists because
+    # fetch.py used datetime and timezone without importing them, in a branch that runs
+    # only when a fetch comes back partial, so the gaps record that drives both the repair
+    # run and the public page's "which series is behind" had never once been written.
+    run("undefined_names_test.py")
+    run("windows_test.py")
+    run("chunked_test.py")
+    run("fetch_retry_test.py")
+    run("crossborder_test.py")
+    run("status_health_test.py")
+    # Great Britain's own failure path, which until 2026-08-26 did not exist. fetch_uk
+    # swallowed every exception and returned None, so a total Elexon outage exited 0, wrote
+    # no gaps record, and published stored data of any age with nothing saying so.
+    run("fetch_uk_gaps_test.py")
+    # A guard cannot notice that it has stopped guarding, which is what fixtures are for.
+    run("check_reference_stability_fixtures.py")
+    # The public status page. Its own suite ran nowhere for a month while the page quietly
+    # promised every visitor that a refresh takes "about 20 minutes", two to three times
+    # short once Great Britain and the whole-year pull landed.
+    run_node("page_test.mjs")
+    # page_test asks whether the page is RIGHT. This one asks whether it survives being
+    # WRONG: an unparseable Origin (which returned HTTP 500 from the live Worker), a
+    # cancelled run, a failed run, GitHub answering 401/403/500, a missing status record.
+    run_node("page_break_test.mjs")
+
+
 def main():
+    unit_suites()
     if FRESH:
         yr = date.today().year
         run("fetch.py", "--years", f"{yr-1},{yr}", "--force")
@@ -125,18 +165,10 @@ def main():
         # drives both the repair run and the public page's "which series is behind" had
         # never once been written. Import, ast.parse and the consumer's own suite all
         # passed throughout.
-        run("undefined_names_test.py")
-        run("windows_test.py")
-        run("chunked_test.py")
-        run("fetch_retry_test.py")
-        run("crossborder_test.py")
-        run("status_health_test.py")
         # The public status page's own suite, which until 2026-08-26 also ran nowhere. It
         # caught nothing for a month because nothing invoked it, while the page quietly
         # promised every visitor a refresh would take "about 20 minutes" — a figure that
         # was two to three times short once Great Britain and the whole-year pull landed.
-        run_node("page_test.mjs")
-        run("check_reference_stability_fixtures.py")
         run("check_reference_stability.py")
         # And refuse to publish a SHORTER series. check_coverage ran only in CI until
         # 2026-08-25, so a local --fresh run could and did overwrite the tracked baseline
