@@ -334,7 +334,14 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks, typical, el
   // No "view log" link any more: run.html_url is a github.com Actions URL and so carries the
   // account name. The conclusion is the part a reader can act on, and that stays.
   const runLine = run
-    ? `Last run <strong>${esc(run.status === "completed" ? run.conclusion : run.status)}</strong>`
+    ? `Last run <strong>${esc(run.status === "completed"
+          ? run.conclusion
+          // GitHub's own words for a run still going are "in_progress" and "queued", which
+          // are not English and reach a page written for someone who does not know what a
+          // workflow is. Renamed 2026-08-26, on seeing "Last run in_progress" live.
+          : {in_progress: "running now", queued: "waiting to start",
+             requested: "waiting to start", waiting: "waiting to start"}[run.status]
+            || run.status)}</strong>`
     : "";
 
   const files = Object.entries(DOWNLOADS).map(([f, d]) => [f, d.label, d.note]);
@@ -424,8 +431,9 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks, typical, el
 </style></head><body><div class="wrap">
 
 <h1>Power Price Data</h1>
-<p class="sub">European hourly power prices — Germany, Spain, Portugal, France, Italy.
-Data from the ENTSO-E Transparency Platform.</p>
+<p class="sub">European hourly power prices — Germany, Spain, Portugal, France, Italy and
+Great Britain. Data from the ENTSO-E Transparency Platform, and from Elexon for Great
+Britain, which stopped publishing to ENTSO-E in June 2021.</p>
 
 ${msg ? `<div class="msg good">${esc(msg)}</div>` : ""}
 ${err ? `<div class="msg err">${esc(err)}</div>` : ""}

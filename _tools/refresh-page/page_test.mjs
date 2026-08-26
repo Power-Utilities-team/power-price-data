@@ -333,5 +333,46 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
   RUNS = null;
 }
 
+// THE PAGE MUST NAME EVERY MARKET IT CARRIES (added 2026-08-26). Great Britain went into
+// the data on 25 August and the page's own subtitle still listed five markets, so the
+// public description of the dataset was wrong for a day. Nothing could have caught it: no
+// assertion had ever asked what the page CLAIMS to contain.
+{
+  // SCOPED TO THE SUBTITLE, not to the whole page. The first version of this checked the
+  // rendered text for each market name and PASSED when Great Britain was deleted from the
+  // list, because the sentence crediting Elexon mentions it too. A guard that cannot fail
+  // is not a guard, which is the same lesson the missing y-axis labels taught that morning.
+  const html = await (await worker.fetch(get("/"), env)).text();
+  const sub = flat((html.match(/<p class="sub">([\s\S]*?)<\/p>/) || ["", ""])[1]
+                   .replace(/<[^>]+>/g, " "));
+  check(sub.length > 0, "the page has a description of the dataset");
+  // THE ENUMERATION, not the whole subtitle. Scoping to the subtitle was still not enough:
+  // its own Elexon clause names Great Britain a second time, so deleting the market from
+  // the LIST left the assertion green. Take the run of text between "power prices" and the
+  // first full stop, which is the list and nothing else.
+  const listed = (sub.match(/power prices[^.]*/) || [""])[0];
+  for (const market of ["Germany", "Spain", "Portugal", "France", "Italy",
+                        "Great Britain"]) {
+    check(listed.includes(market), `the market list names ${market}`, listed);
+  }
+  const text = flat(html.replace(/<[^>]+>/g, " "));
+  // GB is not an ENTSO-E market, and a page that credits ENTSO-E for it is wrong about its
+  // own provenance.
+  check(/Elexon/.test(text),
+        "and credits Elexon for Great Britain, which left ENTSO-E in 2021");
+
+  // GitHub's raw run states are not English. "Last run in_progress" reached the live page.
+  RUNS = [{ status: "in_progress", conclusion: null,
+            run_started_at: new Date(Date.now() - 5 * 60000).toISOString(),
+            updated_at: new Date().toISOString() }];
+  const running = flat((await (await worker.fetch(get("/"), env)).text())
+                       .replace(/<[^>]+>/g, " "));
+  check(!/in_progress/.test(running),
+        "a run still going is not described as \"in_progress\"");
+  check(/Last run running now/.test(running),
+        "it is described in words a reader can understand", running.match(/Last run [^.]{0,20}/)?.[0]);
+  RUNS = null;
+}
+
 console.log(fails.length ? `FAILED: ${fails.join(", ")}` : "page_test: all assertions passed");
 process.exit(fails.length ? 1 : 0);
