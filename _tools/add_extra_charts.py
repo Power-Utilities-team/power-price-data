@@ -699,7 +699,25 @@ PRICE_BASIS_TITLE = ("GB = Elexon market index (within-day), not a day-ahead auc
 
 
 def set_chart_note(parts, part_name, text):
-    """Put a small note in a chart's title, replacing any title it has."""
+    """Put a small note in a chart's title, replacing only a CHART title it already has.
+
+    A CHART TITLE AND AN AXIS TITLE ARE BOTH `<c:title>` (fixed 2026-08-26). The first
+    version removed "the first <c:title>" in the part, on the assumption that it was the
+    chart's own. On a chart with no title that is false: the first one belongs to the value
+    axis, and all three charts this runs on were exactly that case. They shipped having lost
+    their y-axis labels, so chart1 and chart16 no longer said EUR/MWh and chart3 no longer
+    said "# hours" — replaced by an 8-point italic caveat where the unit used to be.
+
+    Nothing caught it because every check was about the caveat: `check_chart_captions`
+    asserts the note is PRESENT, `opc_validate` asserts the XML is well-ordered, and both
+    passed. No check asserted that anything already on the chart was still there. Found by
+    diffing the built workbook against the pre-GB one, which is the only method that asks
+    "what did this change take away" rather than "did it add what I meant".
+
+    The chart title lives between `<c:chart>` and `<c:plotArea>`; an axis title lives inside
+    `<c:valAx>` or `<c:catAx>`, which come after. So the boundary is the split point, and
+    anything past it is left alone.
+    """
     path = f"xl/charts/{part_name}"
     if path not in parts:
         return f"{part_name}: not in the workbook"
@@ -714,9 +732,15 @@ def set_chart_note(parts, part_name, text):
         f'<a:r><a:rPr lang="en-GB" sz="800" b="0" i="1"/><a:t>{_esc(text)}</a:t></a:r>'
         '</a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
         '<c:autoTitleDeleted val="0"/>')
-    if "<c:title>" in xml:
-        xml = re.sub(r"<c:title>.*?</c:title>", "", xml, count=1, flags=re.S)
-    xml = re.sub(r'<c:autoTitleDeleted val="\d"/>', "", xml, count=1)
+
+    cut = xml.find("<c:plotArea>")
+    if cut == -1:
+        return f"{part_name}: no <c:plotArea>, so the chart title cannot be located safely"
+    head, tail = xml[:cut], xml[cut:]
+    # Only the head may lose a title, and only its own. The tail holds every axis title.
+    head = re.sub(r"<c:title>.*?</c:title>", "", head, count=1, flags=re.S)
+    head = re.sub(r'<c:autoTitleDeleted val="\d"/>', "", head, count=1)
+    xml = head + tail
     # The title must be the FIRST child of <c:chart>; OOXML enforces child order and
     # Excel offers to recover a file that gets it wrong.
     xml = xml.replace("<c:chart>", "<c:chart>" + title, 1)

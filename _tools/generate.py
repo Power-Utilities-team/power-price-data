@@ -196,6 +196,12 @@ def main():
     # positional; this is the only one that asks what a chart MEANS, and it exists
     # because four charts captioned "United Kingdom" shipped plotting Spain and France.
     run("check_chart_captions.py")
+    # And the converse question, which nothing here asked until 2026-08-26: did this build
+    # TAKE SOMETHING AWAY? Adding the GB price-basis caveat deleted the y-axis label from
+    # charts 1, 3 and 16, because a chart title and an axis title are both <c:title> and the
+    # code removed the first one it found. Every check above passed, because every check
+    # above asks whether the change added what it meant to add.
+    run("check_chart_preservation.py")
     run("check_consistency.py")
 
     if DELIVER:
