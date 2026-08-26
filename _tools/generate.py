@@ -117,6 +117,13 @@ def main():
     # chart it builds names its year series from the Status sheet's rolling cells.
     run("add_extra_charts.py")      # CaptureVsBase + the per-country, monthly and hydro charts
     run("add_power_queries.py")     # re-injects the 6 PQ connections add_phase4 rebuilds over
+    # NAME THE REPO WE ACTUALLY PUBLISH TO. add_power_queries writes only its own target tabs;
+    # the twelve legacy queries are inherited from the base workbook and still named the
+    # pre-transfer personal account. They resolve solely through GitHub's transfer redirect,
+    # which ends the moment that freed username is registered and given a repo of the same
+    # name: the workbook would then pull a stranger's data, with no error and no visible
+    # change. Runs on every build, so an inherited URL cannot survive a rebuild.
+    run("repoint_workbook.py", os.path.join(OUT, "HourlyPowerData.xlsx"), "--apply", "--in-place")
     run("resync_prefill.py")        # cached data == CSV, so no table changes shape on refresh
     run("fix_axes.py")            # labels below the plot, not across it; name the x-axis
     run("fix_year_colours.py")     # one colour per YEAR, identical across charts
@@ -138,6 +145,10 @@ def main():
     # THE FIXTURES FIRST, as with the stability guard. opc_validate's schema checks were
     # added after a CI run died at the Windows validate leg on faults every local check
     # had passed; they are worth what the evidence that they still fire is worth.
+    # And prove it stuck, on both deliverables. The repoint above runs before the frozen copy
+    # is derived, so a failure here means something re-introduced an old owner downstream.
+    run("repoint_workbook.py", os.path.join(OUT, "HourlyPowerData.xlsx"), "--check")
+    run("repoint_workbook.py", os.path.join(OUT, "HourlyPowerData_frozen.xlsx"), "--check")
     run("opc_validate_fixtures.py")
     run("opc_validate.py")        # package joins: content-types, rel types, chart caches
     run("check_chart_quality.py")  # presentation faults that used to need a human to spot

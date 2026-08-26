@@ -91,6 +91,8 @@ def write_mashup(version, pkg, trailer, new_section: str) -> bytes:
 def main() -> int:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     apply = "--apply" in sys.argv
+    in_place = "--in-place" in sys.argv       # for the build, which owns the file it just made
+    check = "--check" in sys.argv             # guard mode: report, change nothing, exit 1 if stale
     if len(args) != 1:
         print(f"usage: {Path(__file__).name} <file.xlsx> [--apply]", file=sys.stderr)
         return 2
@@ -103,14 +105,22 @@ def main() -> int:
     good_b, good_s = f"{HOST}/{new}/{REPO}".encode(), f"{HOST}/{new}/{REPO}"
 
     zin = zipfile.ZipFile(src)
-    if MASHUP_PART not in zin.namelist():
+    has_mashup = MASHUP_PART in zin.namelist()
+    if not has_mashup and not check:
         raise SystemExit(f"{src.name} has no {MASHUP_PART}: this is not one of the linked workbooks")
 
-    # 1. the live query code
-    version, pkg, trailer, section = read_mashup(zin.read(MASHUP_PART))
-    q_stale = [o for o in PAT_S.findall(section) if o != new]
-    print(f"  Formulas/Section1.m (the live queries): {len(PAT_S.findall(section))} URL(s), "
-          f"{len(q_stale)} stale, owners {sorted(set(q_stale)) or 'none'}")
+    # 1. the live query code. The FROZEN deliverable legitimately has none: build_frozen_excel
+    # strips every query, which is the whole point of that file. Its documentation strings are
+    # still worth checking, so in guard mode a missing mashup is a fact to report, not an error.
+    if has_mashup:
+        version, pkg, trailer, section = read_mashup(zin.read(MASHUP_PART))
+        q_stale = [o for o in PAT_S.findall(section) if o != new]
+        print(f"  Formulas/Section1.m (the live queries): {len(PAT_S.findall(section))} URL(s), "
+              f"{len(q_stale)} stale, owners {sorted(set(q_stale)) or 'none'}")
+    else:
+        version = pkg = trailer = None
+        section, q_stale = "", []
+        print("  no Power Query part (a frozen workbook) — checking documentation only")
 
     # 2. the visible documentation table
     visible = {}
@@ -125,13 +135,28 @@ def main() -> int:
 
     total = len(q_stale) + sum(visible.values())
     if not total:
-        print(f"\nnothing to do: everything already names {new}")
+        print(f"REPO OWNER: PASS — all {len(PAT_S.findall(section))} query URL(s) and every "
+              f"documentation reference name {new}")
         return 0
+    if check:
+        # GUARD MODE. A workbook whose queries name a repo the project no longer publishes to
+        # works only for as long as GitHub honours the transfer redirect, and that redirect ends
+        # the moment anyone registers the freed username and creates a repo of the same name.
+        # The workbook would then pull THEIR data with no error and no visible change.
+        print(f"REPO OWNER: FAIL — {total} reference(s) name "
+              f"{sorted(set(q_stale)) or 'another owner'} instead of {new}", flush=True)
+        print("  These resolve today only through GitHub's transfer redirect. Run this script\n"
+              "  with --apply --in-place, or fix the generator that emitted them.", flush=True)
+        return 1
     print(f"\n{total} stale reference(s) -> {new}{'  — WRITING' if apply else '  — dry run'}")
     if not apply:
         return 0
 
-    dst = src.with_suffix(".repointed.xlsx")
+    # In-place is for the BUILD, which has just created this file and owns it. By hand the
+    # default stays a copy, because a live model is not something to overwrite.
+    dst = src if in_place else src.with_suffix(".repointed.xlsx")
+    if in_place:
+        dst = src.with_suffix(".repointing.tmp")
     new_section = PAT_S.sub(good_s, section)
     new_item1 = write_mashup(version, pkg, trailer, new_section)
     with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
@@ -145,6 +170,11 @@ def main() -> int:
     zin.close()
 
     xlsx_surgery.part_parity_check(src, dst, allow_drop=())
+    if in_place:
+        import shutil
+        final = src
+        shutil.move(str(dst), str(final))
+        dst = final
 
     # Verify by RE-READING the result, including re-decoding the mashup. Checking the bytes we just
     # wrote against the substitution we just made would prove nothing.
