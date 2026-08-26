@@ -26,6 +26,8 @@ import argparse, os, sys, time, warnings
 warnings.filterwarnings("ignore")
 import pandas as pd
 
+import concurrent.futures as cf
+
 import config as cfg
 
 LOG = []
@@ -50,45 +52,78 @@ def fetch(zones=None, years=None, force=False):
 
     if not cfg.API_KEY:
         raise SystemExit("No ENTSO-E API key: set ENTSOE_API_KEY or create _tools/.entsoe_key")
-    client = EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
 
     wanted = {k for k in (zones or [])} or None
     targets = [z for z in cfg.HYDRO_RESERVOIR_ZONES if wanted is None or z[0] in wanted]
     years = years or list(range(cfg.HYDRO_START_YEAR, cfg.CURRENT_YEAR + 1))
 
-    have, missing = [], []
+    # CONCURRENTLY, AND SKIPPING SETTLED YEARS (2026-08-26). This was 108 sequential calls,
+    # 9 zones by 12 years, on EVERY run: the build job has no hydro cache, so nothing was
+    # ever stored between runs and `_need` never skipped anything. Measured on run
+    # 32959091445 it took 21 minutes of the build's 22, while assembling the workbook itself
+    # took 28 seconds. It was invisible until the fetch jobs stopped being the long pole.
+    #
+    # Two independent savings, and the second is the larger one when a cache exists:
+    #   * concurrency, because these are 108 independent round trips and nothing else;
+    #   * and a COMPLETED year never changes. A reservoir level for a week in 2015 is a
+    #     settled historical fact, so once stored it is never re-fetched. Only the current
+    #     year is forced, since its most recent weeks are still being published.
+    now = pd.Timestamp.now(tz="UTC").floor("h")
+    jobs = []
     for key, area, name in targets:
-        got_any = False
         for year in years:
             path = raw_path(key, year)
-            if not _need(path, force):
-                got_any = True
+            stored = os.path.exists(path) and os.path.getsize(path) > 0
+            # A settled year that is stored is done. The current year always re-fetches,
+            # because its last weeks are still arriving.
+            if stored and not force and year < cfg.CURRENT_YEAR:
                 continue
-            s = pd.Timestamp(f"{year}-01-01", tz="UTC")
-            e = min(pd.Timestamp(f"{year + 1}-01-01", tz="UTC"),
-                    pd.Timestamp.now(tz="UTC").floor("h"))
-            if s >= e:
+            if stored and not force and year == cfg.CURRENT_YEAR:
+                pass                              # fall through: refresh the open year
+            a = pd.Timestamp(f"{year}-01-01", tz="UTC")
+            b = min(pd.Timestamp(f"{year + 1}-01-01", tz="UTC"), now)
+            if a >= b:
                 continue
-            try:
-                r = client.query_aggregate_water_reservoirs_and_hydro_storage(
-                    area, start=s, end=e)
-            except NoMatchingDataError:
-                log(f"   {name} {year}: no data")
-                continue
-            except Exception as ex:               # noqa: BLE001 - one bad year is not fatal
-                log(f"   {name} {year}: {type(ex).__name__} — skipped")
-                continue
-            if r is None or len(r) == 0:
-                log(f"   {name} {year}: empty")
-                continue
-            df = r.to_frame(name="stored_mwh") if isinstance(r, pd.Series) else r
-            df.index = pd.DatetimeIndex(df.index).tz_convert("UTC")
-            df.index.name = "ts_utc"
-            df.to_parquet(path)
-            log(f"   {name} {year}: {len(df)} weeks")
-            got_any = True
-            time.sleep(0.7)                       # the politeness pause fetch.py uses
-        (have if got_any else missing).append(name)
+            jobs.append((key, area, name, year, path, a, b))
+
+    stored_already = {name for key, area, name in targets
+                      if any(os.path.exists(raw_path(key, y))
+                             and os.path.getsize(raw_path(key, y)) > 0 for y in years)}
+    log(f"{len(jobs)} zone-year(s) to fetch "
+        f"({len(targets) * len(years) - len(jobs)} already stored and settled)")
+
+    def _one(job):
+        key, area, name, year, path, a, b = job
+        # One client per worker: EntsoePandasClient wraps a requests.Session, which is not
+        # guaranteed thread-safe.
+        cl = EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
+        try:
+            r = cl.query_aggregate_water_reservoirs_and_hydro_storage(area, start=a, end=b)
+        except NoMatchingDataError:
+            return name, year, "no data", None
+        except Exception as ex:                   # noqa: BLE001 - one bad year is not fatal
+            return name, year, type(ex).__name__, None
+        if r is None or len(r) == 0:
+            return name, year, "empty", None
+        df = r.to_frame(name="stored_mwh") if isinstance(r, pd.Series) else r
+        df.index = pd.DatetimeIndex(df.index).tz_convert("UTC")
+        df.index.name = "ts_utc"
+        return name, year, None, df
+
+    have_names = set(stored_already)
+    if jobs:
+        with cf.ThreadPoolExecutor(max_workers=min(8, len(jobs))) as pool:
+            for name, year, problem, df in pool.map(_one, jobs):
+                if problem is not None:
+                    log(f"   {name} {year}: {problem}")
+                    continue
+                path = next(j[4] for j in jobs if j[2] == name and j[3] == year)
+                df.to_parquet(path)
+                log(f"   {name} {year}: {len(df)} weeks")
+                have_names.add(name)
+
+    have = [n for _k, _a, n in targets if n in have_names]
+    missing = [n for _k, _a, n in targets if n not in have_names]
 
     log(f"reservoir data present for {len(have)} zone(s): {', '.join(have)}")
     if missing:

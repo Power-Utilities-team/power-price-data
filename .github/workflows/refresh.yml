@@ -294,14 +294,29 @@ jobs:
             cp "$f" "_meta/fetch-${c}.json"
           done
           echo "gap records: $(ls _meta/fetch-gaps*.json 2>/dev/null | wc -l)"
+      # WITHOUT THIS CACHE THE SKIP CANNOT WORK (added 2026-08-26). fetch_hydro re-fetches
+      # a year only when it is not already stored, but the build job starts from a clean
+      # checkout, so nothing was ever stored and all 108 zone-years were pulled on every
+      # run. Measured on run 32959091445: 21 minutes of the build job's 22, against 28
+      # seconds to assemble the workbook itself.
+      #
+      # Safe to cache because a COMPLETED year never changes: a reservoir level for a week
+      # in 2015 is a settled historical fact. fetch_hydro forces the CURRENT year on every
+      # run regardless of what is cached, so the open year can never go stale here.
+      - name: Restore the settled hydro years
+        uses: actions/cache@v4
+        with:
+          path: data/raw/hydro_*.parquet
+          key: hydro-${{ github.run_id }}
+          restore-keys: hydro-
       - name: Fetch the weekly hydro reservoir series
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         working-directory: _tools
         run: |
           # A72 water reservoirs: weekly, a STOCK not a flow, so it sits outside the
-          # per-country matrix above and never joins the hourly master. Cheap enough to
-          # pull here (one call per zone-year, and stored years are skipped).
+          # per-country matrix above and never joins the hourly master. Fetched
+          # concurrently, and a settled year that is already stored is skipped.
           python fetch_hydro.py
 
       - name: Build + summarise + export
