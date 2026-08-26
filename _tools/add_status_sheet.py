@@ -55,6 +55,9 @@ URL_TABS = [
 # what makes the file reproducible rather than something to be edited after the fact.
 NAMING_ROWS = [
     ("SHEET AND COLUMN NAMING - what the names mean", ""),
+    ("Charts",
+     "Every chart in the workbook, laid out with a caption above each one. The tabs below "
+     "hold the data those charts read; nothing on them needs editing by hand"),
     ("Fig1_PriceSD", "Annual standard deviation of hourly day-ahead price (deck Fig 1)"),
     ("Fig2_Intraday / Fig2_Intraday_avg",
      "Intraday price shape by year - indexed to daily mean / absolute EUR/MWh (Fig 2)"),
@@ -64,7 +67,9 @@ NAMING_ROWS = [
     ("Fig5_Capture / Fig5_Capture_abs",
      "Capture price vs baseload by technology - % vs base / absolute EUR/MWh (Fig 5)"),
     ("Fig6_MinMax", "Daily min/max price, latest complete year (Fig 6)"),
-    ("Fig7_GenMix", "Intraday generation mix, Portugal (Fig 7)"),
+    ("Fig7_GenMix",
+     "Intraday generation mix by technology, for every market. The deck's Fig 7 and the "
+     "workbook chart both plot PORTUGAL; the other markets are loaded but not charted"),
     ("Fig9_Capacity", "Installed generation capacity by technology (Fig 9)"),
     ("A_MonthPrice / B_Penetration / C_CaptureErosion / D_NetloadDuck",
      "Monthly market-state exhibits: baseload price by market / wind+solar penetration / "
@@ -97,7 +102,11 @@ NAMING_ROWS = [
      "d_ duration curve, n_ net-load duck, f1_/f3_ Fig1/Fig3 annual stats, mm_ daily "
      "min/max, gm_ Portugal gen mix, md_ Germany monthly duck"),
     ("Hydro zone codes",
-     "FR ES PT IT, NO plus NO1..NO5, SE, FI, AT, CH. DEpump/GBpump are pumped-storage "
+     # Read from config, not spelled out. This line claimed "NO plus NO1..NO5" after the
+     # Norwegian bidding zones were dropped, so the index promised columns the build does
+     # not write. A reader trusting it would go looking for tabs that were never there.
+     f"{' '.join(k for k, _a, _n in cfg.HYDRO_RESERVOIR_ZONES)}. "
+     "DEpump/GBpump are pumped-storage "
      "generation, NOT reservoir level: Germany and Great Britain publish no reservoir series"),
 ]
 

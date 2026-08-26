@@ -314,9 +314,15 @@ def main():
             print("  ✗", e)
         if len(errs) > 25:
             print(f"  … and {len(errs) - 25} more")
+        # The advice here used to say "re-run with full_refetch=true". That input has been
+        # a documented no-op since every run started re-pulling the whole year, so this
+        # message sent whoever hit the failure to a button that does nothing. A guard that
+        # fails correctly and then misdirects the fix is worse than one that stays quiet.
         print("\nA shorter series is still VALID data, which is why nothing else catches "
-              "this.\nIf the drop is genuine, re-run with full_refetch=true and confirm "
-              "the source,\nrather than loosening the tolerance.")
+              "this.\nEvery run already re-pulls the whole year, so re-running changes "
+              "nothing by itself:\ncheck the source published the missing period, and use "
+              "the repair workflow\n(.github/workflows/repair.yml) to re-fetch just the "
+              "series that failed. Do not\nloosen the tolerance to make this pass.")
         sys.exit(1)
     print(f"COVERAGE: PASS — no published feed shrank against {args.baseline} "
           f"({len(published_csvs())} files, tolerance {TOLERANCE_PCT}% / "
