@@ -94,6 +94,15 @@ def main():
         # not, so a change that disconnected the guard from its own fixtures passed every
         # local check and only failed once it reached CI. A guard cannot notice that it
         # has stopped guarding, which is the entire reason it has fixtures.
+        # THE UNIT SUITES RUN HERE, because until 2026-08-26 they ran NOWHERE. Three
+        # suites existed and were cited as evidence the pipeline was robust, and not one
+        # was executed by any workflow: they passed only when someone remembered to run
+        # them by hand. Not a theoretical gap - adding the concurrent border fetch broke
+        # fetch_retry_test on its first attempt, and that was caught only because it
+        # happened to be run by hand that minute. A suite nothing runs is documentation.
+        run("fetch_retry_test.py")
+        run("crossborder_test.py")
+        run("status_health_test.py")
         run("check_reference_stability_fixtures.py")
         run("check_reference_stability.py")
         # And refuse to publish a SHORTER series. check_coverage ran only in CI until

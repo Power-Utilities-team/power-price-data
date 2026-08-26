@@ -30,10 +30,21 @@ from entsoe import EntsoePandasClient
 from entsoe.exceptions import NoMatchingDataError
 
 import config as cfg
+import crossborder
 
 if not cfg.API_KEY:
     raise SystemExit("No ENTSO-E API key: set ENTSOE_API_KEY env var or create _tools/.entsoe_key")
 client = EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
+
+
+def _new_client():
+    """A FRESH client, for the concurrent border fetch.
+
+    EntsoePandasClient wraps a requests.Session, which is not guaranteed thread-safe, so
+    the parallel border pull gets one per worker rather than sharing the module-level one.
+    Same retry settings, so a border behaves exactly as it did when fetched in sequence.
+    """
+    return EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
 
 SLEEP = 0.7          # politeness pause between calls (well under 400/min limit)
 LOG = []
@@ -338,13 +349,23 @@ def fetch_country_year(country, year, force=False, since_days=None):
              raw_path(country, "generation", year), force, merge, full)
 
     # ---- cross-border physical flows (all borders) ----
+    # CONCURRENTLY, not one border after another. entsoe-py's own all-borders helper makes
+    # one HTTP request per neighbour in sequence, and this is the single biggest cost in a
+    # refresh: it scales with BORDER COUNT, not with data. Germany has 11 neighbours, so 22
+    # calls per pass and 44 across the two passes a fetch makes; Portugal has 1. Measured
+    # across four runs, Germany's fetch took 25, 8, 22 and 1 minutes against Portugal's 5,
+    # 3, 2 and 0, while Spain - the same row count as Germany but two borders - took 8.
+    #
+    # It fetches exactly the same borders and returns an identical frame: crossborder_test
+    # drives the real library method and ours over the same canned responses and asserts
+    # the two are equal, including column ORDER, which is part of the published schema.
     _attempt("flow_import",
-             lambda ov=None: client.query_physical_crossborder_allborders(
-                 code, start=ov or s, end=e, export=False),
+             lambda ov=None: crossborder.all_borders(
+                 _new_client, code, start=ov or s, end=e, export=False),
              raw_path(country, "flow_import", year), force, merge, full)
     _attempt("flow_export",
-             lambda ov=None: client.query_physical_crossborder_allborders(
-                 code, start=ov or s, end=e, export=True),
+             lambda ov=None: crossborder.all_borders(
+                 _new_client, code, start=ov or s, end=e, export=True),
              raw_path(country, "flow_export", year), force, merge, full)
 
     # ---- installed capacity (annual) ----
