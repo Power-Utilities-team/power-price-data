@@ -20,7 +20,7 @@ which was worse than useless: it would have left every live query on the old own
 job was done. If a search of the raw parts finds nothing, that is not evidence of nothing.
 
 Deliberately NOT openpyxl, which drops charts and metadata and leaves Excel refusing the file. Parts
-are edited as bytes and `xlsx_surgery.part_parity_check` proves nothing was lost.
+are edited as bytes and `part_parity_check` below proves nothing was lost.
 
     ~/.claude/pyenv/bin/python3 "Power Price Data/_tools/repoint_workbook.py" <file.xlsx>
     ~/.claude/pyenv/bin/python3 "Power Price Data/_tools/repoint_workbook.py" <file.xlsx> --apply
@@ -38,9 +38,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path.home() / ".claude" / "tools"))
-import xlsx_surgery  # noqa: E402
-
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "power-price-data"
 HOST = "raw.githubusercontent.com"
@@ -48,6 +45,34 @@ MASHUP_PART = "customXml/item1.xml"
 
 PAT_B = re.compile(rf"{re.escape(HOST)}/([A-Za-z0-9-]+)/{re.escape(REPO)}".encode())
 PAT_S = re.compile(rf"{re.escape(HOST)}/([A-Za-z0-9-]+)/{re.escape(REPO)}")
+
+
+def part_parity_check(src, dst) -> dict:
+    """Assert the rewritten workbook kept every part the original had.
+
+    IN THE REPO ON PURPOSE, not imported from a personal toolbox (fixed 2026-08-26). This
+    used to be `xlsx_surgery.part_parity_check`, reached by putting `~/.claude/tools` on
+    sys.path. That works on the one Mac that has that directory and CANNOT work anywhere
+    else, so the build passed every local check and failed in CI the first time it ran
+    there, with `ModuleNotFoundError: No module named 'xlsx_surgery'`.
+
+    It also broke the handover test this project is held to: given only the repo URL, can a
+    colleague keep the data refreshing? Not while a build step reaches into a home directory
+    that only one person has.
+
+    No `allow_drop`: the only caller rewrites bytes in place and must preserve every part,
+    calcChain included. Dropping a part is how a workbook comes back "needs repair".
+    """
+    def names(p):
+        with zipfile.ZipFile(p) as z:
+            return set(z.namelist())
+    s, d = names(src), names(dst)
+    dropped = sorted(s - d)
+    if dropped:
+        raise SystemExit(
+            f"repoint dropped {len(dropped)} part(s) that must be preserved:\n  "
+            + "\n  ".join(dropped))
+    return {"added": sorted(d - s), "src_parts": len(s), "dst_parts": len(d)}
 
 
 def current_owner() -> str:
@@ -169,7 +194,7 @@ def main() -> int:
                 zout.writestr(info, zin.read(info.filename))
     zin.close()
 
-    xlsx_surgery.part_parity_check(src, dst, allow_drop=())
+    part_parity_check(src, dst)
     if in_place:
         import shutil
         final = src

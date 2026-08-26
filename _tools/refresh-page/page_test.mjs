@@ -38,6 +38,9 @@ const calls = [];
 // error. Reassigned below to drive the two states that DO say something.
 let HEALTH = null;
 let STATUS = null;                       // null = use STATUS_CSV
+// The workflow-run sample the page derives its duration figure from. `null` = the default
+// single completed run, which carries no run_started_at and so yields no derived figure.
+let RUNS = null;
 globalThis.fetch = async (u, opts = {}) => {
   const url = String(u);
   calls.push(url);
@@ -53,7 +56,7 @@ globalThis.fetch = async (u, opts = {}) => {
     return new Response("DELIVERABLE-BYTES", { status: 200 });
   }
   if (url.includes("/actions/workflows/") && url.includes("/runs")) {
-    return new Response(JSON.stringify({ workflow_runs: [{
+    return new Response(JSON.stringify({ workflow_runs: RUNS || [{
       status: "completed", conclusion: "success", updated_at: "2026-08-10T09:40:00Z",
       html_url: "https://github.com/fredhill123/power-price-data/actions/runs/1",
     }] }), { status: 200, headers: { "content-type": "application/json" } });
@@ -238,6 +241,80 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
   const fine = flat(await (await worker.fetch(get("/"), env)).text());
   check(!fine.includes("stored data") && /Data is current/.test(fine),
         "no health record at all reads as healthy, not as an error");
+}
+
+// HOW LONG A RUN TAKES, derived and never asserted (added 2026-08-26).
+//
+// The page said "about 20 minutes" in four places. On the morning this was written the last
+// complete run took 40 minutes and the one in flight took 69, so the promise was wrong by two
+// to three times, and a colleague who waits the promised twenty minutes and sees nothing new
+// concludes the pipeline is broken.
+//
+// The point of these assertions is that the OLD wording would fail them. The suite passed
+// identically before and after the fix until these existed, which made it no guard at all.
+{
+  const mk = (mins, conclusion = "success") => ({
+    status: "completed", conclusion,
+    run_started_at: "2026-08-20T07:00:00Z",
+    updated_at: new Date(Date.parse("2026-08-20T07:00:00Z") + mins * 60000).toISOString(),
+  });
+
+  // Median, not mean. The sample is bimodal: a warm run finishes in minutes, a cold one
+  // rebuilds the year. 10 and 12 and 40 and 44 has a mean of 26.5, which describes no run
+  // that ever happened, and a median of 26 sitting between the two clusters. What matters is
+  // that the figure comes from the data at all, so assert it moves WITH the data.
+  RUNS = [mk(40), mk(44), mk(10), mk(12)];
+  let flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
+  check(!/about 20 minutes/.test(flatHtml),
+        "the page no longer promises a hardcoded 20 minutes");
+  check(/about 26 minutes/.test(flatHtml),
+        "it quotes the median of recent successful runs instead", flatHtml.slice(0, 200));
+
+  // Move the sample and the quoted figure must move with it. A number that survives this is
+  // hardcoded somewhere, which is the exact fault being fixed.
+  RUNS = [mk(60), mk(70), mk(80)];
+  flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
+  check(/about 70 minutes/.test(flatHtml),
+        "and the figure tracks the runs rather than being pinned");
+
+  // A cancelled run is not evidence about how long the work takes. One killed at 2 minutes
+  // would drag the median down and under-promise all over again.
+  RUNS = [mk(60), mk(70), mk(80), mk(2, "cancelled"), mk(3, "failure")];
+  flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
+  check(/about 70 minutes/.test(flatHtml),
+        "cancelled and failed runs are excluded from the figure");
+
+  // A reader watching a slow run needs the elapsed time more than the estimate.
+  RUNS = [{ status: "in_progress", conclusion: null,
+            run_started_at: new Date(Date.now() - 45 * 60000).toISOString(),
+            updated_at: new Date().toISOString() }, mk(60), mk(70), mk(80)];
+  // Tag-agnostic: the sentence is emphasised in the page, and asserting the markup would
+  // make this a test of the styling rather than of the figure.
+  const text = (s) => flat(s.replace(/<[^>]+>/g, " "));
+  let plain = text(await (await worker.fetch(get("/"), env)).text());
+  check(/A refresh is running now , started 4[45] minutes ago/.test(plain)
+        || /A refresh is running now, started 4[45] minutes ago/.test(plain),
+        "a run in flight shows how long it has actually been going", plain.slice(0, 120));
+
+  // No sample at all must not produce a confident wrong number. An honest range beats one.
+  RUNS = [];
+  flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
+  check(/roughly 40 to 70 minutes/.test(flatHtml),
+        "with nothing to go on it gives a range, not a false point estimate");
+
+  // The trigger path quotes the same figure as the page, so the two cannot drift apart.
+  RUNS = [{ status: "in_progress", conclusion: null,
+            run_started_at: new Date(Date.now() - 30 * 60000).toISOString(),
+            updated_at: new Date().toISOString() }, mk(60), mk(70), mk(80)];
+  const busy = flat(await (await worker.fetch(
+    new Request("https://power-price-data.fredhill.workers.dev/trigger", { method: "POST" }),
+    env)).text());
+  check(/already running, started (29|30|31) minutes ago/.test(busy),
+        "the already-running message reports real elapsed time");
+  check(/A run takes about 70 minutes/.test(busy) && !/about 20 minutes/.test(busy),
+        "and quotes the same derived figure as the page");
+
+  RUNS = null;
 }
 
 console.log(fails.length ? `FAILED: ${fails.join(", ")}` : "page_test: all assertions passed");

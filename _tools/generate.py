@@ -32,6 +32,25 @@ def run(*cmd):
     subprocess.run([PY, *[str(c) for c in cmd]], cwd=TOOLS, check=True)
 
 
+def run_node(script):
+    """The public status page's suite, which is JavaScript rather than Python.
+
+    SKIPPED, NOT FAILED, when node is absent. The page is a convenience that this build does
+    not produce and cannot break: the Worker is deployed by hand with wrangler, and the
+    deliverables reach people through raw URLs whether the page exists or not. Failing a data
+    build because a JS runtime is missing would stop the pipeline for something downstream of
+    it. CI's ubuntu runner ships node, so the guard does run where it matters.
+    """
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        print(f"\n$ {script} — SKIPPED, no node on PATH", flush=True)
+        return
+    print(f"\n$ node {script}", flush=True)
+    subprocess.run([node, os.path.join(TOOLS, "refresh-page", script)],
+                   cwd=os.path.join(TOOLS, "refresh-page"), check=True)
+
+
 def publish_local_csvs():
     """Copy the built CSVs into published/, the way the CI publish step does."""
     import glob, shutil
@@ -103,6 +122,11 @@ def main():
         run("fetch_retry_test.py")
         run("crossborder_test.py")
         run("status_health_test.py")
+        # The public status page's own suite, which until 2026-08-26 also ran nowhere. It
+        # caught nothing for a month because nothing invoked it, while the page quietly
+        # promised every visitor a refresh would take "about 20 minutes" — a figure that
+        # was two to three times short once Great Britain and the whole-year pull landed.
+        run_node("page_test.mjs")
         run("check_reference_stability_fixtures.py")
         run("check_reference_stability.py")
         # And refuse to publish a SHORTER series. check_coverage ran only in CI until

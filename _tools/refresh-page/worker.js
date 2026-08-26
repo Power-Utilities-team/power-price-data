@@ -180,10 +180,22 @@ async function getHealth() {
   }
 }
 
-async function latestRun(env) {
+// THE PAGE MUST NOT QUOTE A HARDCODED DURATION (fixed 2026-08-26, Fred: "make the whole
+// process bullet proof"). It said "about 20 minutes" in four places. Measured that morning,
+// the last complete run took 40 minutes and the one in flight took 69. A colleague who is
+// told twenty minutes, waits twenty minutes and sees nothing new concludes the pipeline is
+// broken, which is the precise failure this page exists to prevent.
+//
+// Twenty was not plucked from nowhere: it was true when the pipeline fetched five countries
+// over a short window. Adding Great Britain and moving to a whole-current-year pull changed
+// it, and the page had no way to notice. So no number is written here at all. The figure is
+// derived from what the runs actually did, which cannot go stale the same way.
+const RUNS_SAMPLED = 20;
+
+async function fetchRuns(env, perPage = RUNS_SAMPLED) {
   if (!env.GH_TOKEN) return null;
   const r = await fetch(
-    `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW}/runs?per_page=1`,
+    `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW}/runs?per_page=${perPage}`,
     {
       headers: {
         Authorization: `Bearer ${env.GH_TOKEN}`,
@@ -194,12 +206,53 @@ async function latestRun(env) {
   );
   if (!r.ok) return null;
   const j = await r.json();
-  return (j.workflow_runs && j.workflow_runs[0]) || null;
+  return j.workflow_runs || null;
+}
+
+async function latestRun(env) {
+  const runs = await fetchRuns(env, 1);
+  return (runs && runs[0]) || null;
+}
+
+/* The MEDIAN of recent successful runs, in minutes, or null when there is nothing to go on.
+ *
+ * Median rather than mean, because the sample is bimodal: a run that finds the year already
+ * fetched finishes in minutes, and a cold one rebuilds it. A mean sits between the two and
+ * describes neither. Cancelled and failed runs are excluded, since a run killed at two
+ * minutes is not evidence about how long the work takes.
+ */
+function typicalMinutes(runs) {
+  if (!runs) return null;
+  const mins = runs
+    .filter((r) => r.conclusion === "success" && r.run_started_at && r.updated_at)
+    .map((r) => (new Date(r.updated_at) - new Date(r.run_started_at)) / 60000)
+    .filter((m) => m > 0 && Number.isFinite(m))
+    .sort((a, b) => a - b);
+  if (!mins.length) return null;
+  const mid = Math.floor(mins.length / 2);
+  const med = mins.length % 2 ? mins[mid] : (mins[mid - 1] + mins[mid]) / 2;
+  return Math.round(med);
+}
+
+/* How the page SAYS it, in one place, so the four call sites cannot drift apart again.
+ * Falls back to a range rather than a point estimate when the API cannot be reached, because
+ * a wrong specific number is worse than an honest vague one.
+ */
+function durationPhrase(typical) {
+  return typical === null ? "roughly 40 to 70 minutes" : `about ${typical} minutes`;
+}
+
+// How long the run in flight has been going. The page showed a promise and never the truth;
+// a reader watching a slow run needs the elapsed figure more than the estimate.
+function elapsedMinutes(run) {
+  if (!run || run.status === "completed" || !run.run_started_at) return null;
+  return Math.max(0, Math.round((Date.now() - new Date(run.run_started_at)) / 60000));
 }
 
 /* --------------------------------------------------------------------- page */
 
-function page({ status, run, health, msg, err, hasToken, tokenWorks }) {
+function page({ status, run, health, msg, err, hasToken, tokenWorks, typical, elapsed }) {
+  const takes = durationPhrase(typical === undefined ? null : typical);
   const now = new Date();
 
   let gen = null;
@@ -301,7 +354,7 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks }) {
         nothing.</li>
     <li>In the repository, open <strong>Settings → Secrets and variables → Actions</strong> and set
         <code>ENTSOE_API_KEY</code> to the new key.</li>
-    <li>Come back here and press <strong>Start a refresh</strong>. A run takes about 20 minutes.</li>
+    <li>Come back here and press <strong>Start a refresh</strong>. A run takes ${takes}.</li>
   </ol>
   <p class="muted">The repository's own <code>GITHUB.md</code> carries the same steps in full, plus
   what to do if the refresh button itself has stopped working.</p>
@@ -394,8 +447,12 @@ ${recover}
 
 <div class="card">
   <h2>Refresh now</h2>
-  <p class="muted">Fetches the latest ENTSO-E data and rebuilds everything. Takes about 20 minutes.
+  <p class="muted">Fetches the latest ENTSO-E data and rebuilds everything. Takes ${takes}.
   You rarely need this — the scheduled runs cover it, and no chart gains a new data point in between.</p>
+  ${elapsed !== null && elapsed !== undefined
+      ? `<p class="muted"><strong>A refresh is running now</strong>, started ${elapsed}
+           minute${elapsed === 1 ? "" : "s"} ago.</p>`
+      : ""}
   ${!hasToken
       ? `<p class="muted"><em>Not yet enabled — the access token has not been configured.</em></p>`
       : !tokenWorks
@@ -492,9 +549,19 @@ export default {
         return new Response("Forbidden", { status: 403 });
       }
 
-      const run = await latestRun(env);
+      // Same twenty-run sample the page uses, so the figure quoted on the way IN cannot
+      // disagree with the one quoted on the way out.
+      const runs = await fetchRuns(env);
+      const run = (runs && runs[0]) || null;
+      const takes = durationPhrase(typicalMinutes(runs));
       if (run && run.status !== "completed") {
-        return render(env, { err: "A refresh is already running — give it about 20 minutes." });
+        const going = elapsedMinutes(run);
+        return render(env, {
+          err: going === null
+            ? `A refresh is already running — a run takes ${takes}.`
+            : `A refresh is already running, started ${going} minute${going === 1 ? "" : "s"} ` +
+              `ago. A run takes ${takes}.`,
+        });
       }
       if (run?.updated_at) {
         const mins = (Date.now() - new Date(run.updated_at).getTime()) / 60000;
@@ -520,7 +587,7 @@ export default {
         },
       );
       return r.status === 204
-        ? render(env, { msg: "Refresh started. It takes about 20 minutes — reload this page to follow it." })
+        ? render(env, { msg: `Refresh started. It takes ${takes} — reload this page to follow it.` })
         : render(env, { err: `GitHub refused the request (HTTP ${r.status}).` });
     }
 
@@ -532,14 +599,20 @@ export default {
 };
 
 async function render(env, extra) {
-  const [status, run, health] = await Promise.all([getStatus(env), latestRun(env), getHealth()]);
+  // ONE call for both the latest run and the duration sample. The page used to ask for a
+  // single run; asking for twenty costs the same round trip and is what makes the quoted
+  // figure derived rather than invented.
+  const [status, runs, health] = await Promise.all([getStatus(env), fetchRuns(env), getHealth()]);
+  const run = (runs && runs[0]) || null;
+  const typical = typicalMinutes(runs);
+  const elapsed = elapsedMinutes(run);
   // A token can be PRESENT and not work. That is exactly what happened on 2026-08-17 when the repo
   // moved to an organisation: the fine-grained PAT was scoped to the old owner, so it stopped
   // covering the repo, and the Refresh button still rendered as though it would work. The page could
   // read its status the whole time, because that falls back to unauthenticated raw, so nothing
   // looked wrong. Distinguish the two states rather than leaving a button that fails on click.
   return new Response(
-    page({ status, run, health, hasToken: Boolean(env.GH_TOKEN),
+    page({ status, run, health, typical, elapsed, hasToken: Boolean(env.GH_TOKEN),
            tokenWorks: Boolean(env.GH_TOKEN) && run !== null, ...extra }),
     { headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" } },
   );
