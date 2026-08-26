@@ -120,11 +120,27 @@ function human(ms) {
 // an authenticated limit is tied to the token rather than the address. Raw stays as the fallback
 // for the case where the secret is absent.
 async function getStatus(env) {
+  // Split on commas OUTSIDE quotes. build_status writes health_tabs as a quoted,
+  // comma-separated list, so a naive split misaligns every field after it. Nothing the page
+  // reads sits after that column today, which is exactly why this would have gone unnoticed
+  // until somebody added one.
+  const cells = (line) => {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q && c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') q = !q;
+      else if (c === "," && !q) { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  };
   const parse = (text) => {
     const [head, row] = text.trim().split("\n");
     if (!row) return null;
-    const keys = head.split(",");
-    const vals = row.split(",");
+    const keys = cells(head);
+    const vals = cells(row);
     return Object.fromEntries(keys.map((k, i) => [k.trim(), (vals[i] || "").trim()]));
   };
 
@@ -233,9 +249,19 @@ async function latestRun(env) {
  * that has been superseded. Paired with the live elapsed figure below, a reader gets two
  * true statements instead of one confident guess.
  */
+/* A REPAIR IS NOT A REFRESH, and it lands in this same list. repair.yml dispatches
+ * refresh.yml with repair=true, which re-fetches only the series that failed: minutes, not
+ * the best part of an hour. Quoting it as "the last successful run" would have the page
+ * promising a duration no full run has ever achieved, and the reader would watch it sail
+ * past. refresh.yml sets a run-name so the two are told apart here; a run from before that
+ * name existed simply has no prefix and counts, which is correct.
+ */
+const isRepair = (r) => /^Repair\b/.test(r.display_title || r.name || "");
+
 function typicalMinutes(runs) {
   if (!runs) return null;
   const last = runs
+    .filter((r) => !isRepair(r))
     .filter((r) => r.conclusion === "success" && r.run_started_at && r.updated_at)
     .sort((a, b) => new Date(b.run_started_at) - new Date(a.run_started_at))[0];
   if (!last) return null;
@@ -307,6 +333,19 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks, typical, el
       ? ` Nothing has published for longer than the ${limit}-day tolerance.`
       : " The figures on this page are still current. A repair run retries the missing"
         + " series within hours, and the next scheduled run re-pulls the whole year.";
+  } else if (health?.state === "cancelled") {
+    // Somebody stopped the run, or a newer queued run superseded it. Nothing failed and
+    // nothing is wrong with the data, so this is a note. Before 2026-08-26 the notify job
+    // recorded a cancellation as a failure and this page told every reader the refresh had
+    // failed when nobody had broken anything.
+    tone = stale ? "bad" : "warn";
+    headline = stale
+      ? `Data is ${Math.floor(ageDays)} days old`
+      : "The last refresh was stopped before it finished";
+    detail = "Nothing failed and the figures on this page are unchanged. "
+      + (stale
+          ? `Nothing has published for longer than the ${limit}-day tolerance.`
+          : "The next scheduled run publishes as normal.");
   } else if (stale) {
     tone = "bad";
     headline = `Data is ${Math.floor(ageDays)} days old`;
@@ -566,9 +605,16 @@ export default {
       // endpoint returns the same public page either way and the Worker holds nothing private.
       // The offered fix was a strict Origin plus a same-site form token; raise it again only if the
       // cost changes, not as tidying.
+      // `new URL(origin)` THROWS on anything that is not a URL, and the commonest such
+      // value is the literal string "null", which browsers send for a sandboxed iframe, a
+      // file:// page and some cross-site redirects. That threw out of fetch() and the
+      // Worker answered 500 (confirmed against the live page, 2026-08-26). An Origin we
+      // cannot parse is not this page's origin, so it is refused like any other.
       const origin = request.headers.get("Origin");
-      if (origin && new URL(origin).host !== url.host) {
-        return new Response("Forbidden", { status: 403 });
+      if (origin) {
+        let host = null;
+        try { host = new URL(origin).host; } catch (e) { /* unparseable */ }
+        if (host !== url.host) return new Response("Forbidden", { status: 403 });
       }
 
       // Same twenty-run sample the page uses, so the figure quoted on the way IN cannot
@@ -585,7 +631,11 @@ export default {
               `ago. A run takes ${takes}.`,
         });
       }
-      if (run?.updated_at) {
+      // ONLY A SUCCESSFUL RUN STARTS THE COOLDOWN. It exists to stop two people
+      // double-triggering the same work, and a run that failed did not do the work. Keying
+      // it on the last run whatever its conclusion meant that the moment someone most wants
+      // to retry — a refresh just failed — was the moment they were refused for half an hour.
+      if (run?.updated_at && run.conclusion === "success") {
         const mins = (Date.now() - new Date(run.updated_at).getTime()) / 60000;
         if (mins < COOLDOWN_MIN) {
           return render(env, {

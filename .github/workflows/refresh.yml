@@ -3,6 +3,14 @@ name: Refresh ENTSO-E power-price data
 # Keeps the published CSVs current with NO human trigger, so a non-technical
 # person just opens the Excel workbook (set to refresh-on-open) and gets fresh
 # data. Also runnable on demand from the Actions tab ("Run workflow").
+# The run name, and it is load-bearing rather than cosmetic. repair.yml dispatches THIS
+# workflow with repair=true, so a repair appears in the same run list as a full refresh
+# while doing a fraction of the work. The status page quotes what the last successful run
+# took, and with no way to tell the two apart the first repair would have it promising two
+# minutes for a job that takes closer to an hour. `inputs` is null for a scheduled run,
+# which yields the plain name.
+run-name: ${{ inputs.repair && 'Repair (only the series that failed)' || 'Refresh' }}
+
 on:
   schedule:
     # 07:23 UTC on the 2nd. Three deliberate choices, all measured:
@@ -63,10 +71,6 @@ on:
     # If the Status tab ever shows STALE, check the Actions tab for a disabled schedule.
   workflow_dispatch:
     inputs:
-      full_refetch:
-        description: "No longer does anything — every run re-pulls the whole year. Kept so the button keeps its familiar shape."
-        type: boolean
-        default: false
       repair:
         description: "Re-fetch ONLY the series the last run could not get, then build and publish as normal. Set by repair.yml; ticking it by hand does nothing unless a gaps record exists."
         type: boolean
@@ -416,6 +420,7 @@ jobs:
   validate:
     needs: build
     runs-on: windows-latest
+    timeout-minutes: 30        # dotnet-script install plus four OOXML validations
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -440,6 +445,7 @@ jobs:
   publish:
     needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 20        # a checkout, a copy and a push
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -573,8 +579,17 @@ jobs:
     # cancelled run, so a cancellation opened no issue and wrote no health
     # record, and the status page went stale on age alone — the exact
     # blindness the health record exists to remove.
+    #
+    # BUT A CANCELLATION IS NOT A FAILURE, and until 2026-08-26 this job called it one.
+    # Cancelling run 32959091445 by hand wrote state "failed" with the reason "the run
+    # failed after the fetch step", and the public page told every reader the refresh had
+    # failed when nothing had. A queued run superseded by a newer one is cancelled the same
+    # way, so this was reachable without anyone pressing anything. The job still runs on
+    # both, because silence is what the paragraph above rules out; what changes is that it
+    # now says WHICH of the two happened, and only a real failure opens an issue.
     if: failure() || cancelled()
     runs-on: ubuntu-latest
+    timeout-minutes: 10        # a JSON write and one gh call
     permissions:
       issues: write
       contents: write          # for the health record below
@@ -594,6 +609,7 @@ jobs:
       - name: Publish why the run failed
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_STATE: ${{ contains(needs.*.result, 'failure') && 'failed' || 'cancelled' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -609,15 +625,17 @@ jobs:
               fatal += r.get("fatal") or []
               stale += r.get("stale") or []
               series |= set(r.get("series") or [])
+          state = os.environ.get("RUN_STATE") or "failed"
           out = {
-              "state": "failed",
+              "state": state,
               "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
               "run": os.environ.get("RUN_URL", ""),
               # A run can fail for reasons that never reach fetch.py at all (a pinned wheel
               # disappearing, the schema validator refusing a deliverable). Saying so beats
               # an empty list, which would read as "nothing was wrong".
-              "reason": ("; ".join(f"{g['series']}: {g['why']}" for g in fatal)
-                         if fatal else "the run failed after the fetch step — see the run log"),
+              "reason": ("; ".join(f"{g['series']}: {g['why']}" for g in fatal) if fatal
+                         else "the run was stopped before it finished" if state == "cancelled"
+                         else "the run failed after the fetch step — see the run log"),
               "series": sorted(series),
               "fatal": fatal,
               "stale": stale,
@@ -630,12 +648,13 @@ jobs:
           git config user.email "power-price-bot@users.noreply.github.com"
           git add published/charts/health.json
           git diff --cached --quiet && { echo "health record unchanged"; exit 0; }
-          git commit -m "health: record why the refresh failed"
+          git commit -m "health: record why the refresh did not publish"
           # The publish job may have pushed between our checkout and now; rebase rather
           # than force, because this file is never the thing worth winning a race over.
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin HEAD:"${GITHUB_REF_NAME}"
       - name: Open or update the failure issue
+        if: contains(needs.*.result, 'failure')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
