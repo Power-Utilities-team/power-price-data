@@ -53,3 +53,12 @@ archive/workbook-pre-surgery-2026-08-06/
 # (2026-08-25). The templates themselves are text in _tools/chart_templates/ and are
 # what the build reads; these are kept locally as provenance, not as a build input.
 archive/extra-charts-base-2026-08-25/
+
+# The UpSlide-linked workbook and anything derived from it. This repository is PUBLIC and
+# that file is classified RAndCoInternalParent by the firm's own Microsoft sensitivity
+# labelling, quite apart from naming a colleague, an internal file server and two paths to
+# a shared deck. It lives in the private work vault; merge_into_linked.py takes it as an
+# argument, so nothing here needs a copy.
+*HourlyPowerData 3*
+_upslide-template/
+_tools/upslide/

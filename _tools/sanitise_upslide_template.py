@@ -73,6 +73,18 @@ def main() -> int:
             changed += hits
             touched += 1
 
+    # WHERE THE FILE WAS LAST SAVED, which is not only in the markers. Excel records the
+    # containing folder in workbook.xml as <x15ac:absPath url="..."/>, and on this workbook
+    # that is a UNC path naming an internal file server and the whole directory tree beneath
+    # it. It is informational - Excel uses it to resolve relative links and rewrites it on
+    # the next save - so removing it costs nothing and it would otherwise have been published
+    # alongside everything the markers gave up.
+    wbx = parts["xl/workbook.xml"].decode()
+    n_abs = len(re.findall(r"<x15ac:absPath\b[^>]*/>", wbx))
+    if n_abs:
+        wbx = re.sub(r"<x15ac:absPath\b[^>]*/>", "", wbx)
+        parts["xl/workbook.xml"] = wbx.encode()
+
     import xml.etree.ElementTree as ET
     for n, blob in parts.items():
         if n.endswith((".xml", ".rels")):
@@ -90,13 +102,16 @@ def main() -> int:
     src = zipfile.ZipFile(a.src)
     dst = zipfile.ZipFile(a.out)
     moved = [n for n in src.namelist()
-             if src.read(n) != dst.read(n) and not n.startswith("xl/drawings/drawing")]
+             if src.read(n) != dst.read(n) and not n.startswith("xl/drawings/drawing")
+             and n != "xl/workbook.xml"]
     print(f"rewrote {changed} destination path(s) across {touched} marker drawing(s) -> {a.to!r}")
+    print(f"removed {n_abs} absPath record(s) of where the file was last saved")
     print(f"parts changed outside the marker drawings: {len(moved)}"
           + (f"  {moved[:4]}" if moved else "  (none, as intended)"))
-    left = sum(1 for n in dst.namelist()
-               if b"sharepoint.com" in dst.read(n) or b"personal/" in dst.read(n))
-    print(f"parts still naming a personal SharePoint URL: {left}")
+    LEAKS = (b"sharepoint.com", b"personal/", b"lon01fs01", b"Oils", b"H:\\\\")
+    left = [n for n in dst.namelist() if any(k in dst.read(n) for k in LEAKS)]
+    print(f"parts still naming a person, a server or an internal path: {len(left)}"
+          + (f"  {left[:3]}" if left else "  (none)"))
     return 1 if left or moved else 0
 
 
