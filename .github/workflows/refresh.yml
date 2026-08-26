@@ -209,15 +209,38 @@ jobs:
             python fetch.py --country ${{ matrix.country }} --years $YEAR --only "$ONLY"
             exit $?
           fi
-          echo "FULL re-fetch of ${{ matrix.country }} $YEAR"
-          # THE FIRST PASS MUST NOT GATE THE SECOND. Since 2026-08-23 fetch.py exits
-          # non-zero when a required series comes back with nothing usable, and under
-          # `set -e` that would kill the step before the second pass ran — losing the very
-          # retry that exists to fill a transient 503. So the first pass is advisory and
-          # the second is the gate.
-          python fetch.py --country ${{ matrix.country }} --years $YEAR --force || \
-            echo "first pass had gaps; the second pass is the one that decides"
-          python fetch.py --country ${{ matrix.country }} --years $YEAR   # 2nd pass fills 503 gaps
+          # A TRAILING WINDOW NORMALLY, THE WHOLE YEAR ONLY WHEN THAT FAILS
+          # (Fred, 2026-08-26: "trailing window, periodic full only in case of error").
+          #
+          # Measured that morning: German January re-fetched came back IDENTICAL to what
+          # was stored, 0 differing cells of 50,524 for generation and 0 of 2,972 for
+          # price. Re-pulling January in August buys nothing, and this workflow was doing
+          # it eight times a month for six markets. Restatement happens in recent weeks,
+          # which is exactly what the window covers.
+          #
+          # The 2026-08-03 decision that replaced a 30-day window with a whole-year pull
+          # is not simply being reversed. Its objection was real: a window "could only
+          # ever rewrite the last 30 days", so a file that went bad in March stayed bad.
+          # That is answered by the fallback below plus the gaps record, which names the
+          # failed series so the repair run can re-fetch it in full. (That record raised
+          # NameError on every partial fetch until 2026-08-26, so this design depends on a
+          # mechanism that had never once run.)
+          #
+          # A cold cache needs no special case: fetch.py widens a window back to the full
+          # year, per series, when there is nothing stored to merge into.
+          echo "TRAILING-WINDOW fetch of ${{ matrix.country }} $YEAR (last 45 days)"
+          if ! python fetch.py --country ${{ matrix.country }} --years $YEAR --since-days 45
+          then
+            echo "the trailing window came back short — falling back to a FULL year fetch"
+            # THE FIRST PASS MUST NOT GATE THE SECOND. Since 2026-08-23 fetch.py exits
+            # non-zero when a required series comes back with nothing usable, and under
+            # `set -e` that would kill the step before the second pass ran — losing the
+            # very retry that exists to fill a transient 503. So the first pass is
+            # advisory and the second is the gate.
+            python fetch.py --country ${{ matrix.country }} --years $YEAR --force || \
+              echo "first pass had gaps; the second pass is the one that decides"
+            python fetch.py --country ${{ matrix.country }} --years $YEAR   # fills 503 gaps
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: raw-${{ matrix.country }}

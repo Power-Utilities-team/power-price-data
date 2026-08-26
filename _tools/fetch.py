@@ -35,6 +35,104 @@ from entsoe.exceptions import NoMatchingDataError
 
 import config as cfg
 import crossborder
+import windows
+
+
+def _transient(ex):
+    """Is this the API having a bad minute, rather than the request being wrong?
+
+    Module level rather than nested inside _attempt (moved 2026-08-26) because _chunked
+    needs the same judgement: a gateway timeout is worth retrying differently, a malformed
+    request is not.
+    """
+    st = getattr(getattr(ex, "response", None), "status_code", None)
+    if st in TRANSIENT_STATUS:
+        return True
+    return type(ex).__name__ in ("ConnectionError", "Timeout", "ReadTimeout",
+                                 "ConnectTimeout", "ChunkedEncodingError")
+
+
+def _chunked(call, start, end):
+    """One request first; month-sized blocks only if that fails. Stitch and return.
+
+    WHY, measured 2026-08-26 against the live API for the exact German generation window
+    that had just failed in production:
+
+        one request, 2026-01-01..2026-08-26   FAILED, HTTP 504 after 180s
+        eight monthly requests                ALL SUCCEEDED, 341s total
+
+    A 504 is a gateway giving up on generating a huge response, not a rate limit, so
+    retrying the identical request cannot work. Production retried it three times with 20s,
+    40s and 80s backoff and then gave up, spending 16 minutes to fetch nothing and falling
+    back to a stored copy. entsoe-py will not split it for us: `query_generation` carries
+    `@year_limited`, which cuts at year boundaries and nowhere else, so any sub-year window
+    is a single HTTP request.
+
+    WHY ONE REQUEST FIRST, rather than always splitting. Measured the same day, on a
+    two-month window that ENTSO-E serves happily:
+
+        one request      76.5s
+        monthly blocks  196.4s     (identical data: same 5,852 rows, 17 columns, 0 diffs)
+
+    So splitting costs about 2.6x whenever the whole window would have worked, and the
+    trailing-window fetch this normally runs is exactly that case. Always chunking would
+    have made the common path slower to fix the rare one.
+
+    An earlier version of this rejected "split on failure" outright, on the grounds that
+    each 504 costs a full timeout before the code learns anything. That objection is real
+    but it only bites RECURSIVE halving, which pays a timeout PER LEVEL while it searches
+    for a size that works. Falling back once, straight to months, pays exactly one timeout
+    and then behaves optimally. The measurements say that is the better trade: about 120s
+    saved on every healthy fetch, against 180s added on a failing one that was previously
+    fetching nothing at all.
+
+    Only a TRANSIENT failure triggers the fallback. A malformed request would fail the same
+    way twelve times over, so it propagates immediately.
+
+    A window inside a single month is passed straight through, since there is nothing to
+    fall back to.
+
+    A block with nothing published is skipped rather than fatal: ENTSO-E legitimately has
+    no data for some markets in some months, and one empty January must not discard the
+    other seven months. Only a window where EVERY block is empty raises, which is the same
+    signal a single empty request would have given.
+    """
+    blocks = windows.month_blocks(start, end)
+    if len(blocks) <= 1:
+        return call(start, end)
+    try:
+        return call(start, end)
+    except NoMatchingDataError:
+        raise                                   # nothing published is not a size problem
+    except Exception as ex:                     # noqa: BLE001 - re-raised unless transient
+        if not _transient(ex):
+            raise
+        st = getattr(getattr(ex, "response", None), "status_code", None)
+        log(f"    whole-window request failed ({type(ex).__name__}"
+            f"{f' {st}' if st else ''}) — retrying as {len(blocks)} month block(s)")
+
+    frames, empty = [], 0
+    for a, b in blocks:
+        try:
+            r = call(a, b)
+        except NoMatchingDataError:
+            empty += 1
+            continue
+        if r is not None and len(r):
+            frames.append(r)
+        else:
+            empty += 1
+    if not frames:
+        raise NoMatchingDataError(
+            f"no data published in any of {len(blocks)} month block(s)")
+    out = pd.concat(frames)
+    # Blocks are half-open so they cannot overlap, but ENTSO-E returns rows just outside a
+    # requested window (the library's own year_limited says so), so a boundary row can
+    # arrive twice. The later block wins, matching _merge_into's revision rule.
+    out = out[~out.index.duplicated(keep="last")].sort_index()
+    if empty:
+        log(f"    ({len(blocks)} block(s), {empty} with nothing published)")
+    return out
 
 if not cfg.API_KEY:
     raise SystemExit("No ENTSO-E API key: set ENTSOE_API_KEY env var or create _tools/.entsoe_key")
@@ -234,13 +332,6 @@ def _attempt(label, fn, path, force, merge=False, full_start=None):
         log(f"  skip  {label} (cached)")
         OUTCOMES[path] = (label, "skip")
         return
-    def _transient(ex):
-        st = getattr(getattr(ex, "response", None), "status_code", None)
-        if st in TRANSIENT_STATUS:
-            return True
-        return type(ex).__name__ in ("ConnectionError", "Timeout", "ReadTimeout",
-                                     "ConnectTimeout", "ChunkedEncodingError")
-
     def _call():
         wait = RETRY_WAIT
         for attempt in range(1, RETRIES + 1):
@@ -332,24 +423,31 @@ def fetch_country_year(country, year, force=False, since_days=None):
     # ---- prices (per zone) ----
     for zone in meta["price_zones"]:
         _attempt(f"price {zone}",
-                 lambda ov=None, z=zone: client.query_day_ahead_prices(z, start=ov or s, end=e),
+                 lambda ov=None, z=zone: _chunked(
+                     lambda a, b, z=z: client.query_day_ahead_prices(z, start=a, end=b),
+                     ov or s, e),
                  raw_path(country, f"price_{zone}", year), force, merge, full)
 
     # ---- load (national) ----
     _attempt("load",
-             lambda ov=None: client.query_load(code, start=ov or s, end=e),
+             lambda ov=None: _chunked(
+                 lambda a, b: client.query_load(code, start=a, end=b), ov or s, e),
              raw_path(country, "load", year), force, merge, full)
 
     # ---- per-zone load for IT PUN weighting ----
     if len(meta["price_zones"]) > 1:
         for zone in meta["price_zones"]:
             _attempt(f"load {zone}",
-                     lambda ov=None, z=zone: client.query_load(z, start=ov or s, end=e),
+                     lambda ov=None, z=zone: _chunked(
+                         lambda a, b, z=z: client.query_load(z, start=a, end=b),
+                         ov or s, e),
                      raw_path(country, f"load_{zone}", year), force, merge, full)
 
     # ---- generation per type (national) ----
     _attempt("generation",
-             lambda ov=None: client.query_generation(code, start=ov or s, end=e, psr_type=None),
+             lambda ov=None: _chunked(
+                 lambda a, b: client.query_generation(code, start=a, end=b, psr_type=None),
+                 ov or s, e),
              raw_path(country, "generation", year), force, merge, full)
 
     # ---- cross-border physical flows (all borders) ----
@@ -364,12 +462,14 @@ def fetch_country_year(country, year, force=False, since_days=None):
     # drives the real library method and ours over the same canned responses and asserts
     # the two are equal, including column ORDER, which is part of the published schema.
     _attempt("flow_import",
-             lambda ov=None: crossborder.all_borders(
-                 _new_client, code, start=ov or s, end=e, export=False),
+             lambda ov=None: _chunked(
+                 lambda a, b: crossborder.all_borders(
+                     _new_client, code, start=a, end=b, export=False), ov or s, e),
              raw_path(country, "flow_import", year), force, merge, full)
     _attempt("flow_export",
-             lambda ov=None: crossborder.all_borders(
-                 _new_client, code, start=ov or s, end=e, export=True),
+             lambda ov=None: _chunked(
+                 lambda a, b: crossborder.all_borders(
+                     _new_client, code, start=a, end=b, export=True), ov or s, e),
              raw_path(country, "flow_export", year), force, merge, full)
 
     # ---- installed capacity (annual) ----

@@ -126,6 +126,8 @@ def main():
         # never once been written. Import, ast.parse and the consumer's own suite all
         # passed throughout.
         run("undefined_names_test.py")
+        run("windows_test.py")
+        run("chunked_test.py")
         run("fetch_retry_test.py")
         run("crossborder_test.py")
         run("status_health_test.py")
