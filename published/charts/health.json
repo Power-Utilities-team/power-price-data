@@ -1,8 +1,7 @@
 {
- "state": "failed",
- "at": "2026-08-26T11:03:33+00:00",
- "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/32959091445",
- "reason": "the run failed after the fetch step \u2014 see the run log",
+ "state": "ok",
+ "at": "2026-08-26T11:17:49+00:00",
+ "reason": "",
  "series": [],
  "fatal": [],
  "stale": []
