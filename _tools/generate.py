@@ -119,6 +119,13 @@ def main():
         # them by hand. Not a theoretical gap - adding the concurrent border fetch broke
         # fetch_retry_test on its first attempt, and that was caught only because it
         # happened to be run by hand that minute. A suite nothing runs is documentation.
+        # FIRST, because it is the cheapest and the only one that reads every module. It
+        # exists because fetch.py used datetime and timezone without importing them, in a
+        # branch that runs only when a fetch comes back partial, so the gaps record that
+        # drives both the repair run and the public page's "which series is behind" had
+        # never once been written. Import, ast.parse and the consumer's own suite all
+        # passed throughout.
+        run("undefined_names_test.py")
         run("fetch_retry_test.py")
         run("crossborder_test.py")
         run("status_health_test.py")

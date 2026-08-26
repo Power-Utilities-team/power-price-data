@@ -24,6 +24,10 @@ Usage:
 """
 from __future__ import annotations
 import argparse, glob, json, os, re, sys, time, traceback
+# datetime/timezone stamp the gaps record below. They were USED and never imported, so the
+# one line that writes that record raised NameError every time a fetch came back partial —
+# which is the only time it runs. Found 2026-08-26 in a German fetch log.
+from datetime import datetime, timezone
 import warnings; warnings.filterwarnings("ignore")
 import pandas as pd
 from entsoe import EntsoePandasClient
