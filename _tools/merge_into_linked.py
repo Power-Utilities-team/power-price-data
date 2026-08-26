@@ -144,13 +144,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True, help="the UpSlide-linked workbook")
     ap.add_argument("--donor", required=True, help="a fresh build to take new content from")
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", required=False,
+                    help="not needed with --dry-run")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="report whether the template is behind the donor, and change "
+                         "nothing. Exit 1 if a rebuild is due, 0 if it is not.")
     ap.add_argument("--skip", default="", help="comma list of stages to omit: "
                     "update,queries,sheets,charts,calcchain")
     ap.add_argument("--chart-size", default=None,
                     help="cx,cy in EMU for added charts; default is the base's commonest")
     a = ap.parse_args()
 
+    if not a.out and not a.dry_run:
+        ap.error("--out is required unless --dry-run is given")
     base, donor = read(a.base), read(a.donor)
     skip = {x.strip() for x in a.skip.split(',') if x.strip()}
     report = []
@@ -175,6 +181,45 @@ def main():
             new_charts.append((name, anchor, part))
     report.append(f"new charts to add: {len(new_charts)}"
                   + (f" (all on {sorted({s for s, _, _ in new_charts})})" if new_charts else ""))
+
+    # ---- 1b. is a rebuild due at all? ---------------------------------------------------
+    # THE NUMBERS DO NOT NEED ONE. Every query in this workbook refreshes on open, so a
+    # month of fresh data reaches the linked copy without anything being rebuilt. Only a
+    # change of SHAPE does: a new sheet, a new chart, a column that moved. Fred's call,
+    # 2026-08-26, and this is what makes it checkable rather than something to remember.
+    if a.dry_run:
+        sheets_due = [n for n in ds if n not in bs]
+        charts_due = len(new_charts)
+        # NOT a byte comparison. The updates this tool applies are surgical - the base
+        # chart keeps all its own elements and gains a series and a title - so an updated
+        # chart is deliberately not byte-equal to the donor's version of it. Comparing
+        # bytes reported a rebuild as due the moment one had just been done. What is
+        # actually behind is a chart with fewer series than the donor's, or missing the
+        # caveat the donor carries.
+        def _shape(x):
+            head = x.split("<c:plotArea>")[0]
+            m = re.search(r"<c:title>.*?</c:title>", head, re.S)
+            return (len(re.findall(r"<c:ser>", x)),
+                    " ".join(re.findall(r"<a:t>([^<]*)</a:t>", m.group(0))) if m else "")
+        updates_due = []
+        for b, d in UPDATE.items():
+            if b not in base or d not in donor:
+                continue
+            bn, bt = _shape(base[b].decode())
+            dn, dt = _shape(donor[d].decode())
+            if bn < dn or (dt and dt != bt):
+                updates_due.append(os.path.basename(b))
+        due = bool(sheets_due or charts_due or updates_due)
+        print(f"template : {a.base}")
+        print(f"donor    : {a.donor}")
+        print(f"  new sheets : {', '.join(sheets_due) if sheets_due else 'none'}")
+        print(f"  new charts : {charts_due}")
+        print(f"  charts whose content moved on : "
+              f"{', '.join(updates_due) if updates_due else 'none'}")
+        print("\nREBUILD DUE" if due else
+              "\nUP TO DATE - the linked workbook only needs its numbers, which it "
+              "refreshes on open")
+        return 1 if due else 0
 
     # ---- 2. update the hand-checked charts ---------------------------------------------
     for bp, dp in ({} if 'update' in skip else UPDATE).items():
