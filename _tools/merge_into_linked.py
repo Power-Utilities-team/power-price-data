@@ -118,18 +118,25 @@ def theme_accents(parts):
     return out
 
 
-def resolve_accents(xml: str, accents: dict) -> str:
-    """Turn theme-colour references into explicit ones, using the BASE workbook's theme.
+# The hydro band charts were the only ones in this workbook that took their colours from
+# the theme, which is why they needed resolving here at all. chart_templates/hydro_band.xml
+# now states them explicitly and check_house_palette.py keeps it that way, so this mapping
+# is a fallback for a donor built before that fix. It deliberately MATCHES the template
+# rather than resolving against whatever theme the base happens to carry: resolving against
+# the base put the current year's line on ACBFB7, the same colour as the band it sits inside.
+HYDRO_LINE_COLOURS = {"accent2": "CC9F53",   # oldest complete year   GOLD
+                      "accent6": "3D664A",   #                        FOREST
+                      "accent5": "5FA1AD",   #                        TEAL
+                      "accent4": "8A1E41",   #                        WINE
+                      "accent3": "2E3E80"}   # the current year       NAVY
 
-    The only donor charts that reference theme colours are the hydro reservoir ones, and the
-    two workbooks' accent palettes are entirely different: the base carries the house colours
-    and the donor carries the Office 2007 defaults. Resolving against the base gives the
-    house palette and, unlike leaving the reference in place, cannot drift if anyone ever
-    restyles the workbook.
-    """
+
+def resolve_accents(xml: str, accents: dict) -> str:
+    """Turn any theme-colour reference into the explicit house colour it should be."""
     def sub(m):
         slot = m.group(1)
-        return f'<a:srgbClr val="{accents[slot]}"' if slot in accents else m.group(0)
+        return (f'<a:srgbClr val="{HYDRO_LINE_COLOURS[slot]}"'
+                if slot in HYDRO_LINE_COLOURS else m.group(0))
     return re.sub(r'<a:schemeClr val="(accent\d)"', sub, xml)
 
 

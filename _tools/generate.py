@@ -236,6 +236,11 @@ def main():
     # code removed the first one it found. Every check above passed, because every check
     # above asks whether the change added what it meant to add.
     run("check_chart_preservation.py")
+    # Every chart states its own colours. The hydro band charts came from the
+    # tracker on theme accents, so in the published workbook they rendered in Office
+    # defaults while everything else used the house palette, and they changed
+    # appearance again when copied into a workbook with a different theme.
+    run("check_house_palette.py")
     run("check_consistency.py")
 
     if DELIVER:
