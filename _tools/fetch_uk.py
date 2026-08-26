@@ -54,7 +54,7 @@ Usage:
   python fetch_uk.py --force         # re-fetch even if cached
 """
 from __future__ import annotations
-import argparse, io, os, sys, time, warnings
+import argparse, io, json, os, re, sys, time, warnings
 warnings.filterwarnings("ignore")
 import pandas as pd
 import requests
@@ -131,6 +131,105 @@ SINCE_DAYS = None
 _ACTIVE = None          # (start, end) for the series being fetched, or None for a full year
 
 
+# THE GAPS RECORD, added 2026-08-26, and the reason is worth stating plainly: until today
+# this script COULD NOT FAIL. `main` returned None on every path and `fetch_year` caught
+# every exception, so a total Elexon outage exited 0 with a cheerful log. Three things
+# followed from that, all of them silent.
+#
+#   * The workflow's own safety net was unreachable. `if ! python fetch_uk.py --since-days
+#     45; then ... --force` can only fire on a non-zero exit, and there was none.
+#   * Nothing wrote `fetch-gaps.json`, which is the ONLY route by which a fetch problem
+#     reaches a human: the publish job builds health.json from it, the status page reads
+#     that, and build_status.py turns it into the Excel banner naming the affected tabs.
+#     Great Britain could not appear in any of them.
+#   * There was no bound on how old a stored fallback could be. The other five markets
+#     have had one since 2026-08-23.
+#
+# Downstream would not have caught it either. check_coverage looks for data that SHRANK,
+# and a frozen GB column loses nothing while the other five keep the file's last row
+# advancing. So this is the whole of GB's failure reporting, and it is deliberately the
+# same shape as fetch.py's: same file name, same record fields, same three outcomes, so
+# the publish job, the repair workflow and the status sheet need no GB special case.
+REQUIRED = ("price", "load", "generation")
+FALLBACK_DAYS = 3               # matches fetch.py; see the note on FALLBACK_DAYS there
+GAPS_FILE = "fetch-gaps.json"
+
+# path -> (label, "ok" | "fail" | "skip"). "skip" is a completed year already stored, whose
+# age says nothing about health, exactly as in fetch.py.
+OUTCOMES = {}
+
+
+def _mark(path, label, state):
+    """Record an outcome. A later success overwrites an earlier failure; not the reverse."""
+    if state == "ok" or path not in OUTCOMES:
+        OUTCOMES[path] = (label, state)
+
+
+def _required(label):
+    return any(label.startswith(r) for r in REQUIRED)
+
+
+def _stored_coverage_end(path):
+    """How far the STORED copy runs, from the data's own last timestamp.
+
+    Not the file mtime: a cache restore rewrites that, so a file whose data stops in June
+    can look like it was written this morning.
+    """
+    try:
+        df = pd.read_parquet(path)
+        return pd.Timestamp(df.index.max()).tz_convert("UTC") if len(df.index) else None
+    except Exception:                                     # noqa: BLE001 - unreadable
+        return None
+
+
+def classify_gaps():
+    """Required series that failed, split into what the run survives and what it cannot."""
+    hard, stale = [], []
+    now = pd.Timestamp.now(tz="UTC")
+    for path, (label, state) in OUTCOMES.items():
+        if state != "fail" or not _required(label):
+            continue
+        base = os.path.basename(path)
+        if not (os.path.exists(path) and os.path.getsize(path) > 0):
+            hard.append({"series": label, "file": base, "why": "nothing stored"})
+            continue
+        m = re.search(r"_(\d{4})\.parquet$", path)
+        year = int(m.group(1)) if m else None
+        if year is not None and year < cfg.CURRENT_YEAR:
+            continue                                      # a completed year is complete
+        end = _stored_coverage_end(path)
+        if end is None:
+            hard.append({"series": label, "file": base, "why": "stored file unreadable"})
+            continue
+        age = (now - end).days
+        if age > FALLBACK_DAYS:
+            hard.append({"series": label, "file": base,
+                         "why": f"stored data ends {end.date()}, {age} days old, past the "
+                                f"{FALLBACK_DAYS}-day bound"})
+        else:
+            stale.append({"series": label, "file": base,
+                          "covers_to": end.isoformat(timespec="minutes"), "days_old": age})
+    return hard, stale
+
+
+def write_gaps(hard, stale, years):
+    """Same record fields fetch.py writes, so every consumer reads GB with no special case."""
+    if not (hard or stale):
+        return
+    rec = {"at": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
+           "countries": [UK], "years": sorted(years),
+           "fatal": hard, "stale": stale,
+           "series": sorted({g["series"] for g in hard + stale})}
+    try:
+        os.makedirs(cfg.META_DIR, exist_ok=True)
+        with io.open(os.path.join(cfg.META_DIR, GAPS_FILE), "w",
+                     encoding="utf-8", newline="\n") as fh:
+            json.dump(rec, fh, indent=1)
+        log(f"  wrote {GAPS_FILE}: {len(hard)} fatal, {len(stale)} running on stored data")
+    except Exception as ex:                               # noqa: BLE001
+        log(f"  could not write {GAPS_FILE}: {ex}")
+
+
 def _need(path, force):
     if SINCE_DAYS is not None:
         return True     # a windowed run always re-fetches; the merge keeps the history
@@ -187,6 +286,7 @@ def _save(df, path, label, year=None, expect_halfhourly=False):
     """
     if df is None or len(df) == 0:
         log(f"   {label}: NO DATA — not written")
+        _mark(path, label, "fail")
         return False
     df = df.copy()
     df.index = pd.DatetimeIndex(df.index).tz_convert("UTC")
@@ -208,6 +308,7 @@ def _save(df, path, label, year=None, expect_halfhourly=False):
         if len(df) < 0.9 * expected:
             note = f"  ** WARN: {len(df)} rows against ~{expected} expected for a full year"
     log(f"   {label}: {len(df)} rows -> {os.path.basename(path)}{note}")
+    _mark(path, label, "ok")
     return True
 
 
@@ -285,6 +386,7 @@ def fetch_price(year, force):
     path = raw_path(f"price_{UK}", year)
     if not _need(path, force):
         log(f"   price: cached")
+        _mark(path, "price", "skip")
         return
     _begin(path, year)
     df = _stream("MID", year, "from", "to", {"dataProviders": PRICE_PROVIDER})
@@ -322,6 +424,7 @@ def fetch_load(year, force):
     path = raw_path("load", year)
     if not _need(path, force):
         log(f"   load: cached")
+        _mark(path, "load", "skip")
         return
     _begin(path, year)
     # The plain endpoint caps at seven days and returns HTTP 400 beyond it, so a loop
@@ -367,6 +470,7 @@ def fetch_generation(year, force):
     path = raw_path("generation", year)
     if not _need(path, force):
         log(f"   generation: cached")
+        _mark(path, "generation", "skip")
         return
     _begin(path, year)
     df = _stream("AGPT", year, "publishDateTimeFrom", "publishDateTimeTo")
@@ -388,6 +492,7 @@ def fetch_flows(year, force):
     ip, ep = raw_path("flow_import", year), raw_path("flow_export", year)
     if not _need(ip, force) and not _need(ep, force):
         log(f"   flows: cached")
+        _mark(ip, "flow_import", "skip"); _mark(ep, "flow_export", "skip")
         return
     from entsoe import EntsoePandasClient
     import crossborder
@@ -419,6 +524,7 @@ def fetch_flows(year, force):
             _save(df, path, label)
         except Exception as ex:               # noqa: BLE001 - a border gap is not fatal
             log(f"   {label}: {type(ex).__name__} — not written")
+            _mark(path, label, "fail")
 
 
 # ---------------------------------------------------------------------------
@@ -541,11 +647,27 @@ def fetch_capacity(years, force):
 
 # ---------------------------------------------------------------------------
 def fetch_year(year, force):
+    """Each series is attempted independently, and a raise is RECORDED rather than lost.
+
+    Before 2026-08-26 an exception here escaped to `main`, which logged it and carried on
+    to exit 0. Catching per series keeps that resilience — one dead endpoint should not
+    cost the other five — while leaving a mark that classify_gaps can act on.
+    """
     log(f"== {UK} (Elexon + ECB + DUKES) {year} ==")
-    fetch_price(year, force)
-    fetch_load(year, force)
-    fetch_generation(year, force)
-    fetch_flows(year, force)
+    for fn, label, path in ((fetch_price, "price", raw_path(f"price_{UK}", year)),
+                            (fetch_load, "load", raw_path("load", year)),
+                            (fetch_generation, "generation", raw_path("generation", year))):
+        try:
+            fn(year, force)
+        except Exception as ex:                # noqa: BLE001 - recorded, not swallowed
+            log(f"   {label}: {type(ex).__name__}: {ex} — not written")
+            _mark(path, label, "fail")
+    try:
+        fetch_flows(year, force)
+    except Exception as ex:                    # noqa: BLE001
+        log(f"   flows: {type(ex).__name__}: {ex} — not written")
+        for lbl in ("flow_import", "flow_export"):
+            _mark(raw_path(lbl, year), lbl, "fail")
 
 
 def main():
@@ -568,14 +690,31 @@ def main():
             fetch_year(y, a.force)
         except Exception as ex:               # noqa: BLE001 - report and keep going
             log(f"UNCAUGHT {UK} {y}: {type(ex).__name__}: {ex}")
+            for lbl, key in (("price", f"price_{UK}"), ("load", "load"),
+                             ("generation", "generation")):
+                _mark(raw_path(key, y), lbl, "fail")
     try:
         fetch_capacity(years, a.force)
-    except Exception as ex:                   # noqa: BLE001
+    except Exception as ex:                   # noqa: BLE001 - capacity is not required
         log(f"UNCAUGHT {UK} capacity: {type(ex).__name__}: {ex}")
     log(f"DONE in {(time.time() - t0) / 60:.1f} min")
     with open(os.path.join(cfg.META_DIR, "fetch_uk.log"), "w", encoding="utf-8",
               newline="\n") as f:
         f.write("\n".join(LOG) + "\n")
+
+    # A FETCH THAT DID NOT FETCH FAILS HERE, in its own step, rather than surfacing 25
+    # minutes downstream as a chart-geometry complaint that says nothing about Elexon.
+    hard, stale = classify_gaps()
+    write_gaps(hard, stale, years)
+    for g in stale:
+        log(f"  STALE {g['series']}: fetch failed, continuing on stored data to "
+            f"{g['covers_to']} ({g['days_old']}d old, bound is {FALLBACK_DAYS}d)")
+    if hard:
+        for g in hard:
+            log(f"  MISSING {g['series']}: {g['why']}")
+        print("\n".join(LOG[-40:]))
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
