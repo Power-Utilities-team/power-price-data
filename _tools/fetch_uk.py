@@ -117,8 +117,62 @@ def raw_path(series, year):
     return os.path.join(cfg.RAW_DIR, f"{UK}_{series}_{year}.parquet")
 
 
+# THE TRAILING WINDOW, added 2026-08-26. Until then this script pulled TWO WHOLE YEARS on
+# every run, because the workflow called it `--years 2025,2026 --force` and it had no other
+# mode. That was invisible while ENTSO-E's own slowness dwarfed it; once the other five
+# markets dropped to between three and nine minutes, GB was the longest fetch in the stage.
+#
+# Same rule as fetch.py: a window is only safe to merge into something that already exists,
+# so a series with nothing stored widens back to the whole year, per series rather than per
+# run. That per-series granularity is not fussiness. On 2026-07-31 a country-level check
+# let a series whose earlier fetch had failed take the incremental path and write a 30-day
+# "year", and the same shape of fault cost France and Italy six months.
+SINCE_DAYS = None
+_ACTIVE = None          # (start, end) for the series being fetched, or None for a full year
+
+
 def _need(path, force):
+    if SINCE_DAYS is not None:
+        return True     # a windowed run always re-fetches; the merge keeps the history
     return force or not (os.path.exists(path) and os.path.getsize(path) > 0)
+
+
+def _begin(path, year):
+    """Decide this series' window and remember it for _stream and _save. -> (start, end)."""
+    global _ACTIVE
+    _ACTIVE = None
+    ys = pd.Timestamp(f"{year}-01-01", tz="UTC")
+    ye = pd.Timestamp(f"{year + 1}-01-01", tz="UTC")
+    if SINCE_DAYS is None:
+        return ys, ye
+    if not (os.path.exists(path) and os.path.getsize(path) > 0):
+        log(f"   (nothing stored for {os.path.basename(path)} — full year, not the window)")
+        return ys, ye
+    cut = pd.Timestamp.now(tz="UTC").floor("h") - pd.Timedelta(days=int(SINCE_DAYS))
+    start = max(ys, cut)
+    if start <= ys:
+        return ys, ye                       # the window already covers the whole year
+    _ACTIVE = (start, ye)
+    return start, ye
+
+
+def _merge_into(path, fresh):
+    """Fresh rows win on overlap; anything outside the window is left alone.
+
+    Elexon restates settlement periods, so a re-fetched half-hour must REPLACE the stored
+    one rather than be discarded as a duplicate. That is why the window exists at all.
+    """
+    if fresh is None or len(fresh) == 0:
+        return None
+    if not (os.path.exists(path) and os.path.getsize(path) > 0):
+        return fresh
+    old = pd.read_parquet(path)
+    old.index = pd.DatetimeIndex(old.index).tz_convert("UTC")
+    fresh = fresh.copy()
+    fresh.index = pd.DatetimeIndex(fresh.index).tz_convert("UTC")
+    both = pd.concat([old, fresh])
+    both = both[~both.index.duplicated(keep="last")].sort_index()
+    return both
 
 
 def _save(df, path, label, year=None, expect_halfhourly=False):
@@ -136,6 +190,14 @@ def _save(df, path, label, year=None, expect_halfhourly=False):
         return False
     df = df.copy()
     df.index = pd.DatetimeIndex(df.index).tz_convert("UTC")
+    # A WINDOWED FETCH MERGES; a full one replaces. Writing a 45-day frame straight over a
+    # stored year is exactly the "wrote a 1,392-row year" fault this function's own docstring
+    # warns about, one step earlier, so the merge happens BEFORE the row-count floor below
+    # and the floor still sees a whole year.
+    if _ACTIVE is not None:
+        merged = _merge_into(path, df)
+        if merged is not None:
+            df = merged
     df.index.name = "ts_utc"
     df.columns = [str(c) for c in df.columns]
     df = df[~df.index.duplicated(keep="first")].sort_index()
@@ -200,7 +262,13 @@ def _stream(dataset, year, time_from_key, time_to_key, extra=None):
     backfill several hundred calls. The /stream variants take a full year, verified
     2026-08-25 (MID/stream returned 17,521 rows for 2025, a complete half-hourly year).
     """
-    params = {time_from_key: f"{year}-01-01T00:00Z", time_to_key: f"{year + 1}-01-01T00:00Z"}
+    if _ACTIVE is not None:
+        a, b = _ACTIVE
+        params = {time_from_key: a.strftime("%Y-%m-%dT%H:%MZ"),
+                  time_to_key: b.strftime("%Y-%m-%dT%H:%MZ")}
+    else:
+        params = {time_from_key: f"{year}-01-01T00:00Z",
+                  time_to_key: f"{year + 1}-01-01T00:00Z"}
     params.update(extra or {})
     r = _get(f"{ELEXON}/datasets/{dataset}/stream", params)
     if r.status_code != 200:
@@ -218,6 +286,7 @@ def fetch_price(year, force):
     if not _need(path, force):
         log(f"   price: cached")
         return
+    _begin(path, year)
     df = _stream("MID", year, "from", "to", {"dataProviders": PRICE_PROVIDER})
     if df.empty:
         _save(None, path, "price")
@@ -254,12 +323,19 @@ def fetch_load(year, force):
     if not _need(path, force):
         log(f"   load: cached")
         return
+    _begin(path, year)
     # The plain endpoint caps at seven days and returns HTTP 400 beyond it, so a loop
     # over months silently kept only the one month that happened to be short enough and
     # wrote a 1,392-row "year". The /stream variant takes the whole year in one call
     # (17,568 half-hourly rows for 2025, verified 2026-08-25).
-    r = _get(f"{ELEXON}/demand/outturn/stream",
-             {"settlementDateFrom": f"{year}-01-01", "settlementDateTo": f"{year + 1}-01-01"})
+    if _ACTIVE is not None:
+        _a, _b = _ACTIVE
+        _dates = {"settlementDateFrom": _a.strftime("%Y-%m-%d"),
+                  "settlementDateTo": _b.strftime("%Y-%m-%d")}
+    else:
+        _dates = {"settlementDateFrom": f"{year}-01-01",
+                  "settlementDateTo": f"{year + 1}-01-01"}
+    r = _get(f"{ELEXON}/demand/outturn/stream", _dates)
     if r.status_code != 200:
         log(f"   load: HTTP {r.status_code} {r.text[:120]}")
         _save(None, path, "load")
@@ -292,6 +368,7 @@ def fetch_generation(year, force):
     if not _need(path, force):
         log(f"   generation: cached")
         return
+    _begin(path, year)
     df = _stream("AGPT", year, "publishDateTimeFrom", "publishDateTimeTo")
     if df.empty:
         _save(None, path, "generation")
@@ -313,20 +390,32 @@ def fetch_flows(year, force):
         log(f"   flows: cached")
         return
     from entsoe import EntsoePandasClient
+    import crossborder
     if not cfg.API_KEY:
         log("   flows: no ENTSO-E key — skipped")
         return
-    client = EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
-    s = pd.Timestamp(f"{year}-01-01", tz="UTC")
-    e = min(pd.Timestamp(f"{year + 1}-01-01", tz="UTC"), pd.Timestamp.now(tz="UTC").floor("h"))
-    if s >= e:
-        return
+
+    def _client():
+        # One per worker: EntsoePandasClient wraps a requests.Session, which is not
+        # guaranteed thread-safe. Same settings as the serial client it replaces.
+        return EntsoePandasClient(api_key=cfg.API_KEY, retry_count=4, retry_delay=8)
+
+    now = pd.Timestamp.now(tz="UTC").floor("h")
     for label, path, is_export in (("flow_import", ip, False), ("flow_export", ep, True)):
         if not _need(path, force):
             continue
+        # Per series, so a flow file that is missing widens to the year while the other
+        # takes the window.
+        s, e = _begin(path, year)
+        e = min(e, now)
+        if s >= e:
+            continue
         try:
-            df = client.query_physical_crossborder_allborders(UK, start=s, end=e,
-                                                              export=is_export)
+            # CONCURRENTLY, matching what fetch.py does for the other five markets. GB was
+            # left on the library's own helper, which makes one request per neighbour in
+            # sequence; crossborder_test drives both over the same canned responses and
+            # asserts the frames are equal, column order included.
+            df = crossborder.all_borders(_client, UK, start=s, end=e, export=is_export)
             _save(df, path, label)
         except Exception as ex:               # noqa: BLE001 - a border gap is not fatal
             log(f"   {label}: {type(ex).__name__} — not written")
@@ -463,8 +552,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", default=None, help="comma list, e.g. 2026")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--since-days", type=int, default=None,
+                    help="fetch only the trailing N days and merge into stored data "
+                         "(falls back to a full year, per series, if nothing is stored)")
     a = ap.parse_args()
     years = [int(y) for y in a.years.split(",")] if a.years else cfg.YEARS
+    global SINCE_DAYS
+    SINCE_DAYS = a.since_days
+    if SINCE_DAYS:
+        log(f"trailing window: last {SINCE_DAYS} days, merging into stored data")
 
     t0 = time.time()
     for y in years:

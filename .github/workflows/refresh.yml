@@ -150,7 +150,15 @@ jobs:
           print(1 if '${{ matrix.country }}' in c.NON_ENTSOE else 0)")
           if [ "$NON_ENTSOE" = "1" ]; then
             echo "${{ matrix.country }} is not an ENTSO-E source — using fetch_uk.py"
-            python fetch_uk.py --years $((YEAR-1)),$YEAR --force
+            # SAME TRAILING WINDOW AS THE ENTSO-E MARKETS (2026-08-26). This called
+            # `--force` over TWO whole years on every run, which was the longest fetch in
+            # the stage once the other five dropped to between three and nine minutes.
+            # fetch_uk widens back to a full year, per series, when nothing is stored.
+            if ! python fetch_uk.py --years $((YEAR-1)),$YEAR --since-days 45
+            then
+              echo "the trailing window came back short — falling back to a FULL fetch"
+              python fetch_uk.py --years $((YEAR-1)),$YEAR --force
+            fi
             # Cross-border flows still come from ENTSO-E (the counterparty TSO publishes
             # each border), and fetch_uk handles that itself.
             exit 0
