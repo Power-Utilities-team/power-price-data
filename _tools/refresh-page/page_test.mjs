@@ -253,33 +253,49 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
 // The point of these assertions is that the OLD wording would fail them. The suite passed
 // identically before and after the fix until these existed, which made it no guard at all.
 {
-  const mk = (mins, conclusion = "success") => ({
-    status: "completed", conclusion,
-    run_started_at: "2026-08-20T07:00:00Z",
-    updated_at: new Date(Date.parse("2026-08-20T07:00:00Z") + mins * 60000).toISOString(),
-  });
+  // `daysAgo` is what makes these runs orderable, and the ordering is the whole point: the
+  // figure must come from the LATEST success, not from a summary of many.
+  const mk = (mins, daysAgo, conclusion = "success") => {
+    const start = new Date(Date.now() - daysAgo * 86400000);
+    return {
+      status: "completed", conclusion,
+      run_started_at: start.toISOString(),
+      updated_at: new Date(start.getTime() + mins * 60000).toISOString(),
+    };
+  };
 
-  // Median, not mean. The sample is bimodal: a warm run finishes in minutes, a cold one
-  // rebuilds the year. 10 and 12 and 40 and 44 has a mean of 26.5, which describes no run
-  // that ever happened, and a median of 26 sitting between the two clusters. What matters is
-  // that the figure comes from the data at all, so assert it moves WITH the data.
-  RUNS = [mk(40), mk(44), mk(10), mk(12)];
+  RUNS = [mk(40, 1), mk(44, 2), mk(10, 3), mk(12, 4)];
   let flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
   check(!/about 20 minutes/.test(flatHtml),
         "the page no longer promises a hardcoded 20 minutes");
-  check(/about 26 minutes/.test(flatHtml),
-        "it quotes the median of recent successful runs instead", flatHtml.slice(0, 200));
+  check(/about 40 minutes/.test(flatHtml),
+        "it quotes what the last successful run actually took", flatHtml.slice(0, 200));
+
+  // THE REGRESSION THAT MATTERS, and the one this file existed a whole hour without.
+  //
+  // The first fix here took the median of the sample, and the live page went straight from
+  // promising 20 minutes to promising 11, because every quick run in the real history had
+  // fetched five markets and Great Britain was added on 25 August. Averaging across a change
+  // in what a run DOES describes a pipeline that is gone.
+  //
+  // So: a sample whose recent runs are slow and whose older runs are fast must quote the
+  // SLOW figure. A median of this returns 12 and fails, which is exactly the point.
+  RUNS = [mk(69, 1), mk(66, 2), mk(12, 30), mk(10, 31), mk(11, 32), mk(6, 33), mk(4, 34)];
+  flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
+  check(/about 69 minutes/.test(flatHtml),
+        "a pipeline that got slower is not averaged back down by its own history",
+        flatHtml.match(/Takes[^.]*\./)?.[0]);
 
   // Move the sample and the quoted figure must move with it. A number that survives this is
-  // hardcoded somewhere, which is the exact fault being fixed.
-  RUNS = [mk(60), mk(70), mk(80)];
+  // hardcoded somewhere, which is the original fault.
+  RUNS = [mk(70, 1), mk(60, 2), mk(80, 3)];
   flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
   check(/about 70 minutes/.test(flatHtml),
         "and the figure tracks the runs rather than being pinned");
 
   // A cancelled run is not evidence about how long the work takes. One killed at 2 minutes
-  // would drag the median down and under-promise all over again.
-  RUNS = [mk(60), mk(70), mk(80), mk(2, "cancelled"), mk(3, "failure")];
+  // is the most recent run here, and must not become the quoted figure.
+  RUNS = [mk(2, 0, "cancelled"), mk(3, 0.5, "failure"), mk(70, 1), mk(60, 2)];
   flatHtml = flat(await (await worker.fetch(get("/"), env)).text());
   check(/about 70 minutes/.test(flatHtml),
         "cancelled and failed runs are excluded from the figure");
@@ -287,7 +303,7 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
   // A reader watching a slow run needs the elapsed time more than the estimate.
   RUNS = [{ status: "in_progress", conclusion: null,
             run_started_at: new Date(Date.now() - 45 * 60000).toISOString(),
-            updated_at: new Date().toISOString() }, mk(60), mk(70), mk(80)];
+            updated_at: new Date().toISOString() }, mk(70, 1), mk(60, 2), mk(80, 3)];
   // Tag-agnostic: the sentence is emphasised in the page, and asserting the markup would
   // make this a test of the styling rather than of the figure.
   const text = (s) => flat(s.replace(/<[^>]+>/g, " "));
@@ -305,7 +321,7 @@ check(noToken.includes("has not been configured") && !noToken.includes("Start a 
   // The trigger path quotes the same figure as the page, so the two cannot drift apart.
   RUNS = [{ status: "in_progress", conclusion: null,
             run_started_at: new Date(Date.now() - 30 * 60000).toISOString(),
-            updated_at: new Date().toISOString() }, mk(60), mk(70), mk(80)];
+            updated_at: new Date().toISOString() }, mk(70, 1), mk(60, 2), mk(80, 3)];
   const busy = flat(await (await worker.fetch(
     new Request("https://power-price-data.fredhill.workers.dev/trigger", { method: "POST" }),
     env)).text());

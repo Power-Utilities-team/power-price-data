@@ -216,22 +216,31 @@ async function latestRun(env) {
 
 /* The MEDIAN of recent successful runs, in minutes, or null when there is nothing to go on.
  *
- * Median rather than mean, because the sample is bimodal: a run that finds the year already
- * fetched finishes in minutes, and a cold one rebuilds it. A mean sits between the two and
- * describes neither. Cancelled and failed runs are excluded, since a run killed at two
- * minutes is not evidence about how long the work takes.
+ * SUPERSEDED THE SAME DAY IT WAS WRITTEN, and the reason is worth keeping because it will
+ * happen again. Taking the median of twenty successful runs made the live page say "about
+ * 11 minutes", wrong in the opposite direction to the "20 minutes" it replaced.
+ *
+ * Every run in that sample finishing in four to twelve minutes had fetched FIVE markets.
+ * Great Britain was added on 25 August, and the whole-current-year pull shortly before it.
+ * The sample straddled a change in what a run DOES, so averaging across it described a
+ * pipeline that no longer exists, and a bigger sample made it worse rather than better: the
+ * further back it reached, the more of the old shape it averaged in.
+ *
+ * Any window, any weighting and any median carries that flaw, because the pipeline's shape
+ * changes without warning and nothing in the API announces it. One number does not: what the
+ * last successful run actually took. That is a FACT rather than an estimate, it follows a
+ * change in shape with a lag of exactly one run, and it cannot quietly describe a pipeline
+ * that has been superseded. Paired with the live elapsed figure below, a reader gets two
+ * true statements instead of one confident guess.
  */
 function typicalMinutes(runs) {
   if (!runs) return null;
-  const mins = runs
+  const last = runs
     .filter((r) => r.conclusion === "success" && r.run_started_at && r.updated_at)
-    .map((r) => (new Date(r.updated_at) - new Date(r.run_started_at)) / 60000)
-    .filter((m) => m > 0 && Number.isFinite(m))
-    .sort((a, b) => a - b);
-  if (!mins.length) return null;
-  const mid = Math.floor(mins.length / 2);
-  const med = mins.length % 2 ? mins[mid] : (mins[mid - 1] + mins[mid]) / 2;
-  return Math.round(med);
+    .sort((a, b) => new Date(b.run_started_at) - new Date(a.run_started_at))[0];
+  if (!last) return null;
+  const m = (new Date(last.updated_at) - new Date(last.run_started_at)) / 60000;
+  return m > 0 && Number.isFinite(m) ? Math.round(m) : null;
 }
 
 /* How the page SAYS it, in one place, so the four call sites cannot drift apart again.
@@ -239,7 +248,12 @@ function typicalMinutes(runs) {
  * a wrong specific number is worse than an honest vague one.
  */
 function durationPhrase(typical) {
-  return typical === null ? "roughly 40 to 70 minutes" : `about ${typical} minutes`;
+  // "going by the last one" is doing real work: it tells the reader the figure is an
+  // observation rather than a promise, so a run that takes longer reads as variation and not
+  // as a broken pipeline. The bare "about N minutes" it replaced read as a guarantee.
+  return typical === null
+    ? "roughly 40 to 70 minutes"
+    : `about ${typical} minutes, going by the last one`;
 }
 
 // How long the run in flight has been going. The page showed a promise and never the truth;
