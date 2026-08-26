@@ -243,6 +243,27 @@ def main():
     run("check_house_palette.py")
     run("check_consistency.py")
 
+    # ---- the UpSlide-linked deliverable ---------------------------------------------
+    # The copy Power & Utilities link into PowerPoint cannot be a freshly generated file.
+    # UpSlide matches its links by a hidden marker stamped into each chart, not by path, so
+    # a rebuild orphans every link in the deck. merge_into_linked.py adds this build's new
+    # content to the linked workbook instead of replacing it.
+    #
+    # SKIPPED WHEN THERE IS NO TEMPLATE, which is the normal case in CI. The template is the
+    # linked workbook itself, and that file is classified internal by the firm's own
+    # Microsoft labelling and names a colleague, a file server and two paths to a shared
+    # deck, so it is not in this repository and .gitignore refuses it. Point UPSLIDE_TEMPLATE
+    # at it to build the linked deliverable on a machine that has it.
+    tmpl = os.environ.get("UPSLIDE_TEMPLATE", "")
+    if not tmpl:
+        print("$ (no UPSLIDE_TEMPLATE set - skipping the linked deliverable)", flush=True)
+    elif not os.path.exists(tmpl):
+        raise SystemExit(f"UPSLIDE_TEMPLATE is set to {tmpl!r}, which does not exist")
+    else:
+        run("merge_into_linked.py", "--base", tmpl,
+            "--donor", os.path.join(OUT, "HourlyPowerData.xlsx"),
+            "--out", os.path.join(OUT, "HourlyPowerData_linked.xlsx"))
+
     if DELIVER:
         import shutil
         dl = os.path.expanduser("~/Downloads")
