@@ -187,17 +187,27 @@ def main():
                          "nothing. Exit 1 if a rebuild is due, 0 if it is not.")
     ap.add_argument("--skip", default="", help="comma list of stages to omit: "
                     "update,queries,sheets,charts,calcchain")
+    ap.add_argument("--refresh-on-open", action="store_true",
+                    help="set refreshOnLoad on every connection. OFF by default: Fred chose "
+                         "manual refreshing on 2026-08-27, and Windows Excel strips the flag "
+                         "from the 22 table-loaded queries on every save regardless.")
     ap.add_argument("--widen-only", default="", help="comma list of sheets to widen, for "
                     "bisecting which one Excel objects to; default is all of them")
     ap.add_argument("--target-cm", default=None, metavar="W,H",
-                    help="the size a chart should be in POWERPOINT, in cm; default 12,5.4. "
-                         "The Excel size is worked back through --export-scale.")
+                    help="override the size of the 12,5.4 families (intraday shape, cumulative "
+                         "near-negative hours, weekly hydro). UpSlide exports 1:1, so this is "
+                         "the size in BOTH Excel and PowerPoint. Every other family keeps the "
+                         "size its linked charts use; see chart_layout.SIZE_CM.")
     ap.add_argument("--target-pct-cm", default=None, metavar="W,H",
-                    help="the same for the capture-as-a-%%-of-base charts; default 5.8,3.99")
+                    help="the same for the capture-as-a-%%-of-base charts; default 5.9,4.0")
     ap.add_argument("--export-scale", type=float, default=None,
-                    help="the fraction of its Excel size at which UpSlide exports a chart; "
-                         "default 0.70535, measured from the deck. Change this if a refreshed "
-                         "picture comes out uniformly the wrong size.")
+                    help="the fraction of its Excel size at which UpSlide exports a chart. "
+                         "MEASURED AT 1.0 on 2026-08-27 across 52 linked charts, so leave it "
+                         "alone. The earlier 0.70535 was read off three pictures that turned "
+                         "out to have been resized by hand in PowerPoint.")
+    ap.add_argument("--scale-type", action="store_true",
+                    help="shrink chart type in step with a chart that got smaller. OFF by "
+                         "default: Fred ruled type a floor on 2026-08-26.")
     ap.add_argument("--no-tables", action="store_true",
                     help="widen the cells but leave every table declaration alone")
     ap.add_argument("--chart-size", default=None,
@@ -249,10 +259,13 @@ def main():
                   + (f" (all on {sorted({s for s, _, _ in new_charts})})" if new_charts else ""))
 
     # ---- 1b. is a rebuild due at all? ---------------------------------------------------
-    # THE NUMBERS DO NOT NEED ONE. Every query in this workbook refreshes on open, so a
-    # month of fresh data reaches the linked copy without anything being rebuilt. Only a
-    # change of SHAPE does: a new sheet, a new chart, a column that moved. Fred's call,
-    # 2026-08-26, and this is what makes it checkable rather than something to remember.
+    # THE NUMBERS DO NOT NEED ONE. A month of fresh data reaches the linked copy from
+    # Data > Refresh All, without anything being rebuilt. Only a change of SHAPE does: a new
+    # sheet, a new chart, a column that moved. Fred's call, 2026-08-26, and this is what
+    # makes it checkable rather than something to remember.
+    # (Corrected 2026-08-27: this said the queries refresh on OPEN. They do not. Windows
+    # Excel strips refreshOnLoad from the 22 table-loaded connections on every save, and
+    # Fred chose manual refreshing that day. See the --refresh-on-open stage below.)
     if a.dry_run:
         sheets_due = [n for n in ds if n not in bs]
         charts_due = len(new_charts)
@@ -299,8 +312,8 @@ def main():
         print(f"  charts whose content moved on : "
               f"{', '.join(updates_due) if updates_due else 'none'}")
         print("\nREBUILD DUE" if due else
-              "\nUP TO DATE - the linked workbook only needs its numbers, which it "
-              "refreshes on open")
+              "\nUP TO DATE - the linked workbook only needs its numbers, which come "
+              "from Data > Refresh All")
         return 1 if due else 0
 
     # ---- 1c. widen the sheets whose build gained columns --------------------------------
@@ -667,7 +680,17 @@ def main():
             chart_layout.unpin_plot_area(base, bs, report)
         factors = chart_layout.resize(base, bs, report, target=cm(a.target_cm),
                                       target_pct=cm(a.target_pct_cm), scale=a.export_scale)
-        chart_layout.scale_fonts(base, factors, report)
+        # TYPE IS A FLOOR, NOT A LEVER (Fred, 2026-08-26): "the text size is already not easy to
+        # see on the presentation, so it should be no smaller than this". Scaling the type down
+        # in step with a shrinking chart reproduces exactly today's rendered size, which is the
+        # size he objected to. Leaving it alone makes the words BIGGER relative to the chart,
+        # which his rule permits and prefers. Opt in with --scale-type only if a chart comes back
+        # visibly crowded, and then check the result rather than assuming.
+        if a.scale_type:
+            chart_layout.scale_fonts(base, factors, report)
+        else:
+            report.append("  type left untouched: it is a floor, not a lever "
+                          "(--scale-type to shrink it with the chart)")
 
     # ---- 4b4. lay the Charts contact sheet out again -------------------------------------
     # Every chart on that sheet has a caption in the cell above it, and nothing kept the two
@@ -690,7 +713,17 @@ def main():
     # which is only safe if a month of fresh data reaches the linked copy on its own.
     # Fred chose to turn it on across all 24 (2026-08-26), which restores what the build
     # intends rather than preserving an accident.
-    if "refresh" not in skip:
+    #
+    # REVERSED 2026-08-27, and the stage is now OPT-IN via --refresh-on-open. Two things
+    # were measured that day against the workbook Fred saved from Windows Excel:
+    #   1. Excel STRIPS refreshOnLoad from the 22 table-loaded connections on save, keeping
+    #      it only on `status` and `line_windows`, the two that load to a range. So writing
+    #      it here does not survive the first save the linked copy receives, and a flag that
+    #      silently reverts is worse than no flag: it invites the belief that the numbers
+    #      refresh themselves when they do not.
+    #   2. Fred then chose manual refreshing outright, because auto-refresh also fires a long
+    #      query run every time the workbook is opened for UpSlide, which is most opens.
+    if a.refresh_on_open:
         conns = base["xl/connections.xml"].decode()
         before = len(re.findall(r'<connection\b[^>]*\brefreshOnLoad="1"', conns))
         # Appended, not prepended. Putting it first pushes `id=` out of the `<connection id=`

@@ -62,6 +62,49 @@ const DOWNLOADS = {
   },
 };
 
+// The published data the workbook actually reads, served the same way and for the same reason:
+// from this Worker's own hostname, by exact name, never by path. Fred asked on 2026-08-27 to be
+// able to "see the files that it's pulling from" and asked whether a link could show the folder
+// without exposing the history. On GitHub it cannot: a public repository puts Commits and History
+// in the same view as any folder, one click from a /tree/ link, and there is no setting that
+// separates them. Making the history private would mean making the repository private, which
+// would break the workbook's own fetches. So the files are listed HERE instead, which shows the
+// same thing, keeps every link same-origin, and leaves the 2026-08-17 decision intact.
+const DATA_FILES = [
+  "capture_monthly.csv",
+  "capture_monthly_extra.csv",
+  "fig1_price_sd.csv",
+  "fig1_price_sd_extra.csv",
+  "fig2_intraday_avg.csv",
+  "fig2_intraday_indexed.csv",
+  "fig2_intraday_indexed_extra.csv",
+  "fig3_cum_near_neg.csv",
+  "fig3_cum_near_neg_extra.csv",
+  "fig3_neg_hours_annual.csv",
+  "fig3_neg_hours_annual_extra.csv",
+  "fig4_duration_curve.csv",
+  "fig5_capture_abs.csv",
+  "fig5_capture_pct.csv",
+  "fig5_capture_window.csv",
+  "fig6_daily_minmax.csv",
+  "fig7_gen_mix.csv",
+  "fig9_capacity.csv",
+  "fig9_capacity_window.csv",
+  "figA_monthly_price.csv",
+  "figB_penetration.csv",
+  "figC_capture_erosion.csv",
+  "figD_netload_duck.csv",
+  "g1_solar_peakhour.csv",
+  "g2_price_by_month.csv",
+  "g2_price_by_quarter.csv",
+  "g3_price_july_daily.csv",
+  "health.json",
+  "hydro_reservoir.csv",
+  "hydro_window.csv",
+  "line_windows.csv",
+  "status.csv",
+];
+
 // Matches the workflow's cron: "23 7 2,10,18,26 * *" — 07:23 UTC on the 2nd, 10th, 18th
 // and 26th of every month.
 //
@@ -456,6 +499,12 @@ function page({ status, run, health, msg, err, hasToken, tokenWorks, typical, el
           padding:.55rem 0; border-bottom:1px solid var(--line) }
   .file:last-child { border-bottom:0 }
   .file .d { font-size:.82rem; color:var(--mut) }
+  /* 32 file names have to stay scannable on a phone, so they wrap into a grid that fits
+     whatever width there is rather than a 32-row list nobody reads to the bottom of. */
+  .data { display:grid; grid-template-columns:repeat(auto-fill,minmax(13rem,1fr)); gap:.3rem .9rem }
+  .data a { font-size:.85rem; text-decoration:none; padding:.18rem 0;
+            overflow-wrap:anywhere }
+  .data a:hover { text-decoration:underline }
   button { font:inherit; font-weight:600; padding:.65rem 1.15rem; border-radius:7px;
            border:1px solid var(--navy); background:var(--navy); color:#fff; cursor:pointer }
   button:disabled { opacity:.5; cursor:not-allowed }
@@ -504,6 +553,15 @@ ${recover}
   is wrong — a missing year, or a technology that should not be there. Day-to-day the numbers update
   by themselves: the workbook pulls them from here every time you open it. A refresh writes values
   into cells, so it can never add a new year or change what a chart plots.</div>
+</div>
+
+<div class="card">
+  <h2>The data behind the charts</h2>
+  <p class="muted">Every file the workbook reads, as the last run published it. These update
+  themselves; you never need to download one to make a chart work.</p>
+  <div class="data">
+    ${DATA_FILES.map((f) => `<a href="/data/${encodeURIComponent(f)}">${esc(f)}</a>`).join("")}
+  </div>
 </div>
 
 <div class="card">
@@ -572,6 +630,34 @@ async function serveFile(env, name) {
   return new Response(r.body, { headers });
 }
 
+// One published data file, by exact name from DATA_FILES. Served inline as plain text so a
+// reader can just LOOK at it, which is the whole point of the card that links here.
+async function serveData(env, name) {
+  if (!DATA_FILES.includes(name)) return new Response("Not found", { status: 404 });
+  const headers = {
+    "content-type": name.endsWith(".json")
+      ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+    "content-disposition": `inline; filename="${name}"`,
+    "cache-control": "no-store",
+    "x-robots-tag": "noindex, nofollow",
+  };
+  if (env.GH_TOKEN) {
+    const r = await fetch(
+      `https://api.github.com/repos/${OWNER}/${REPO}/contents/published/charts/${encodeURIComponent(name)}?ref=${BRANCH}`,
+      { headers: { "User-Agent": "power-price-status-page", Accept: "application/vnd.github.raw",
+                   Authorization: `Bearer ${env.GH_TOKEN}` } },
+    );
+    if (r.ok) return new Response(r.body, { headers });
+  }
+  const r = await fetch(`${RAW}/published/charts/${encodeURIComponent(name)}`,
+                        { headers: { "User-Agent": "power-price-status-page" } });
+  if (!r.ok) {
+    return new Response("That file could not be fetched just now. Try again in a minute.",
+                        { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+  return new Response(r.body, { headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -589,6 +675,19 @@ export default {
         return new Response("Not found", { status: 404 });
       }
       return serveFile(env, name);
+    }
+
+    if (url.pathname.startsWith("/data/")) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      let name;
+      try {
+        name = decodeURIComponent(url.pathname.slice("/data/".length));
+      } catch (e) {
+        return new Response("Not found", { status: 404 });
+      }
+      return serveData(env, name);
     }
 
     if (request.method === "POST" && url.pathname === "/trigger") {

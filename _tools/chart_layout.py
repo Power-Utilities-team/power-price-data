@@ -1,30 +1,38 @@
 """chart_layout.py — size the charts so that what UpSlide exports is the size Fred wants.
 
-WHY A CHART'S SIZE IN EXCEL IS NOT ITS SIZE IN THE DECK. UpSlide exports each chart as a
-picture at a FIXED FRACTION of its size on the Excel sheet, preserving the aspect ratio, and
-on refresh it resizes the picture in PowerPoint back to that same size (every link in the
-deck records `NORESIZEONUPDATE = False`). Measured on 2026-08-26 from the three pictures in
-the linked deck that had never been touched by hand:
+UPSLIDE EXPORTS 1:1. A chart's size on the Excel sheet IS its size in the deck. Measured
+2026-08-27 across all 52 linked charts in the deck, after Fred's team resized 32 of them in
+Excel and refreshed:
 
-    Excel 6120000 x 3240000 EMU (17.00 x 9.00 cm)  ->  deck 4316560 x 2285617 (11.99 x 6.35)
-    ratio 0.705320 across, 0.705437 down
+    32 charts   ratio 1.000 across and down, exactly
+    20 charts   ratios 0.704, 0.705, 0.717, 0.718, 0.726
 
-So the export scale is 0.7053, and 17.00 x 9.00 in Excel can only ever arrive as 11.99 x 6.35.
-Every picture in the deck at 11.99 x 5.40 was squashed by hand after export, which is why a
-refresh appears to change the size: it does not change it, it restores it. Two of the
-hand-squashed pictures still link to the older `HourlyPowerData.xlsx`, so this long predates
-the 2026-08-26 rebuild.
+Five different ratios in the second group is hand-dragging, not a scale. Those 20 pictures
+were sized by hand in PowerPoint and have not been re-exported since, which is also why a
+refresh appears to change their size: it does not change it, it restores it.
 
-WHAT THIS MODULE DOES. Works backwards from the size Fred wants in PowerPoint (Fred,
-2026-08-26): 12 x 5.4 cm for every chart, except the capture-as-a-percentage-of-base-price
-charts at 5.8 x 3.99 cm. Divide by the export scale and that is the size the Excel chart has
-to be.
+⚠ THIS CORRECTS THE 2026-08-26 READING OF 0.70535, WHICH WAS WRONG. That figure came from
+three pictures believed untouched, and all three turned out to be hand-resized. The error was
+invisible while every measurement came from the same contaminated set; it only showed up once
+32 charts had been resized in Excel and re-exported, giving a clean control group. Anything
+that still quotes 0.70535 as an export scale is repeating the mistake.
+
+WHAT THIS MODULE DOES. Sets each chart to the size its family uses in the deck, taken from the
+charts ACTUALLY LINKED into the deck rather than from the whole sheet (Fred, 2026-08-27: "anchor
+to whatever size is used in the charts that are actually used in the powerpoint, not the size of
+the charts that are *not* used"). Unlinked charts are no evidence: they have never been exported,
+so their size says nothing about what the slide wants.
 
 THE FAMILY IS DECIDED BY WHAT A CHART PLOTS, NOT BY ITS NAME OR ITS POSITION. A capture chart
 plots windowed columns on `CaptureVsBase` named `<country>_<tech> w1` to `w8`, and each of
 those is an INDEX into a source column that is either `... % of base` or `... diff`. Following
-that INDEX is what separates the two families, and it cannot go wrong the way matching on a
-title or a chart number can.
+that INDEX is what separates the two capture families, and it cannot go wrong the way matching
+on a title or a chart number can. The remaining families are read off the caption above the
+chart, which is the same text the deck's readers see.
+
+A FAMILY WITH NO LINKED CHART IS LEFT ALONE, and named in the report. Six charts fall in that
+gap as of 2026-08-27 (volatility, the duck belly, negative hours, duration curves and two
+uncaptioned ones). Guessing a size for them would be inventing a target Fred has never seen.
 """
 from __future__ import annotations
 
@@ -34,11 +42,56 @@ import widen_sheets as W
 
 EMU_PER_CM = 360000
 
-# Measured, not assumed. See the module docstring for the three data points.
-EXPORT_SCALE = 0.70535
+# Measured 2026-08-27 across 52 linked charts. See the module docstring; this replaced 0.70535,
+# which was read off three hand-resized pictures.
+EXPORT_SCALE = 1.0
 
-TARGET_CM = (12.0, 5.4)              # everything
-TARGET_PCT_CM = (5.8, 3.99)          # capture as a % of base price
+TARGET_CM = (12.0, 5.4)              # the default family size
+TARGET_PCT_CM = (5.9, 4.0)           # capture as a % of base price
+
+# Every family that has at least one chart LINKED into the deck, with the size those linked
+# charts unanimously use. Read from `Utilities_Monthly_Product.pptx` on 2026-08-27; the count
+# after each is how many linked charts agreed.
+SIZE_CM = {
+    "capture_pct":       (5.9, 4.0),    # 4 of 4  (the other 20 in the family are hand-sized)
+    "capture_baseload":  (12.0, 6.29),  # 5 of 5
+    "fig9_capacity":     (12.0, 6.29),  # 6 of 6
+    "intraday_shape":    (12.0, 5.4),   # 6 of 6
+    "cum_near_neg":      (12.0, 5.4),   # 6 of 6
+    "hydro_weekly":      (12.0, 5.4),   # slide 31's TOP row: France, Spain
+    "hydro_weekly_tall": (12.0, 6.29),  # slide 31's BOTTOM row: Portugal, Italy
+}
+
+# Fred chose on 2026-08-27 to KEEP slide 31's two rows at different heights rather than make
+# the four weekly-hydro charts uniform. So the family splits by country, and the seven
+# countries that are not on that slide follow the top row.
+HYDRO_TALL = ("Portugal", "Italy")
+
+
+def family_of(caption, pct):
+    """Which size family a chart belongs to, or None to leave it alone.
+
+    Matched case-insensitively throughout. The captions are written by hand and the same
+    exhibit appears both as "Fig 5 - Capture price vs baseload..." and as
+    "Portugal - capture price vs baseload...", so a case-sensitive test silently drops the
+    figure-numbered member of a family. That is exactly what it did to Germany's Fig 5 on the
+    first run of this rule, 2026-08-27.
+    """
+    if pct:
+        return "capture_pct"
+    c = (caption or "").lower()
+    if "capture price vs baseload" in c:
+        return "capture_baseload"
+    if c.startswith("fig 9") or "installed generation capacity" in c:
+        return "fig9_capacity"
+    if "intraday price shape" in c:
+        return "intraday_shape"
+    if "near-negative-price hours" in c:
+        return "cum_near_neg"
+    if "reservoir fill by week" in c or "pumped-storage generation by week" in c:
+        return ("hydro_weekly_tall"
+                if any(c.startswith(x.lower()) for x in HYDRO_TALL) else "hydro_weekly")
+    return None                      # no linked chart in this family: no evidence, no change
 
 
 def _excel_emu(target_cm):
@@ -107,23 +160,34 @@ def caption_matches_data(parts, sheets):
 
 
 def resize(parts, sheets, report, sheet="Charts", target=None, target_pct=None, scale=None):
-    """Set every chart on one sheet to the size that exports to Fred's target."""
-    global TARGET_CM, TARGET_PCT_CM, EXPORT_SCALE
+    """Set every chart on one sheet to the size its FAMILY uses in the deck.
+
+    A chart whose family has no linked counterpart is left exactly as it is, and named in the
+    report. `target` and `target_pct` override the 12 x 5.4 and the capture-percentage families
+    respectively, so the old flags still steer the two sizes anyone actually changes.
+    """
+    global TARGET_CM, TARGET_PCT_CM, EXPORT_SCALE, SIZE_CM
     TARGET_CM = target or TARGET_CM
     TARGET_PCT_CM = target_pct or TARGET_PCT_CM
     EXPORT_SCALE = scale or EXPORT_SCALE
+    sizes = dict(SIZE_CM)
+    if target:
+        for k in ("intraday_shape", "cum_near_neg", "hydro_weekly"):
+            sizes[k] = TARGET_CM
+    if target_pct:
+        sizes["capture_pct"] = TARGET_PCT_CM
     if sheet not in sheets:
-        return
+        return {}
     ws, drawing = sheets[sheet]
     if not drawing:
-        return
+        return {}
     rels = drawing.replace("drawings/", "drawings/_rels/") + ".rels"
     chart_of = dict(re.findall(r'Id="(rId\d+)"[^>]*Target="\.\./(charts/chart\d+\.xml)"',
                                parts[rels].decode()))
     _, src = capture_vs_base_map(parts, sheets)
-    big, small = _excel_emu(TARGET_CM), _excel_emu(TARGET_PCT_CM)
+    caps = captions_by_chart(parts, sheets, sheet)
 
-    counts, scaled = {"big": 0, "small": 0}, {}
+    counts, scaled, skipped = {}, {}, []
     def one(m):
         anchor = m.group(0)
         rid = re.search(r'r:id="(rId\d+)"', anchor)
@@ -133,8 +197,12 @@ def resize(parts, sheets, report, sheet="Charts", target=None, target_pct=None, 
         if part not in parts:
             return anchor
         pct = is_percent_of_base(parts[part].decode(), src)
-        cx, cy = small if pct else big
-        counts["small" if pct else "big"] += 1
+        fam = family_of(caps.get(part, ""), pct)
+        if fam is None:
+            skipped.append(caps.get(part, "(uncaptioned)")[:60])
+            return anchor                     # no linked evidence: do not invent a size
+        cx, cy = _excel_emu(sizes[fam])
+        counts[fam] = counts.get(fam, 0) + 1
         # BY WIDTH, deliberately, and NOT by whichever dimension shrank most. Scaling on the
         # height would have brought the large family from 9pt to 7.5pt to make room for its
         # rotated category labels, and Fred ruled that out on 2026-08-26: the type is already
@@ -148,12 +216,12 @@ def resize(parts, sheets, report, sheet="Charts", target=None, target_pct=None, 
 
     parts[drawing] = re.sub(r"<xdr:(?:one|two)CellAnchor\b[^>]*>.*?</xdr:(?:one|two)CellAnchor>",
                             one, parts[drawing].decode(), flags=re.S).encode()
-    report.append(
-        f"  {sheet}: {counts['big']} chart(s) sized "
-        f"{big[0] / EMU_PER_CM:.2f} x {big[1] / EMU_PER_CM:.2f} cm so they export at "
-        f"{TARGET_CM[0]} x {TARGET_CM[1]} cm, and {counts['small']} capture-percentage "
-        f"chart(s) at {small[0] / EMU_PER_CM:.2f} x {small[1] / EMU_PER_CM:.2f} cm "
-        f"for {TARGET_PCT_CM[0]} x {TARGET_PCT_CM[1]} cm")
+    for fam in sorted(counts):
+        w, h = sizes[fam]
+        report.append(f"  {sheet}: {counts[fam]:2d} chart(s) in '{fam}' set to {w} x {h} cm")
+    if skipped:
+        report.append(f"  {sheet}: {len(skipped)} chart(s) LEFT ALONE, no linked chart in "
+                      f"their family to anchor a size: {'; '.join(sorted(set(skipped)))}")
     return scaled
 
 

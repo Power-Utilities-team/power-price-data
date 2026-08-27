@@ -55,6 +55,9 @@ globalThis.fetch = async (u, opts = {}) => {
   if (url.includes("/contents/deliverables/")) {
     return new Response("DELIVERABLE-BYTES", { status: 200 });
   }
+  if (url.includes("/contents/published/charts/")) {
+    return new Response("date,value\n2026-01-01,1\n", { status: 200 });
+  }
   if (url.includes("/actions/workflows/") && url.includes("/runs")) {
     return new Response(JSON.stringify({ workflow_runs: RUNS || [{
       status: "completed", conclusion: "success", updated_at: "2026-08-10T09:40:00Z",
@@ -91,6 +94,36 @@ check(hrefs.every((h) => h.startsWith("/") || h.startsWith("#")),
 check(!html.includes("HourlyPowerData_snapshot.pptx"), "the snapshot deck is gone");
 check(html.includes("Excel workbook (live)") && html.includes("PowerPoint (linked)")
       && html.includes("Excel (self-contained)"), "the three Fred picked are the three offered");
+
+// 2b. the data card: every published file the workbook reads, same-origin, no GitHub
+// Added 2026-08-27. Fred asked to see the files the pipeline pulls from and asked whether a
+// GitHub folder link could hide the history. It cannot, so the list lives here instead, and
+// these assertions are what stop it drifting back into a /tree/ link.
+const dataLinks = hrefs.filter((h) => h.startsWith("/data/"));
+check(dataLinks.length === 32, "the data card lists all 32 published files", dataLinks.length);
+check(dataLinks.every((h) => h.startsWith("/data/")), "every data link is same-origin");
+check(html.includes("The data behind the charts"), "the data card has a heading");
+check(html.includes("status.csv") && html.includes("health.json"),
+      "the card names the status record and the health record");
+
+const csv = await worker.fetch(get("/data/fig9_capacity.csv"), env);
+check(csv.status === 200, "an allowlisted data file is served", csv.status);
+check(csv.headers.get("content-type").startsWith("text/plain"),
+      "a CSV is served as text so it can be READ in the browser, not downloaded",
+      csv.headers.get("content-type"));
+const hj = await worker.fetch(get("/data/health.json"), env);
+check(hj.headers.get("content-type").startsWith("application/json"),
+      "the health record is served as JSON", hj.headers.get("content-type"));
+
+// The allowlist is the whole security model of this route, exactly as for /file/.
+for (const bad of ["../../.github/workflows/refresh.yml", "..%2F..%2Fsecrets", "notafile.csv",
+                   "status.csv.bak"]) {
+  const r = await worker.fetch(get(`/data/${encodeURIComponent(bad)}`), env);
+  check(r.status === 404, `/data/ refuses "${bad}"`, r.status);
+}
+const del = await worker.fetch(
+  new Request("https://power-price-data.fredhill.workers.dev/data/status.csv", { method: "DELETE" }), env);
+check(del.status === 405, "DELETE /data/ is refused", del.status);
 
 // 3. the proxy serves an allowlisted file with file-ish headers
 let r = await worker.fetch(get("/file/HourlyPowerData.xlsx"), env);
