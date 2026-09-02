@@ -1,8 +1,8 @@
 {
  "state": "failed",
- "at": "2026-09-02T15:51:40+00:00",
- "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/33646011955",
- "reason": "load: nothing stored; load IT_NORD: nothing stored; load IT_CNOR: nothing stored; load IT_CSUD: nothing stored; load IT_SUD: nothing stored; load IT_CALA: nothing stored; load IT_SICI: nothing stored; load IT_SARD: nothing stored; generation: nothing stored; price DE_LU: nothing stored; load: nothing stored; generation: nothing stored; price ES: nothing stored; load: nothing stored; generation: nothing stored; price PT: nothing stored; load: nothing stored; generation: nothing stored; price FR: nothing stored; load: nothing stored; generation: nothing stored",
+ "at": "2026-09-02T18:39:36+00:00",
+ "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/33668187693",
+ "reason": "load: nothing stored; generation: nothing stored; load: nothing stored; generation: nothing stored; load: nothing stored; load IT_NORD: nothing stored; load IT_CNOR: nothing stored; load IT_CSUD: nothing stored; load IT_SUD: nothing stored; load IT_CALA: nothing stored; load IT_SICI: nothing stored; load IT_SARD: nothing stored; generation: nothing stored; load: nothing stored; generation: nothing stored; load: nothing stored; generation: nothing stored",
  "series": [
   "generation",
   "load",
@@ -12,13 +12,29 @@
   "load IT_NORD",
   "load IT_SARD",
   "load IT_SICI",
-  "load IT_SUD",
-  "price DE_LU",
-  "price ES",
-  "price FR",
-  "price PT"
+  "load IT_SUD"
  ],
  "fatal": [
+  {
+   "series": "load",
+   "file": "FR_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "FR_generation_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load",
+   "file": "PT_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "PT_generation_2026.parquet",
+   "why": "nothing stored"
+  },
   {
    "series": "load",
    "file": "IT_load_2026.parquet",
@@ -65,11 +81,6 @@
    "why": "nothing stored"
   },
   {
-   "series": "price DE_LU",
-   "file": "DE_price_DE_LU_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
    "series": "load",
    "file": "DE_load_2026.parquet",
    "why": "nothing stored"
@@ -80,11 +91,6 @@
    "why": "nothing stored"
   },
   {
-   "series": "price ES",
-   "file": "ES_price_ES_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
    "series": "load",
    "file": "ES_load_2026.parquet",
    "why": "nothing stored"
@@ -92,36 +98,6 @@
   {
    "series": "generation",
    "file": "ES_generation_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "price PT",
-   "file": "PT_price_PT_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "load",
-   "file": "PT_load_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "generation",
-   "file": "PT_generation_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "price FR",
-   "file": "FR_price_FR_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "load",
-   "file": "FR_load_2026.parquet",
-   "why": "nothing stored"
-  },
-  {
-   "series": "generation",
-   "file": "FR_generation_2026.parquet",
    "why": "nothing stored"
   }
  ],
