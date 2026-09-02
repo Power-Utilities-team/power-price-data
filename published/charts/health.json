@@ -1,17 +1,69 @@
 {
  "state": "failed",
- "at": "2026-09-02T13:49:50+00:00",
- "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/33628343267",
- "reason": "price DE_LU: nothing stored; load: nothing stored; generation: nothing stored; price ES: nothing stored; load: nothing stored; generation: nothing stored; price PT: nothing stored; load: nothing stored; generation: nothing stored; price FR: nothing stored; load: nothing stored; generation: nothing stored",
+ "at": "2026-09-02T15:51:40+00:00",
+ "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/33646011955",
+ "reason": "load: nothing stored; load IT_NORD: nothing stored; load IT_CNOR: nothing stored; load IT_CSUD: nothing stored; load IT_SUD: nothing stored; load IT_CALA: nothing stored; load IT_SICI: nothing stored; load IT_SARD: nothing stored; generation: nothing stored; price DE_LU: nothing stored; load: nothing stored; generation: nothing stored; price ES: nothing stored; load: nothing stored; generation: nothing stored; price PT: nothing stored; load: nothing stored; generation: nothing stored; price FR: nothing stored; load: nothing stored; generation: nothing stored",
  "series": [
   "generation",
   "load",
+  "load IT_CALA",
+  "load IT_CNOR",
+  "load IT_CSUD",
+  "load IT_NORD",
+  "load IT_SARD",
+  "load IT_SICI",
+  "load IT_SUD",
   "price DE_LU",
   "price ES",
   "price FR",
   "price PT"
  ],
  "fatal": [
+  {
+   "series": "load",
+   "file": "IT_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_NORD",
+   "file": "IT_load_IT_NORD_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_CNOR",
+   "file": "IT_load_IT_CNOR_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_CSUD",
+   "file": "IT_load_IT_CSUD_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_SUD",
+   "file": "IT_load_IT_SUD_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_CALA",
+   "file": "IT_load_IT_CALA_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_SICI",
+   "file": "IT_load_IT_SICI_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load IT_SARD",
+   "file": "IT_load_IT_SARD_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "IT_generation_2026.parquet",
+   "why": "nothing stored"
+  },
   {
    "series": "price DE_LU",
    "file": "DE_price_DE_LU_2026.parquet",
