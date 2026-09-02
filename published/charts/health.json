@@ -1,8 +1,77 @@
 {
- "state": "ok",
- "at": "2026-08-26T11:17:49+00:00",
- "reason": "",
- "series": [],
- "fatal": [],
+ "state": "failed",
+ "at": "2026-09-02T13:49:50+00:00",
+ "run": "https://github.com/Power-Utilities-team/power-price-data/actions/runs/33628343267",
+ "reason": "price DE_LU: nothing stored; load: nothing stored; generation: nothing stored; price ES: nothing stored; load: nothing stored; generation: nothing stored; price PT: nothing stored; load: nothing stored; generation: nothing stored; price FR: nothing stored; load: nothing stored; generation: nothing stored",
+ "series": [
+  "generation",
+  "load",
+  "price DE_LU",
+  "price ES",
+  "price FR",
+  "price PT"
+ ],
+ "fatal": [
+  {
+   "series": "price DE_LU",
+   "file": "DE_price_DE_LU_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load",
+   "file": "DE_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "DE_generation_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "price ES",
+   "file": "ES_price_ES_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load",
+   "file": "ES_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "ES_generation_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "price PT",
+   "file": "PT_price_PT_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load",
+   "file": "PT_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "PT_generation_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "price FR",
+   "file": "FR_price_FR_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "load",
+   "file": "FR_load_2026.parquet",
+   "why": "nothing stored"
+  },
+  {
+   "series": "generation",
+   "file": "FR_generation_2026.parquet",
+   "why": "nothing stored"
+  }
+ ],
  "stale": []
 }
