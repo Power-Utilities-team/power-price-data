@@ -1,17 +1,8 @@
 {
- "state": "ok-on-stored-data",
- "at": "2026-09-18T12:23:30+00:00",
- "reason": "load IT_NORD: fetch failed, published from stored data to 2026-09-10T11:30+00:00 (8d old)",
- "series": [
-  "load IT_NORD"
- ],
+ "state": "ok",
+ "at": "2026-09-26T12:21:49+00:00",
+ "reason": "",
+ "series": [],
  "fatal": [],
- "stale": [
-  {
-   "series": "load IT_NORD",
-   "file": "IT_load_IT_NORD_2026.parquet",
-   "covers_to": "2026-09-10T11:30+00:00",
-   "days_old": 8
-  }
- ]
+ "stale": []
 }

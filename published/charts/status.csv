@@ -1,2 +1,2 @@
 generated_utc,coverage_end,last_complete_year,frozen_history_end,charts_built_for_year,expected_refresh_days,w1,w2,w3,w4,w5,w6,w7,w8,health_state,health_note,health_tabs
-2026-09-18 12:21:16,2026-09-18 09:00,2025,2025,2025,10,2019,2020,2021,2022,2023,2024,2025,2026,stale-series,load IT_NORD from stored data to 2026-09-10T11:30+00:00 (8d old),D_NetloadDuck
+2026-09-26 12:20:02,2026-09-26 11:00,2025,2025,2025,10,2019,2020,2021,2022,2023,2024,2025,2026,ok,,
