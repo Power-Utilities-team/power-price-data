@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-10T13:53:57Z",
+  "generated_utc": "2026-10-18T12:11:33Z",
   "tables": {
     "neg_hours": {
       "rows": 48,
@@ -53,7 +53,7 @@
       ]
     },
     "daily_minmax": {
-      "rows": 17040,
+      "rows": 17088,
       "cols": [
         "country",
         "year",
